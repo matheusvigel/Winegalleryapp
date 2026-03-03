@@ -12,6 +12,7 @@ export default function Register() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [confirmationSent, setConfirmationSent] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,7 +25,7 @@ export default function Register() {
 
     setLoading(true);
 
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -42,10 +43,41 @@ export default function Register() {
       return;
     }
 
-    // Mark that onboarding hasn't been done yet for this user
+    // Se não há sessão, o Supabase exige confirmação de email
+    if (!data.session) {
+      setConfirmationSent(true);
+      setLoading(false);
+      return;
+    }
+
+    // Conta criada e sessão ativa — seguir para onboarding
     localStorage.removeItem('wine-gallery-onboarding');
     navigate('/onboarding');
   };
+
+  if (confirmationSent) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-red-900 to-red-950 flex flex-col items-center justify-center px-6">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="w-full max-w-sm bg-white rounded-2xl shadow-2xl p-8 text-center"
+        >
+          <div className="text-5xl mb-4">📬</div>
+          <h2 className="text-xl font-bold text-neutral-900 mb-2">Confirme seu email</h2>
+          <p className="text-sm text-neutral-600 mb-6">
+            Enviamos um link de confirmação para <strong>{email}</strong>. Clique no link para ativar sua conta e depois faça login.
+          </p>
+          <Link
+            to="/login"
+            className="block w-full h-11 bg-red-900 hover:bg-red-800 text-white font-semibold rounded-lg text-sm flex items-center justify-center transition-colors"
+          >
+            Ir para o login
+          </Link>
+        </motion.div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-red-900 to-red-950 flex flex-col">

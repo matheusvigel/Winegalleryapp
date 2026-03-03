@@ -20,7 +20,11 @@ export default function Login() {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
 
     if (error) {
-      setError('Email ou senha inválidos. Tente novamente.');
+      if (error.message.toLowerCase().includes('email not confirmed')) {
+        setError('Confirme seu email antes de entrar. Verifique sua caixa de entrada.');
+      } else {
+        setError('Email ou senha inválidos. Tente novamente.');
+      }
       setLoading(false);
       return;
     }
