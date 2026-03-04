@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router';
+import { useParams, useNavigate, Link } from 'react-router';
 import { ItemCard } from './ItemCard';
 import { supabase } from '../../lib/supabase';
-import { ArrowLeft, ChevronDown, Layers } from 'lucide-react';
+import { ArrowLeft, ChevronDown, ChevronRight, Layers, MapPin } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Collection, WineItem } from '../types';
 import { getProgress } from '../utils/storage';
@@ -15,11 +15,15 @@ const LEVEL_CONFIG = {
 
 type Level = keyof typeof LEVEL_CONFIG;
 
+type SubRegion = { id: string; name: string; image_url: string; description: string };
+
+// ─── Collection slide ──────────────────────────────────────────────────────────
 function CollectionSlide({
   collection,
   progress,
   isFirst,
   hasNext,
+  nextLabel,
   regionName,
   countryName,
   onBack,
@@ -28,6 +32,7 @@ function CollectionSlide({
   progress: ReturnType<typeof getProgress>;
   isFirst: boolean;
   hasNext: boolean;
+  nextLabel?: string;
   regionName: string;
   countryName?: string;
   onBack: () => void;
@@ -42,7 +47,6 @@ function CollectionSlide({
   const progressPct = totalItems > 0 ? (completedCount / totalItems) * 100 : 0;
   const ptsEarned = completedItems.reduce((sum, item) => sum + item.points, 0);
 
-  // Item carousel dot tracking
   const carouselRef = useRef<HTMLDivElement>(null);
   const [activeItem, setActiveItem] = useState(0);
 
@@ -55,7 +59,6 @@ function CollectionSlide({
 
   return (
     <div className="relative h-screen snap-start flex flex-col overflow-hidden">
-      {/* Background */}
       <img
         src={collection.coverImage}
         alt={collection.title}
@@ -64,7 +67,6 @@ function CollectionSlide({
       />
       <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/10 via-40% to-black/85" />
 
-      {/* === FIXED-POSITION HEADER (only rendered inside first slide to avoid duplication) === */}
       {isFirst && (
         <div className="absolute top-0 left-0 right-0 z-30 pt-12 pb-4 px-5 bg-gradient-to-b from-black/50 to-transparent">
           <div className="flex items-center gap-3">
@@ -85,14 +87,10 @@ function CollectionSlide({
         </div>
       )}
 
-      {/* === SLIDE CONTENT === */}
       <div className="relative z-10 flex flex-col h-full" style={{ paddingTop: isFirst ? '96px' : '48px' }}>
-        {/* Collection info */}
         <div className="px-5 pb-3">
           <div className="flex items-center gap-2 mb-2">
-            <span
-              className={`px-3 py-1 rounded-full text-[11px] font-bold text-white backdrop-blur-md border ${cfg.pill}`}
-            >
+            <span className={`px-3 py-1 rounded-full text-[11px] font-bold text-white backdrop-blur-md border ${cfg.pill}`}>
               {cfg.label}
             </span>
             <span className="text-amber-300 text-xs font-bold">{collection.totalPoints} pts total</span>
@@ -101,7 +99,6 @@ function CollectionSlide({
           <p className="text-white/65 text-[13px] leading-snug line-clamp-2">{collection.description}</p>
         </div>
 
-        {/* Items horizontal carousel */}
         <div className="flex-1 flex flex-col justify-center overflow-hidden">
           <div
             ref={carouselRef}
@@ -118,24 +115,19 @@ function CollectionSlide({
               ) : (
                 <div className="w-[270px] h-[380px] flex-shrink-0 snap-center rounded-2xl border border-white/15 bg-white/10 backdrop-blur-md flex flex-col items-center justify-center gap-3">
                   <Layers size={36} className="text-white/40" />
-                  <p className="text-white/50 text-sm text-center px-4">
-                    Nenhum item nesta coleção ainda
-                  </p>
+                  <p className="text-white/50 text-sm text-center px-4">Nenhum item nesta coleção ainda</p>
                 </div>
               )}
             </div>
           </div>
 
-          {/* Item dots */}
           {collection.items.length > 1 && (
             <div className="flex items-center justify-center gap-1.5 mt-2">
               {collection.items.map((_, i) => (
                 <div
                   key={i}
                   className={`rounded-full transition-all duration-300 ${
-                    i === activeItem
-                      ? `w-4 h-1.5 ${cfg.dot}`
-                      : 'w-1.5 h-1.5 bg-white/30'
+                    i === activeItem ? `w-4 h-1.5 ${cfg.dot}` : 'w-1.5 h-1.5 bg-white/30'
                   }`}
                 />
               ))}
@@ -143,7 +135,6 @@ function CollectionSlide({
           )}
         </div>
 
-        {/* Progress bar */}
         <div className="px-5 pb-4">
           <div className="bg-black/30 backdrop-blur-md rounded-2xl p-3 border border-white/10">
             <div className="flex items-center justify-between mb-2">
@@ -162,7 +153,6 @@ function CollectionSlide({
             </div>
           </div>
 
-          {/* Scroll hint */}
           <AnimatePresence>
             {hasNext && (
               <motion.div
@@ -171,7 +161,9 @@ function CollectionSlide({
                 exit={{ opacity: 0 }}
                 className="flex flex-col items-center gap-1 mt-3"
               >
-                <span className="text-white/40 text-[11px] tracking-wide">Próxima coleção</span>
+                <span className="text-white/40 text-[11px] tracking-wide">
+                  {nextLabel ?? 'Próxima coleção'}
+                </span>
                 <motion.div
                   animate={{ y: [0, 4, 0] }}
                   transition={{ repeat: Infinity, duration: 1.4, ease: 'easeInOut' }}
@@ -182,6 +174,104 @@ function CollectionSlide({
             )}
           </AnimatePresence>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Sub-regions slide ─────────────────────────────────────────────────────────
+function SubRegionsSlide({
+  subRegions,
+  regionName,
+  countryName,
+  isFirst,
+  onBack,
+}: {
+  subRegions: SubRegion[];
+  regionName: string;
+  countryName?: string;
+  isFirst: boolean;
+  onBack: () => void;
+}) {
+  return (
+    <div className="relative h-screen snap-start flex flex-col overflow-hidden bg-neutral-950">
+      {/* Subtle background from first sub-region image */}
+      {subRegions[0]?.image_url && (
+        <>
+          <img
+            src={subRegions[0].image_url}
+            alt=""
+            className="absolute inset-0 w-full h-full object-cover opacity-20"
+            draggable={false}
+          />
+          <div className="absolute inset-0 bg-gradient-to-b from-neutral-950/80 to-neutral-950/95" />
+        </>
+      )}
+
+      {/* Header */}
+      <div className="relative z-10 pt-12 pb-4 px-5">
+        {isFirst && (
+          <div className="flex items-center gap-3 mb-6">
+            <motion.button
+              whileTap={{ scale: 0.9 }}
+              onClick={onBack}
+              className="w-9 h-9 rounded-full bg-white/10 backdrop-blur-md border border-white/15 flex items-center justify-center flex-shrink-0"
+            >
+              <ArrowLeft size={18} className="text-white" />
+            </motion.button>
+            <div className="min-w-0">
+              {countryName && (
+                <p className="text-rose-300 text-[11px] font-medium uppercase tracking-wide">{countryName}</p>
+              )}
+              <h1 className="text-white font-bold text-lg leading-tight truncate">{regionName}</h1>
+            </div>
+          </div>
+        )}
+
+        <div className={`flex items-center gap-2 ${isFirst ? '' : 'mt-4'}`}>
+          <div className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center">
+            <MapPin size={14} className="text-rose-300" />
+          </div>
+          <div>
+            <p className="text-white/50 text-[11px] uppercase tracking-widest font-medium">Sub-regiões</p>
+            <p className="text-white font-bold text-base leading-tight">{regionName}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Sub-region cards */}
+      <div className="relative z-10 flex-1 overflow-y-auto px-5 pb-8 space-y-3">
+        {subRegions.map((sr, i) => (
+          <motion.div
+            key={sr.id}
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.05 * i, duration: 0.35 }}
+          >
+            <Link to={`/region/${sr.id}`}>
+              <div className="relative h-28 rounded-2xl overflow-hidden shadow-lg">
+                <img
+                  src={sr.image_url}
+                  alt={sr.name}
+                  className="absolute inset-0 w-full h-full object-cover"
+                  draggable={false}
+                />
+                <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/30 to-transparent" />
+                <div className="absolute inset-0 flex items-center justify-between px-4">
+                  <div className="min-w-0">
+                    <p className="text-white font-bold text-base leading-tight">{sr.name}</p>
+                    {sr.description && (
+                      <p className="text-white/60 text-xs mt-0.5 line-clamp-1">{sr.description}</p>
+                    )}
+                  </div>
+                  <div className="w-8 h-8 rounded-full bg-white/15 backdrop-blur-md border border-white/20 flex items-center justify-center flex-shrink-0 ml-3">
+                    <ChevronRight size={16} className="text-white" />
+                  </div>
+                </div>
+              </div>
+            </Link>
+          </motion.div>
+        ))}
       </div>
     </div>
   );
@@ -222,6 +312,7 @@ export default function RegionDetail() {
   const [countryName, setCountryName] = useState<string | undefined>(undefined);
   const [countryId, setCountryId] = useState<string | undefined>(undefined);
   const [allCollections, setAllCollections] = useState<Collection[]>([]);
+  const [subRegions, setSubRegions] = useState<SubRegion[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedLevel, setSelectedLevel] = useState<string>('all');
   const [progress, setProgress] = useState(getProgress());
@@ -239,12 +330,18 @@ export default function RegionDetail() {
   useEffect(() => {
     if (!regionId) return;
     const load = async () => {
-      // 1. Region + country
-      const { data: region } = await supabase
-        .from('regions').select('id, name, country_id').eq('id', regionId).single();
+      // 1. Region + country + sub-regions (parallel)
+      const [{ data: region }, { data: subs }] = await Promise.all([
+        supabase.from('regions').select('id, name, country_id').eq('id', regionId).single(),
+        supabase.from('regions').select('id, name, image_url, description')
+          .eq('parent_id', regionId)
+          .order('name'),
+      ]);
+
       if (!region) { setLoading(false); return; }
       setRegionName(region.name);
       setCountryId(region.country_id);
+      setSubRegions(subs ?? []);
 
       const { data: country } = await supabase
         .from('countries').select('name').eq('id', region.country_id).single();
@@ -318,16 +415,18 @@ export default function RegionDetail() {
     );
   }
 
-  const regionCollections = allCollections;
-
-  const essentialCount = regionCollections.filter(c => c.level === 'essential').length;
-  const escapeCount = regionCollections.filter(c => c.level === 'escape').length;
-  const iconCount = regionCollections.filter(c => c.level === 'icon').length;
+  const essentialCount = allCollections.filter(c => c.level === 'essential').length;
+  const escapeCount = allCollections.filter(c => c.level === 'escape').length;
+  const iconCount = allCollections.filter(c => c.level === 'icon').length;
 
   const filteredCollections =
     selectedLevel === 'all'
-      ? regionCollections
-      : regionCollections.filter(c => c.level === selectedLevel);
+      ? allCollections
+      : allCollections.filter(c => c.level === selectedLevel);
+
+  const hasSubRegions = subRegions.length > 0;
+  const hasCollections = filteredCollections.length > 0;
+  const showEmpty = !hasCollections && !hasSubRegions;
 
   const handleBack = () => {
     if (countryId) navigate(`/country/${countryId}`);
@@ -336,60 +435,81 @@ export default function RegionDetail() {
 
   return (
     <div className="fixed inset-0 bg-black">
-      {/* Filter bar — floats on top, always visible */}
-      <div className="absolute top-0 left-0 right-0 z-40 pointer-events-none">
-        <div className="pointer-events-auto flex gap-2 overflow-x-auto scrollbar-hide px-5 pb-3"
-             style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 148px)' }}>
-          <FilterPill
-            label={`Todas (${regionCollections.length})`}
-            active={selectedLevel === 'all'}
-            color="bg-rose-800"
-            onClick={() => setSelectedLevel('all')}
-          />
-          {essentialCount > 0 && (
+      {/* Filter bar — only shown if there are collections */}
+      {allCollections.length > 0 && (
+        <div className="absolute top-0 left-0 right-0 z-40 pointer-events-none">
+          <div
+            className="pointer-events-auto flex gap-2 overflow-x-auto scrollbar-hide px-5 pb-3"
+            style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 148px)' }}
+          >
             <FilterPill
-              label={`Essencial (${essentialCount})`}
-              active={selectedLevel === 'essential'}
-              color="bg-emerald-600"
-              onClick={() => setSelectedLevel('essential')}
+              label={`Todas (${allCollections.length})`}
+              active={selectedLevel === 'all'}
+              color="bg-rose-800"
+              onClick={() => setSelectedLevel('all')}
             />
-          )}
-          {escapeCount > 0 && (
-            <FilterPill
-              label={`Fugir do Óbvio (${escapeCount})`}
-              active={selectedLevel === 'escape'}
-              color="bg-sky-600"
-              onClick={() => setSelectedLevel('escape')}
-            />
-          )}
-          {iconCount > 0 && (
-            <FilterPill
-              label={`Ícones (${iconCount})`}
-              active={selectedLevel === 'icon'}
-              color="bg-amber-600"
-              onClick={() => setSelectedLevel('icon')}
-            />
-          )}
+            {essentialCount > 0 && (
+              <FilterPill
+                label={`Essencial (${essentialCount})`}
+                active={selectedLevel === 'essential'}
+                color="bg-emerald-600"
+                onClick={() => setSelectedLevel('essential')}
+              />
+            )}
+            {escapeCount > 0 && (
+              <FilterPill
+                label={`Fugir do Óbvio (${escapeCount})`}
+                active={selectedLevel === 'escape'}
+                color="bg-sky-600"
+                onClick={() => setSelectedLevel('escape')}
+              />
+            )}
+            {iconCount > 0 && (
+              <FilterPill
+                label={`Ícones (${iconCount})`}
+                active={selectedLevel === 'icon'}
+                color="bg-amber-600"
+                onClick={() => setSelectedLevel('icon')}
+              />
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Snap scroll container */}
       <div className="h-full overflow-y-scroll snap-y snap-mandatory scrollbar-hide">
-        {filteredCollections.length > 0 ? (
-          filteredCollections.map((collection, index) => (
+        {/* Collection slides */}
+        {filteredCollections.map((collection, index) => {
+          const isLast = index === filteredCollections.length - 1;
+          const nextLabel = isLast && hasSubRegions ? 'Sub-regiões' : undefined;
+          return (
             <CollectionSlide
               key={collection.id}
               collection={collection}
               progress={progress}
               isFirst={index === 0}
-              hasNext={index < filteredCollections.length - 1}
+              hasNext={!isLast || hasSubRegions}
+              nextLabel={nextLabel}
               regionName={regionName}
               countryName={countryName}
               onBack={handleBack}
             />
-          ))
-        ) : (
-          /* Empty state — fullscreen */
+          );
+        })}
+
+        {/* Sub-regions slide */}
+        {hasSubRegions && (
+          <SubRegionsSlide
+            subRegions={subRegions}
+            regionName={regionName}
+            countryName={countryName}
+            isFirst={!hasCollections}
+            onBack={handleBack}
+          />
+        )}
+
+        {/* Empty state — no collections AND no sub-regions */}
+        {showEmpty && (
           <div className="h-screen snap-start relative flex flex-col items-center justify-center bg-neutral-950">
             <div className="px-5 pt-14 pb-6 absolute top-0 left-0 right-0">
               <div className="flex items-center gap-3">
@@ -409,7 +529,7 @@ export default function RegionDetail() {
               </div>
             </div>
             <Layers size={48} className="text-white/20 mb-4" />
-            <p className="text-white/40 text-sm">Nenhuma coleção neste filtro</p>
+            <p className="text-white/40 text-sm">Nenhuma coleção cadastrada ainda</p>
           </div>
         )}
       </div>
