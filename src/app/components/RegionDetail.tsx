@@ -1,182 +1,340 @@
-import { useState, useEffect } from 'react';
-import { useParams, Link, useNavigate } from 'react-router';
+import { useState, useEffect, useRef } from 'react';
+import { useParams, useNavigate } from 'react-router';
 import { findRegion, findCountry } from '../data/wineData';
-import { CollectionHeader } from './CollectionHeader';
 import { ItemCard } from './ItemCard';
-import { ArrowLeft, Filter } from 'lucide-react';
-import { motion } from 'motion/react';
-import { Badge } from './ui/badge';
+import { ArrowLeft, ChevronDown, Layers } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import { Collection } from '../types';
 import { getProgress } from '../utils/storage';
 
+const LEVEL_CONFIG = {
+  essential: { label: 'Essencial', pill: 'bg-emerald-500/80 border-emerald-400/40', dot: 'bg-emerald-400' },
+  escape: { label: 'Fugir do Óbvio', pill: 'bg-sky-500/80 border-sky-400/40', dot: 'bg-sky-400' },
+  icon: { label: 'Ícone', pill: 'bg-amber-500/80 border-amber-400/40', dot: 'bg-amber-400' },
+} as const;
+
+type Level = keyof typeof LEVEL_CONFIG;
+
+function CollectionSlide({
+  collection,
+  progress,
+  isFirst,
+  hasNext,
+  regionName,
+  countryName,
+  onBack,
+}: {
+  collection: Collection;
+  progress: ReturnType<typeof getProgress>;
+  isFirst: boolean;
+  hasNext: boolean;
+  regionName: string;
+  countryName?: string;
+  onBack: () => void;
+}) {
+  const cfg = LEVEL_CONFIG[collection.level as Level] ?? LEVEL_CONFIG.essential;
+
+  const completedItems = collection.items.filter(item =>
+    progress.find(p => p.itemId === item.id && p.status === 'completed')
+  );
+  const completedCount = completedItems.length;
+  const totalItems = collection.items.length;
+  const progressPct = totalItems > 0 ? (completedCount / totalItems) * 100 : 0;
+  const ptsEarned = completedItems.reduce((sum, item) => sum + item.points, 0);
+
+  // Item carousel dot tracking
+  const carouselRef = useRef<HTMLDivElement>(null);
+  const [activeItem, setActiveItem] = useState(0);
+
+  const handleCarouselScroll = () => {
+    const el = carouselRef.current;
+    if (!el || collection.items.length === 0) return;
+    const cardWidth = el.scrollWidth / collection.items.length;
+    setActiveItem(Math.round(el.scrollLeft / cardWidth));
+  };
+
+  return (
+    <div className="relative h-screen snap-start flex flex-col overflow-hidden">
+      {/* Background */}
+      <img
+        src={collection.coverImage}
+        alt={collection.title}
+        className="absolute inset-0 w-full h-full object-cover"
+        draggable={false}
+      />
+      <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/10 via-40% to-black/85" />
+
+      {/* === FIXED-POSITION HEADER (only rendered inside first slide to avoid duplication) === */}
+      {isFirst && (
+        <div className="absolute top-0 left-0 right-0 z-30 pt-12 pb-4 px-5 bg-gradient-to-b from-black/50 to-transparent">
+          <div className="flex items-center gap-3">
+            <motion.button
+              whileTap={{ scale: 0.9 }}
+              onClick={onBack}
+              className="w-9 h-9 rounded-full bg-black/30 backdrop-blur-md border border-white/15 flex items-center justify-center flex-shrink-0"
+            >
+              <ArrowLeft size={18} className="text-white" />
+            </motion.button>
+            <div className="min-w-0">
+              {countryName && (
+                <p className="text-rose-300 text-[11px] font-medium uppercase tracking-wide">{countryName}</p>
+              )}
+              <h1 className="text-white font-bold text-lg leading-tight truncate">{regionName}</h1>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* === SLIDE CONTENT === */}
+      <div className="relative z-10 flex flex-col h-full" style={{ paddingTop: isFirst ? '96px' : '48px' }}>
+        {/* Collection info */}
+        <div className="px-5 pb-3">
+          <div className="flex items-center gap-2 mb-2">
+            <span
+              className={`px-3 py-1 rounded-full text-[11px] font-bold text-white backdrop-blur-md border ${cfg.pill}`}
+            >
+              {cfg.label}
+            </span>
+            <span className="text-amber-300 text-xs font-bold">{collection.totalPoints} pts total</span>
+          </div>
+          <h2 className="text-2xl font-bold text-white leading-tight mb-1">{collection.title}</h2>
+          <p className="text-white/65 text-[13px] leading-snug line-clamp-2">{collection.description}</p>
+        </div>
+
+        {/* Items horizontal carousel */}
+        <div className="flex-1 flex flex-col justify-center overflow-hidden">
+          <div
+            ref={carouselRef}
+            onScroll={handleCarouselScroll}
+            className="overflow-x-auto snap-x snap-mandatory scrollbar-hide"
+          >
+            <div className="flex gap-3 px-5 py-2" style={{ width: 'max-content' }}>
+              {collection.items.length > 0 ? (
+                collection.items.map(item => (
+                  <div key={item.id} className="w-[270px] flex-shrink-0 snap-center">
+                    <ItemCard item={item} />
+                  </div>
+                ))
+              ) : (
+                <div className="w-[270px] h-[380px] flex-shrink-0 snap-center rounded-2xl border border-white/15 bg-white/10 backdrop-blur-md flex flex-col items-center justify-center gap-3">
+                  <Layers size={36} className="text-white/40" />
+                  <p className="text-white/50 text-sm text-center px-4">
+                    Nenhum item nesta coleção ainda
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Item dots */}
+          {collection.items.length > 1 && (
+            <div className="flex items-center justify-center gap-1.5 mt-2">
+              {collection.items.map((_, i) => (
+                <div
+                  key={i}
+                  className={`rounded-full transition-all duration-300 ${
+                    i === activeItem
+                      ? `w-4 h-1.5 ${cfg.dot}`
+                      : 'w-1.5 h-1.5 bg-white/30'
+                  }`}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Progress bar */}
+        <div className="px-5 pb-4">
+          <div className="bg-black/30 backdrop-blur-md rounded-2xl p-3 border border-white/10">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-white/70 text-xs">
+                {completedCount} de {totalItems} {totalItems === 1 ? 'provado' : 'provados'}
+              </span>
+              <span className="text-amber-300 text-xs font-bold">{ptsEarned} pts</span>
+            </div>
+            <div className="h-1.5 bg-white/15 rounded-full overflow-hidden">
+              <motion.div
+                className={`h-full rounded-full ${cfg.dot}`}
+                initial={{ width: 0 }}
+                animate={{ width: `${progressPct}%` }}
+                transition={{ duration: 0.6, ease: 'easeOut' }}
+              />
+            </div>
+          </div>
+
+          {/* Scroll hint */}
+          <AnimatePresence>
+            {hasNext && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="flex flex-col items-center gap-1 mt-3"
+              >
+                <span className="text-white/40 text-[11px] tracking-wide">Próxima coleção</span>
+                <motion.div
+                  animate={{ y: [0, 4, 0] }}
+                  transition={{ repeat: Infinity, duration: 1.4, ease: 'easeInOut' }}
+                >
+                  <ChevronDown size={18} className="text-white/40" />
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Filter pill ───────────────────────────────────────────────────────────────
+function FilterPill({
+  label,
+  active,
+  color,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  color: string;
+  onClick: () => void;
+}) {
+  return (
+    <motion.button
+      whileTap={{ scale: 0.93 }}
+      onClick={onClick}
+      className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all border backdrop-blur-md ${
+        active
+          ? `${color} text-white border-transparent shadow-lg`
+          : 'bg-white/10 text-white/70 border-white/15'
+      }`}
+    >
+      {label}
+    </motion.button>
+  );
+}
+
+// ─── Main component ────────────────────────────────────────────────────────────
 export default function RegionDetail() {
   const { regionId } = useParams<{ regionId: string }>();
   const navigate = useNavigate();
   const region = findRegion(regionId!);
   const [selectedLevel, setSelectedLevel] = useState<string>('all');
   const [progress, setProgress] = useState(getProgress());
-  
-  // Update progress when storage changes
+
   useEffect(() => {
-    const handleUpdate = () => {
-      setProgress(getProgress());
-    };
-    
+    const handleUpdate = () => setProgress(getProgress());
     window.addEventListener('storage', handleUpdate);
     window.addEventListener('statsUpdated', handleUpdate);
-    
     return () => {
       window.removeEventListener('storage', handleUpdate);
       window.removeEventListener('statsUpdated', handleUpdate);
     };
   }, []);
-  
+
   if (!region) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p className="text-neutral-600">Região não encontrada</p>
+      <div className="min-h-screen flex items-center justify-center bg-neutral-900">
+        <p className="text-neutral-400">Região não encontrada</p>
       </div>
     );
   }
-  
+
   const country = findCountry(region.countryId);
   const regionCollections = region.collections;
-  
-  const filteredCollections = selectedLevel === 'all'
-    ? regionCollections
-    : regionCollections.filter(coll => coll.level === selectedLevel);
-  
+
   const essentialCount = regionCollections.filter(c => c.level === 'essential').length;
   const escapeCount = regionCollections.filter(c => c.level === 'escape').length;
   const iconCount = regionCollections.filter(c => c.level === 'icon').length;
-  
-  // Function to get completed count for a collection
-  const getCollectionCompletedCount = (collectionId: string) => {
-    const collection = regionCollections.find(c => c.id === collectionId);
-    if (!collection) return 0;
-    
-    const completedItems = collection.items.filter(item => {
-      const itemProgress = progress.find(p => p.itemId === item.id);
-      return itemProgress?.status === 'completed';
-    });
-    
-    return completedItems.length;
-  };
-  
+
+  const filteredCollections =
+    selectedLevel === 'all'
+      ? regionCollections
+      : regionCollections.filter(c => c.level === selectedLevel);
+
   const handleBack = () => {
-    if (country) {
-      navigate(`/country/${country.id}`);
-    } else {
-      navigate('/');
-    }
+    if (country) navigate(`/country/${country.id}`);
+    else navigate('/');
   };
-  
+
   return (
-    <div className="min-h-screen bg-neutral-50">
-      {/* Hero Section */}
-      <div className="relative h-64">
-        <img
-          src={region.imageUrl}
-          alt={region.name}
-          className="w-full h-full object-cover"
-        />
-        <div className="absolute inset-0 bg-gradient-to-b from-black/40 to-black/70" />
-        
-        {/* Back Button */}
-        <button
-          onClick={handleBack}
-          className="absolute top-4 left-4 bg-white/90 p-2 rounded-full shadow-lg hover:bg-white transition-colors"
-        >
-          <ArrowLeft size={24} className="text-neutral-900" />
-        </button>
-        
-        {/* Region Info */}
-        <div className="absolute bottom-6 left-6 right-6">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-          >
-            <p className="text-red-300 text-sm mb-1">{country?.name}</p>
-            <h1 className="text-3xl font-bold text-white mb-2">{region.name}</h1>
-            <p className="text-neutral-200 text-sm">{region.description}</p>
-          </motion.div>
-        </div>
-      </div>
-      
-      {/* Filter Section */}
-      <div className="max-w-lg mx-auto px-6 py-6 sticky top-0 bg-neutral-50 z-10 border-b border-neutral-200">
-        <div className="flex items-center gap-2 mb-3">
-          <Filter size={18} className="text-neutral-600" />
-          <span className="text-sm font-medium text-neutral-700">Filtrar Coleções</span>
-        </div>
-        
-        <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-          <Badge
-            variant={selectedLevel === 'all' ? 'default' : 'outline'}
-            className="cursor-pointer whitespace-nowrap bg-red-800 hover:bg-red-900"
+    <div className="fixed inset-0 bg-black">
+      {/* Filter bar — floats on top, always visible */}
+      <div className="absolute top-0 left-0 right-0 z-40 pointer-events-none">
+        <div className="pointer-events-auto flex gap-2 overflow-x-auto scrollbar-hide px-5 pb-3"
+             style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 148px)' }}>
+          <FilterPill
+            label={`Todas (${regionCollections.length})`}
+            active={selectedLevel === 'all'}
+            color="bg-rose-800"
             onClick={() => setSelectedLevel('all')}
-          >
-            Todas ({regionCollections.length})
-          </Badge>
-          <Badge
-            variant={selectedLevel === 'essential' ? 'default' : 'outline'}
-            className={`cursor-pointer whitespace-nowrap ${selectedLevel === 'essential' ? 'bg-green-600 hover:bg-green-700' : 'bg-green-100 text-green-800 hover:bg-green-200 border-green-300'}`}
-            onClick={() => setSelectedLevel('essential')}
-          >
-            Essencial ({essentialCount})
-          </Badge>
-          <Badge
-            variant={selectedLevel === 'escape' ? 'default' : 'outline'}
-            className={`cursor-pointer whitespace-nowrap ${selectedLevel === 'escape' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-100 text-blue-800 hover:bg-blue-200 border-blue-300'}`}
-            onClick={() => setSelectedLevel('escape')}
-          >
-            Fugir do Óbvio ({escapeCount})
-          </Badge>
-          <Badge
-            variant={selectedLevel === 'icon' ? 'default' : 'outline'}
-            className={`cursor-pointer whitespace-nowrap ${selectedLevel === 'icon' ? 'bg-yellow-600 hover:bg-yellow-700' : 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200 border-yellow-300'}`}
-            onClick={() => setSelectedLevel('icon')}
-          >
-            Ícones ({iconCount})
-          </Badge>
-        </div>
-      </div>
-      
-      {/* Collections List */}
-      <div className="max-w-lg mx-auto px-6 pb-6">
-        <div className="space-y-8">
-          {filteredCollections.map((collection, index) => (
-            <motion.div
-              key={collection.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 * index }}
-            >
-              <CollectionHeader 
-                collection={collection} 
-                completedCount={getCollectionCompletedCount(collection.id)}
-              />
-              
-              {/* Horizontal Scroll Cards */}
-              <div className="relative -mx-6">
-                <div className="overflow-x-auto px-6 pb-4 scrollbar-hide">
-                  <div className="flex gap-4" style={{ width: 'max-content' }}>
-                    {collection.items.map((item) => (
-                      <div key={item.id} className="w-80 flex-shrink-0">
-                        <ItemCard item={item} />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          ))}
-          
-          {filteredCollections.length === 0 && (
-            <div className="text-center py-12">
-              <p className="text-neutral-600">Nenhuma coleção encontrada neste nível</p>
-            </div>
+          />
+          {essentialCount > 0 && (
+            <FilterPill
+              label={`Essencial (${essentialCount})`}
+              active={selectedLevel === 'essential'}
+              color="bg-emerald-600"
+              onClick={() => setSelectedLevel('essential')}
+            />
+          )}
+          {escapeCount > 0 && (
+            <FilterPill
+              label={`Fugir do Óbvio (${escapeCount})`}
+              active={selectedLevel === 'escape'}
+              color="bg-sky-600"
+              onClick={() => setSelectedLevel('escape')}
+            />
+          )}
+          {iconCount > 0 && (
+            <FilterPill
+              label={`Ícones (${iconCount})`}
+              active={selectedLevel === 'icon'}
+              color="bg-amber-600"
+              onClick={() => setSelectedLevel('icon')}
+            />
           )}
         </div>
+      </div>
+
+      {/* Snap scroll container */}
+      <div className="h-full overflow-y-scroll snap-y snap-mandatory scrollbar-hide">
+        {filteredCollections.length > 0 ? (
+          filteredCollections.map((collection, index) => (
+            <CollectionSlide
+              key={collection.id}
+              collection={collection}
+              progress={progress}
+              isFirst={index === 0}
+              hasNext={index < filteredCollections.length - 1}
+              regionName={region.name}
+              countryName={country?.name}
+              onBack={handleBack}
+            />
+          ))
+        ) : (
+          /* Empty state — fullscreen */
+          <div className="h-screen snap-start relative flex flex-col items-center justify-center bg-neutral-950">
+            <div className="px-5 pt-14 pb-6 absolute top-0 left-0 right-0">
+              <div className="flex items-center gap-3">
+                <motion.button
+                  whileTap={{ scale: 0.9 }}
+                  onClick={handleBack}
+                  className="w-9 h-9 rounded-full bg-white/10 backdrop-blur-md border border-white/15 flex items-center justify-center"
+                >
+                  <ArrowLeft size={18} className="text-white" />
+                </motion.button>
+                <div>
+                  {country && (
+                    <p className="text-rose-300 text-[11px] uppercase tracking-wide">{country.name}</p>
+                  )}
+                  <h1 className="text-white font-bold text-lg">{region.name}</h1>
+                </div>
+              </div>
+            </div>
+            <Layers size={48} className="text-white/20 mb-4" />
+            <p className="text-white/40 text-sm">Nenhuma coleção neste filtro</p>
+          </div>
+        )}
       </div>
     </div>
   );
