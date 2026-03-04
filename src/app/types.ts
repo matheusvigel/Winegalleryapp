@@ -10,6 +10,9 @@ export interface WineItem {
   imageUrl: string;
   points: number;
   level: WineLevel;
+  wineType?: string | null;
+  elaborationMethod?: string | null;
+  brandName?: string | null;
   // Links to navigation
   regionIds?: string[]; // Can belong to multiple regions
   brandId?: string; // Belongs to a brand

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { WineItem } from '../types';
 import { getItemStatus, updateItemStatus } from '../utils/storage';
-import { Heart, Check, Wine, Building2 } from 'lucide-react';
+import { Heart, Check, Building2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface ItemCardProps {
@@ -25,21 +25,6 @@ export function ItemCard({ item }: ItemCardProps) {
     window.dispatchEvent(new Event('statsUpdated'));
   };
 
-  const getLevelConfig = (level: string) => {
-    switch (level) {
-      case 'essential':
-        return { label: 'Essencial', bg: 'bg-emerald-500/80', border: 'border-emerald-400/40' };
-      case 'escape':
-        return { label: 'Fugir do Óbvio', bg: 'bg-sky-500/80', border: 'border-sky-400/40' };
-      case 'icon':
-        return { label: 'Ícone', bg: 'bg-amber-500/80', border: 'border-amber-400/40' };
-      default:
-        return { label: level, bg: 'bg-neutral-500/80', border: 'border-neutral-400/40' };
-    }
-  };
-
-  const levelConfig = getLevelConfig(item.level);
-
   return (
     <div className="relative w-full h-[460px] rounded-2xl overflow-hidden shadow-2xl bg-neutral-900 select-none">
       {/* Background image */}
@@ -54,14 +39,21 @@ export function ItemCard({ item }: ItemCardProps) {
       <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent via-40% to-black/90" />
       <div className="absolute inset-0 bg-gradient-to-r from-black/20 to-transparent" />
 
-      {/* Top row: level badge + points */}
+      {/* Top row: wine_type + elaboration_method pills + points */}
       <div className="absolute top-0 left-0 right-0 p-4 flex items-start justify-between z-10">
-        <div
-          className={`px-3 py-1 rounded-full text-[11px] font-bold text-white backdrop-blur-md border ${levelConfig.bg} ${levelConfig.border}`}
-        >
-          {levelConfig.label}
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {item.wineType && (
+            <span className="px-2.5 py-1 rounded-full text-[11px] font-semibold text-white bg-white/15 backdrop-blur-md border border-white/20">
+              {item.wineType}
+            </span>
+          )}
+          {item.elaborationMethod && (
+            <span className="px-2.5 py-1 rounded-full text-[11px] font-semibold text-white bg-white/15 backdrop-blur-md border border-white/20">
+              {item.elaborationMethod}
+            </span>
+          )}
         </div>
-        <div className="bg-black/30 backdrop-blur-md px-3 py-1 rounded-full border border-white/10">
+        <div className="bg-black/30 backdrop-blur-md px-3 py-1 rounded-full border border-white/10 flex-shrink-0">
           <span className="text-xs font-bold text-amber-300">+{item.points} pts</span>
         </div>
       </div>
@@ -141,26 +133,24 @@ export function ItemCard({ item }: ItemCardProps) {
         </motion.button>
       </div>
 
-      {/* Bottom info — glassmorphism panel */}
+      {/* Bottom info */}
       <div className="absolute bottom-0 left-0 right-14 p-4 z-10">
-        {/* Type pill */}
-        <div className="flex items-center gap-1.5 mb-2">
-          <div className="bg-white/15 backdrop-blur-md rounded-full p-1 border border-white/10">
-            {item.type === 'wine' ? (
-              <Wine size={13} className="text-white" />
-            ) : (
-              <Building2 size={13} className="text-white" />
-            )}
-          </div>
-          <span className="text-white/70 text-xs font-medium tracking-wide uppercase">
-            {item.type === 'wine' ? 'Vinho' : 'Vinícola'}
-          </span>
-        </div>
-
-        <h3 className="text-[17px] font-bold text-white leading-tight mb-1.5 drop-shadow-md">
+        <h3 className="text-[17px] font-bold text-white leading-tight drop-shadow-md">
           {item.name}
         </h3>
-        <p className="text-white/65 text-[13px] leading-snug line-clamp-2">{item.description}</p>
+
+        {item.brandName && (
+          <div className="flex items-center gap-1 mt-1 mb-1.5">
+            <Building2 size={11} className="text-white/50 flex-shrink-0" />
+            <span className="text-white/55 text-[12px] font-medium leading-none">
+              {item.brandName}
+            </span>
+          </div>
+        )}
+
+        <p className="text-white/65 text-[13px] leading-snug line-clamp-2 mt-1.5">
+          {item.description}
+        </p>
       </div>
 
       {/* Completed overlay flash */}

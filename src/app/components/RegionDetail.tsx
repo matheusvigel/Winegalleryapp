@@ -267,11 +267,18 @@ export default function RegionDetail() {
 
       let itemMap: Record<string, WineItem> = {};
       if (itemIds.length > 0) {
-        const { data: wines } = await supabase.from('wine_items').select('*').in('id', itemIds);
+        const { data: wines } = await supabase
+          .from('wine_items')
+          .select('*, brands(name)')
+          .in('id', itemIds);
         for (const w of wines ?? []) {
+          const brand = w.brands as { name: string } | null;
           itemMap[w.id] = {
             id: w.id, name: w.name, description: w.description,
             type: w.type, imageUrl: w.image_url, points: w.points, level: w.level,
+            wineType: w.wine_type,
+            elaborationMethod: w.elaboration_method,
+            brandName: brand?.name ?? null,
           };
         }
       }
