@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { WineItem } from '../types';
 import { getItemStatus, updateItemStatus } from '../utils/storage';
 import { Heart, Check, Wine, Building2 } from 'lucide-react';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 
 interface ItemCardProps {
   item: WineItem;
@@ -10,129 +10,174 @@ interface ItemCardProps {
 
 export function ItemCard({ item }: ItemCardProps) {
   const [status, setStatus] = useState<'wishlist' | 'completed' | null>(null);
-  
+  const [ripple, setRipple] = useState<'wishlist' | 'completed' | null>(null);
+
   useEffect(() => {
     setStatus(getItemStatus(item.id));
   }, [item.id]);
-  
-  const handleStatusChange = (newStatus: 'wishlist' | 'completed' | null) => {
+
+  const handleStatusChange = (newStatus: 'wishlist' | 'completed') => {
     const finalStatus = status === newStatus ? null : newStatus;
     setStatus(finalStatus);
+    setRipple(newStatus);
+    setTimeout(() => setRipple(null), 600);
     updateItemStatus(item.id, finalStatus, item.points);
-    
-    // Dispatch custom event for same-tab updates
     window.dispatchEvent(new Event('statsUpdated'));
   };
-  
-  const getLevelColor = (level: string) => {
+
+  const getLevelConfig = (level: string) => {
     switch (level) {
       case 'essential':
-        return 'bg-green-100 text-green-800 border-green-300';
+        return { label: 'Essencial', bg: 'bg-emerald-500/80', border: 'border-emerald-400/40' };
       case 'escape':
-        return 'bg-blue-100 text-blue-800 border-blue-300';
+        return { label: 'Fugir do Óbvio', bg: 'bg-sky-500/80', border: 'border-sky-400/40' };
       case 'icon':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-300';
+        return { label: 'Ícone', bg: 'bg-amber-500/80', border: 'border-amber-400/40' };
       default:
-        return 'bg-neutral-100 text-neutral-800 border-neutral-300';
+        return { label: level, bg: 'bg-neutral-500/80', border: 'border-neutral-400/40' };
     }
   };
-  
-  const getLevelLabel = (level: string) => {
-    switch (level) {
-      case 'essential':
-        return 'Essencial';
-      case 'escape':
-        return 'Fugir do Óbvio';
-      case 'icon':
-        return 'Ícone';
-      default:
-        return level;
-    }
-  };
-  
-  const getTypeIcon = (type: string) => {
-    switch (type) {
-      case 'wine':
-        return <Wine size={16} />;
-      case 'winery':
-        return <Building2 size={16} />;
-      default:
-        return null;
-    }
-  };
-  
-  const getTypeLabel = (type: string) => {
-    switch (type) {
-      case 'wine':
-        return 'Vinho';
-      case 'winery':
-        return 'Vinícola';
-      default:
-        return type;
-    }
-  };
-  
+
+  const levelConfig = getLevelConfig(item.level);
+
   return (
-    <div className="bg-white rounded-xl shadow-md overflow-hidden h-full flex flex-col">
-      <div className="relative h-48 flex-shrink-0">
-        <img
-          src={item.imageUrl}
-          alt={item.name}
-          className="w-full h-full object-cover"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-        
-        {/* Level Badge */}
-        <div className="absolute top-3 left-3">
-          <div className={`px-3 py-1 rounded-full text-xs font-medium border ${getLevelColor(item.level)}`}>
-            {getLevelLabel(item.level)}
-          </div>
+    <div className="relative w-full h-[460px] rounded-2xl overflow-hidden shadow-2xl bg-neutral-900 select-none">
+      {/* Background image */}
+      <img
+        src={item.imageUrl}
+        alt={item.name}
+        className="absolute inset-0 w-full h-full object-cover"
+        draggable={false}
+      />
+
+      {/* Cinematic gradient layers */}
+      <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent via-40% to-black/90" />
+      <div className="absolute inset-0 bg-gradient-to-r from-black/20 to-transparent" />
+
+      {/* Top row: level badge + points */}
+      <div className="absolute top-0 left-0 right-0 p-4 flex items-start justify-between z-10">
+        <div
+          className={`px-3 py-1 rounded-full text-[11px] font-bold text-white backdrop-blur-md border ${levelConfig.bg} ${levelConfig.border}`}
+        >
+          {levelConfig.label}
         </div>
-        
-        {/* Points Badge */}
-        <div className="absolute top-3 right-3 bg-white/90 px-3 py-1 rounded-full">
-          <span className="text-xs font-bold text-red-800">+{item.points} pts</span>
-        </div>
-        
-        {/* Action Buttons */}
-        <div className="absolute bottom-3 right-3 flex gap-2">
-          <motion.button
-            whileTap={{ scale: 0.9 }}
-            onClick={() => handleStatusChange('wishlist')}
-            className={`p-2 rounded-full transition-colors ${
-              status === 'wishlist'
-                ? 'bg-red-600 text-white'
-                : 'bg-white/90 text-neutral-700 hover:bg-white'
-            }`}
-          >
-            <Heart size={20} fill={status === 'wishlist' ? 'currentColor' : 'none'} />
-          </motion.button>
-          
-          <motion.button
-            whileTap={{ scale: 0.9 }}
-            onClick={() => handleStatusChange('completed')}
-            className={`p-2 rounded-full transition-colors ${
-              status === 'completed'
-                ? 'bg-green-600 text-white'
-                : 'bg-white/90 text-neutral-700 hover:bg-white'
-            }`}
-          >
-            <Check size={20} />
-          </motion.button>
+        <div className="bg-black/30 backdrop-blur-md px-3 py-1 rounded-full border border-white/10">
+          <span className="text-xs font-bold text-amber-300">+{item.points} pts</span>
         </div>
       </div>
-      
-      <div className="p-4 flex-1 flex flex-col">
-        <div className="flex items-center gap-2 mb-2">
-          <div className="text-neutral-600">
-            {getTypeIcon(item.type)}
+
+      {/* Right side: TikTok-style action buttons */}
+      <div className="absolute right-3 bottom-28 flex flex-col items-center gap-5 z-10">
+        {/* Wishlist */}
+        <motion.button
+          whileTap={{ scale: 0.8 }}
+          onClick={() => handleStatusChange('wishlist')}
+          className="flex flex-col items-center gap-1.5 group"
+        >
+          <div className="relative">
+            <AnimatePresence>
+              {ripple === 'wishlist' && (
+                <motion.div
+                  key="ripple-w"
+                  className="absolute inset-0 rounded-full bg-rose-400"
+                  initial={{ scale: 1, opacity: 0.6 }}
+                  animate={{ scale: 2.5, opacity: 0 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.5 }}
+                />
+              )}
+            </AnimatePresence>
+            <motion.div
+              animate={status === 'wishlist' ? { scale: [1, 1.3, 1] } : { scale: 1 }}
+              transition={{ duration: 0.3 }}
+              className={`w-12 h-12 rounded-full flex items-center justify-center shadow-lg transition-colors ${
+                status === 'wishlist'
+                  ? 'bg-rose-500 shadow-rose-500/40'
+                  : 'bg-white/15 backdrop-blur-md border border-white/20'
+              }`}
+            >
+              <Heart
+                size={22}
+                className="text-white"
+                fill={status === 'wishlist' ? 'currentColor' : 'none'}
+              />
+            </motion.div>
           </div>
-          <span className="text-xs text-neutral-500">{getTypeLabel(item.type)}</span>
-        </div>
-        
-        <h3 className="text-lg font-bold text-neutral-900 mb-2">{item.name}</h3>
-        <p className="text-sm text-neutral-600 line-clamp-2">{item.description}</p>
+          <span className="text-white/90 text-[11px] font-semibold drop-shadow-md">Quero</span>
+        </motion.button>
+
+        {/* Completed */}
+        <motion.button
+          whileTap={{ scale: 0.8 }}
+          onClick={() => handleStatusChange('completed')}
+          className="flex flex-col items-center gap-1.5 group"
+        >
+          <div className="relative">
+            <AnimatePresence>
+              {ripple === 'completed' && (
+                <motion.div
+                  key="ripple-c"
+                  className="absolute inset-0 rounded-full bg-emerald-400"
+                  initial={{ scale: 1, opacity: 0.6 }}
+                  animate={{ scale: 2.5, opacity: 0 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.5 }}
+                />
+              )}
+            </AnimatePresence>
+            <motion.div
+              animate={status === 'completed' ? { scale: [1, 1.3, 1] } : { scale: 1 }}
+              transition={{ duration: 0.3 }}
+              className={`w-12 h-12 rounded-full flex items-center justify-center shadow-lg transition-colors ${
+                status === 'completed'
+                  ? 'bg-emerald-500 shadow-emerald-500/40'
+                  : 'bg-white/15 backdrop-blur-md border border-white/20'
+              }`}
+            >
+              <Check size={22} className="text-white" strokeWidth={status === 'completed' ? 3 : 2} />
+            </motion.div>
+          </div>
+          <span className="text-white/90 text-[11px] font-semibold drop-shadow-md">Provei</span>
+        </motion.button>
       </div>
+
+      {/* Bottom info — glassmorphism panel */}
+      <div className="absolute bottom-0 left-0 right-14 p-4 z-10">
+        {/* Type pill */}
+        <div className="flex items-center gap-1.5 mb-2">
+          <div className="bg-white/15 backdrop-blur-md rounded-full p-1 border border-white/10">
+            {item.type === 'wine' ? (
+              <Wine size={13} className="text-white" />
+            ) : (
+              <Building2 size={13} className="text-white" />
+            )}
+          </div>
+          <span className="text-white/70 text-xs font-medium tracking-wide uppercase">
+            {item.type === 'wine' ? 'Vinho' : 'Vinícola'}
+          </span>
+        </div>
+
+        <h3 className="text-[17px] font-bold text-white leading-tight mb-1.5 drop-shadow-md">
+          {item.name}
+        </h3>
+        <p className="text-white/65 text-[13px] leading-snug line-clamp-2">{item.description}</p>
+      </div>
+
+      {/* Completed overlay flash */}
+      <AnimatePresence>
+        {status === 'completed' && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none z-20"
+          >
+            <div className="bg-emerald-500/20 backdrop-blur-sm rounded-full p-6 border border-emerald-400/30">
+              <Check size={40} className="text-emerald-400" strokeWidth={3} />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
