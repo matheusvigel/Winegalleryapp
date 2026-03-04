@@ -68,7 +68,7 @@ function CollectionSlide({
       <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/10 via-40% to-black/85" />
 
       {isFirst && (
-        <div className="absolute top-0 left-0 right-0 z-30 pt-12 pb-4 px-5 bg-gradient-to-b from-black/50 to-transparent">
+        <div className="absolute top-0 left-0 right-0 z-50 pt-12 pb-4 px-5 bg-gradient-to-b from-black/50 to-transparent">
           <div className="flex items-center gap-3">
             <motion.button
               whileTap={{ scale: 0.9 }}
@@ -87,7 +87,7 @@ function CollectionSlide({
         </div>
       )}
 
-      <div className="relative z-10 flex flex-col h-full" style={{ paddingTop: isFirst ? '96px' : '48px' }}>
+      <div className="relative z-10 flex flex-col h-full" style={{ paddingTop: isFirst ? '200px' : '196px' }}>
         <div className="px-5 pb-3">
           <div className="flex items-center gap-2 mb-2">
             <span className={`px-3 py-1 rounded-full text-[11px] font-bold text-white backdrop-blur-md border ${cfg.pill}`}>
@@ -209,7 +209,10 @@ function SubRegionsSlide({
       )}
 
       {/* Header */}
-      <div className="relative z-10 pt-12 pb-4 px-5">
+      <div
+        className="relative z-10 pb-4 px-5"
+        style={{ paddingTop: isFirst ? '48px' : '196px' }}
+      >
         {isFirst && (
           <div className="flex items-center gap-3 mb-6">
             <motion.button
@@ -228,7 +231,7 @@ function SubRegionsSlide({
           </div>
         )}
 
-        <div className={`flex items-center gap-2 ${isFirst ? '' : 'mt-4'}`}>
+        <div className="flex items-center gap-2">
           <div className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center">
             <MapPin size={14} className="text-rose-300" />
           </div>
@@ -428,10 +431,7 @@ export default function RegionDetail() {
   const hasCollections = filteredCollections.length > 0;
   const showEmpty = !hasCollections && !hasSubRegions;
 
-  const handleBack = () => {
-    if (countryId) navigate(`/country/${countryId}`);
-    else navigate('/');
-  };
+  const handleBack = () => navigate(-1);
 
   return (
     <div className="fixed inset-0 bg-black">
