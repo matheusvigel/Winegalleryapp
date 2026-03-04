@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../../../lib/supabase';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '../../components/ui/sheet';
+import ImageUpload from '../components/ImageUpload';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
   AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -33,6 +34,7 @@ export default function Countries() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!form.image_url) { setError('Selecione uma imagem para continuar.'); return; }
     setSaving(true);
     setError('');
     const result = editing
@@ -107,8 +109,8 @@ export default function Countries() {
             <Field label="Nome *">
               <input required value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="França" className={input} />
             </Field>
-            <Field label="URL da imagem *">
-              <input required value={form.image_url} onChange={e => setForm(f => ({ ...f, image_url: e.target.value }))} placeholder="https://..." className={input} />
+            <Field label="Imagem *">
+              <ImageUpload value={form.image_url} onChange={url => setForm(f => ({ ...f, image_url: url }))} />
             </Field>
             <Field label="Descrição *">
               <textarea required value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={4} placeholder="Descrição do país..." className={textarea} />

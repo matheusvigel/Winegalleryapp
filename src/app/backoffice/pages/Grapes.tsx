@@ -3,6 +3,7 @@ import { supabase } from '../../../lib/supabase';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
 import type { GrapeType } from '../../../../lib/database.types';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '../../components/ui/sheet';
+import ImageUpload from '../components/ImageUpload';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
   AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -39,6 +40,7 @@ export default function Grapes() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!form.image_url) { setError('Selecione uma imagem para continuar.'); return; }
     setSaving(true);
     setError('');
     const result = editing
@@ -128,8 +130,8 @@ export default function Grapes() {
             <Field label="Características *">
               <input required value={form.characteristics} onChange={e => setForm(f => ({ ...f, characteristics: e.target.value }))} placeholder="Encorpado, taninos firmes, notas de cassis" className={inp} />
             </Field>
-            <Field label="URL da imagem *">
-              <input required value={form.image_url} onChange={e => setForm(f => ({ ...f, image_url: e.target.value }))} placeholder="https://..." className={inp} />
+            <Field label="Imagem *">
+              <ImageUpload value={form.image_url} onChange={url => setForm(f => ({ ...f, image_url: url }))} />
             </Field>
             <Field label="Descrição *">
               <textarea required value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={4} placeholder="Descrição da uva..." className={ta} />

@@ -3,6 +3,7 @@ import { supabase } from '../../../lib/supabase';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
 import type { WineLevel } from '../../../../lib/database.types';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '../../components/ui/sheet';
+import ImageUpload from '../components/ImageUpload';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
   AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -51,6 +52,7 @@ export default function Collections() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!form.cover_image) { setError('Selecione uma imagem de capa para continuar.'); return; }
     setSaving(true);
     setError('');
     const result = editing
@@ -138,8 +140,8 @@ export default function Collections() {
                 <option value="icon">Ícone</option>
               </select>
             </Field>
-            <Field label="URL da capa *">
-              <input required value={form.cover_image} onChange={e => setForm(f => ({ ...f, cover_image: e.target.value }))} placeholder="https://..." className={inp} />
+            <Field label="Imagem de capa *">
+              <ImageUpload value={form.cover_image} onChange={url => setForm(f => ({ ...f, cover_image: url }))} />
             </Field>
             <Field label="Total de pontos">
               <input type="number" min={0} value={form.total_points} onChange={e => setForm(f => ({ ...f, total_points: Number(e.target.value) }))} className={inp} />
