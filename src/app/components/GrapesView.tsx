@@ -1,13 +1,24 @@
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router';
 import { User, ChevronRight } from 'lucide-react';
 import { motion } from 'motion/react';
-import { grapes } from '../data/wineData';
 import { NavigationTabs } from './NavigationTabs';
 import { Badge } from './ui/badge';
+import { supabase } from '../../lib/supabase';
+
+type Grape = { id: string; name: string; description: string; image_url: string; type: 'red' | 'white'; characteristics: string };
 
 export default function GrapesView() {
-  const redGrapes = grapes.filter(g => g.type === 'red');
-  const whiteGrapes = grapes.filter(g => g.type === 'white');
+  const [all, setAll] = useState<Grape[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    supabase.from('grapes').select('id, name, description, image_url, type, characteristics').order('name')
+      .then(({ data }) => { setAll(data ?? []); setLoading(false); });
+  }, []);
+
+  const redGrapes = all.filter(g => g.type === 'red');
+  const whiteGrapes = all.filter(g => g.type === 'white');
   
   return (
     <div className="min-h-screen bg-neutral-50">
@@ -32,8 +43,18 @@ export default function GrapesView() {
       
       {/* Grapes List */}
       <div className="max-w-lg mx-auto px-6 py-6">
-        {/* Red Grapes */}
-        <div className="mb-8">
+        {loading && (
+          <div className="space-y-4">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="bg-white rounded-xl shadow-md overflow-hidden animate-pulse">
+                <div className="h-32 bg-neutral-200" />
+                <div className="p-4 h-14 bg-neutral-100" />
+              </div>
+            ))}
+          </div>
+        )}
+        {/* Red + White Grapes */}
+        {!loading && <><div className="mb-8">
           <h2 className="text-xl font-bold text-neutral-900 mb-4 flex items-center gap-2">
             Uvas Tintas
             <Badge className="bg-red-600">
@@ -53,7 +74,7 @@ export default function GrapesView() {
                   <div className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-shadow">
                     <div className="relative h-32">
                       <img
-                        src={grape.imageUrl}
+                        src={grape.image_url}
                         alt={grape.name}
                         className="w-full h-full object-cover"
                       />
@@ -98,7 +119,7 @@ export default function GrapesView() {
                   <div className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-shadow">
                     <div className="relative h-32">
                       <img
-                        src={grape.imageUrl}
+                        src={grape.image_url}
                         alt={grape.name}
                         className="w-full h-full object-cover"
                       />
@@ -120,7 +141,7 @@ export default function GrapesView() {
               </motion.div>
             ))}
           </div>
-        </div>
+        </div></>}
       </div>
     </div>
   );

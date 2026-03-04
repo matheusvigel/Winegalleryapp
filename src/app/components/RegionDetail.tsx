@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router';
-import { findRegion, findCountry } from '../data/wineData';
 import { ItemCard } from './ItemCard';
+import { supabase } from '../../lib/supabase';
 import { ArrowLeft, ChevronDown, Layers } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Collection } from '../types';
+import { Collection, WineItem } from '../types';
 import { getProgress } from '../utils/storage';
 
 const LEVEL_CONFIG = {
@@ -218,7 +218,11 @@ function FilterPill({
 export default function RegionDetail() {
   const { regionId } = useParams<{ regionId: string }>();
   const navigate = useNavigate();
-  const region = findRegion(regionId!);
+  const [regionName, setRegionName] = useState('');
+  const [countryName, setCountryName] = useState<string | undefined>(undefined);
+  const [countryId, setCountryId] = useState<string | undefined>(undefined);
+  const [allCollections, setAllCollections] = useState<Collection[]>([]);
+  const [loading, setLoading] = useState(true);
   const [selectedLevel, setSelectedLevel] = useState<string>('all');
   const [progress, setProgress] = useState(getProgress());
 
@@ -232,7 +236,74 @@ export default function RegionDetail() {
     };
   }, []);
 
-  if (!region) {
+  useEffect(() => {
+    if (!regionId) return;
+    const load = async () => {
+      // 1. Region + country
+      const { data: region } = await supabase
+        .from('regions').select('id, name, country_id').eq('id', regionId).single();
+      if (!region) { setLoading(false); return; }
+      setRegionName(region.name);
+      setCountryId(region.country_id);
+
+      const { data: country } = await supabase
+        .from('countries').select('name').eq('id', region.country_id).single();
+      if (country) setCountryName(country.name);
+
+      // 2. Collections for this region
+      const { data: rcLinks } = await supabase
+        .from('region_collections').select('collection_id').eq('region_id', regionId);
+      const collectionIds = (rcLinks ?? []).map(r => r.collection_id);
+
+      if (collectionIds.length === 0) { setLoading(false); return; }
+
+      const { data: cols } = await supabase
+        .from('collections').select('*').in('id', collectionIds);
+
+      // 3. Items for all collections
+      const { data: ciLinks } = await supabase
+        .from('collection_items').select('collection_id, item_id').in('collection_id', collectionIds);
+      const itemIds = [...new Set((ciLinks ?? []).map(ci => ci.item_id))];
+
+      let itemMap: Record<string, WineItem> = {};
+      if (itemIds.length > 0) {
+        const { data: wines } = await supabase.from('wine_items').select('*').in('id', itemIds);
+        for (const w of wines ?? []) {
+          itemMap[w.id] = {
+            id: w.id, name: w.name, description: w.description,
+            type: w.type, imageUrl: w.image_url, points: w.points, level: w.level,
+          };
+        }
+      }
+
+      // 4. Build Collection objects
+      const colItemsMap: Record<string, WineItem[]> = {};
+      for (const ci of ciLinks ?? []) {
+        if (!colItemsMap[ci.collection_id]) colItemsMap[ci.collection_id] = [];
+        if (itemMap[ci.item_id]) colItemsMap[ci.collection_id].push(itemMap[ci.item_id]);
+      }
+
+      const built: Collection[] = (cols ?? []).map(c => ({
+        id: c.id, title: c.title, description: c.description,
+        level: c.level, coverImage: c.cover_image, totalPoints: c.total_points,
+        items: colItemsMap[c.id] ?? [],
+      }));
+
+      setAllCollections(built);
+      setLoading(false);
+    };
+    load();
+  }, [regionId]);
+
+  if (loading) {
+    return (
+      <div className="fixed inset-0 bg-neutral-900 flex items-center justify-center">
+        <p className="text-neutral-400 text-sm">Carregando...</p>
+      </div>
+    );
+  }
+
+  if (!regionName) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-neutral-900">
         <p className="text-neutral-400">Região não encontrada</p>
@@ -240,8 +311,7 @@ export default function RegionDetail() {
     );
   }
 
-  const country = findCountry(region.countryId);
-  const regionCollections = region.collections;
+  const regionCollections = allCollections;
 
   const essentialCount = regionCollections.filter(c => c.level === 'essential').length;
   const escapeCount = regionCollections.filter(c => c.level === 'escape').length;
@@ -253,7 +323,7 @@ export default function RegionDetail() {
       : regionCollections.filter(c => c.level === selectedLevel);
 
   const handleBack = () => {
-    if (country) navigate(`/country/${country.id}`);
+    if (countryId) navigate(`/country/${countryId}`);
     else navigate('/');
   };
 
@@ -306,8 +376,8 @@ export default function RegionDetail() {
               progress={progress}
               isFirst={index === 0}
               hasNext={index < filteredCollections.length - 1}
-              regionName={region.name}
-              countryName={country?.name}
+              regionName={regionName}
+              countryName={countryName}
               onBack={handleBack}
             />
           ))
@@ -324,10 +394,10 @@ export default function RegionDetail() {
                   <ArrowLeft size={18} className="text-white" />
                 </motion.button>
                 <div>
-                  {country && (
-                    <p className="text-rose-300 text-[11px] uppercase tracking-wide">{country.name}</p>
+                  {countryName && (
+                    <p className="text-rose-300 text-[11px] uppercase tracking-wide">{countryName}</p>
                   )}
-                  <h1 className="text-white font-bold text-lg">{region.name}</h1>
+                  <h1 className="text-white font-bold text-lg">{regionName}</h1>
                 </div>
               </div>
             </div>
