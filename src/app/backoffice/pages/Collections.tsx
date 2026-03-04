@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../../../lib/supabase';
 import { Plus, Pencil, Trash2, ChevronDown, MapPin, Building2, Grape } from 'lucide-react';
 import type { WineLevel } from '../../../../lib/database.types';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '../../components/ui/sheet';
+import FormModal, { Field, FieldRow, inp, ta, btn } from '../components/FormModal';
 import ImageUpload from '../components/ImageUpload';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
@@ -302,16 +302,13 @@ export default function Collections() {
         </div>
       )}
 
-      <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-        <SheetContent>
-          <SheetHeader>
-            <SheetTitle>{editing ? 'Editar Coleção' : 'Nova Coleção'}</SheetTitle>
-          </SheetHeader>
-          <form onSubmit={handleSave} className="mt-6 space-y-4">
-            {error && <p className="text-sm text-red-600 bg-red-50 border border-red-200 px-3 py-2 rounded-lg">{error}</p>}
-            <Field label="Título *">
-              <input required value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="Grandes Clássicos de Bordeaux" className={inp} />
-            </Field>
+      <FormModal open={sheetOpen} onClose={() => setSheetOpen(false)} title={editing ? 'Editar Coleção' : 'Nova Coleção'}>
+        <form onSubmit={handleSave} className="space-y-5">
+          {error && <p className="text-sm text-red-600 bg-red-50 border border-red-200 px-3 py-2 rounded-lg">{error}</p>}
+          <Field label="Título *">
+            <input required value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="Grandes Clássicos de Bordeaux" className={inp} />
+          </Field>
+          <FieldRow>
             <Field label="Nível *">
               <select required value={form.level} onChange={e => setForm(f => ({ ...f, level: e.target.value as WineLevel }))} className={inp}>
                 <option value="essential">Essencial</option>
@@ -319,55 +316,37 @@ export default function Collections() {
                 <option value="icon">Ícone</option>
               </select>
             </Field>
-            <Field label="Imagem de capa *">
-              <ImageUpload value={form.cover_image} onChange={url => setForm(f => ({ ...f, cover_image: url }))} />
-            </Field>
             <Field label="Total de pontos">
               <input type="number" min={0} value={form.total_points} onChange={e => setForm(f => ({ ...f, total_points: Number(e.target.value) }))} className={inp} />
             </Field>
-            <Field label="Descrição *">
-              <textarea required value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={3} placeholder="Descrição da coleção..." className={ta} />
-            </Field>
+          </FieldRow>
+          <Field label="Imagem de capa *">
+            <ImageUpload value={form.cover_image} onChange={url => setForm(f => ({ ...f, cover_image: url }))} />
+          </Field>
+          <Field label="Descrição *">
+            <textarea required value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={3} placeholder="Descrição da coleção..." className={ta} />
+          </Field>
 
-            {/* ── Relations ─────────────────────────────────── */}
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="block text-sm font-medium text-neutral-700">Relações</label>
-                {totalRelations > 0 && (
-                  <span className="text-xs text-neutral-400">{totalRelations} selecionada{totalRelations !== 1 ? 's' : ''}</span>
-                )}
-              </div>
-              <div className="space-y-2">
-                <MultiChipSelect
-                  label="Regiões"
-                  icon={<MapPin size={14} />}
-                  options={regionOptions}
-                  selected={selRegions}
-                  onToggle={toggle(setSelRegions)}
-                />
-                <MultiChipSelect
-                  label="Marcas"
-                  icon={<Building2 size={14} />}
-                  options={brandOptions}
-                  selected={selBrands}
-                  onToggle={toggle(setSelBrands)}
-                />
-                <MultiChipSelect
-                  label="Uvas"
-                  icon={<Grape size={14} />}
-                  options={grapeOptions}
-                  selected={selGrapes}
-                  onToggle={toggle(setSelGrapes)}
-                />
-              </div>
+          {/* ── Relations ─────────────────────────────────── */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-sm font-medium text-neutral-700">Relações</label>
+              {totalRelations > 0 && (
+                <span className="text-xs text-neutral-400">{totalRelations} selecionada{totalRelations !== 1 ? 's' : ''}</span>
+              )}
             </div>
+            <div className="space-y-2">
+              <MultiChipSelect label="Regiões" icon={<MapPin size={14} />} options={regionOptions} selected={selRegions} onToggle={toggle(setSelRegions)} />
+              <MultiChipSelect label="Marcas" icon={<Building2 size={14} />} options={brandOptions} selected={selBrands} onToggle={toggle(setSelBrands)} />
+              <MultiChipSelect label="Uvas" icon={<Grape size={14} />} options={grapeOptions} selected={selGrapes} onToggle={toggle(setSelGrapes)} />
+            </div>
+          </div>
 
-            <button type="submit" disabled={saving} className={btn}>
-              {saving ? 'Salvando...' : editing ? 'Salvar alterações' : 'Criar Coleção'}
-            </button>
-          </form>
-        </SheetContent>
-      </Sheet>
+          <button type="submit" disabled={saving} className={btn}>
+            {saving ? 'Salvando...' : editing ? 'Salvar alterações' : 'Criar Coleção'}
+          </button>
+        </form>
+      </FormModal>
 
       <AlertDialog open={!!deleteId} onOpenChange={open => !open && setDeleteId(null)}>
         <AlertDialogContent>
@@ -385,15 +364,3 @@ export default function Collections() {
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <label className="block text-sm font-medium text-neutral-700 mb-1.5">{label}</label>
-      {children}
-    </div>
-  );
-}
-
-const inp = 'w-full h-10 px-3 rounded-lg border border-neutral-300 text-sm outline-none focus:border-red-800 focus:ring-2 focus:ring-red-800/20 bg-white';
-const ta = 'w-full px-3 py-2.5 rounded-lg border border-neutral-300 text-sm outline-none focus:border-red-800 focus:ring-2 focus:ring-red-800/20 resize-none bg-white';
-const btn = 'w-full h-11 bg-red-900 hover:bg-red-800 text-white font-semibold rounded-lg text-sm disabled:opacity-60 disabled:cursor-not-allowed transition-colors';
