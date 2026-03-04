@@ -33,6 +33,7 @@ export interface Database {
           id: string
           name: string
           country_id: string
+          parent_id: string | null
           image_url: string
           description: string
           created_at: string
@@ -41,6 +42,7 @@ export interface Database {
           id: string
           name: string
           country_id: string
+          parent_id?: string | null
           image_url: string
           description: string
           created_at?: string
@@ -49,6 +51,7 @@ export interface Database {
           id?: string
           name?: string
           country_id?: string
+          parent_id?: string | null
           image_url?: string
           description?: string
         }
