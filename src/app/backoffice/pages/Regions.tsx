@@ -32,13 +32,13 @@ function buildTree(regions: Region[], countries: Country[]): RegionRow[] {
       byParent.get(key)!.push(r);
     }
 
-    function walk(parentId: string | null, depth: number) {
+    const walk = (parentId: string | null, depth: number) => {
       const children = (byParent.get(parentId) ?? []).sort((a, b) => a.name.localeCompare(b.name));
       for (const r of children) {
         result.push({ ...r, depth });
         walk(r.id, depth + 1);
       }
-    }
+    };
 
     walk(null, 0);
   }
@@ -49,12 +49,12 @@ function buildTree(regions: Region[], countries: Country[]): RegionRow[] {
 /** Collect all descendant IDs of a region (to exclude from parent selector). */
 function getDescendantIds(regionId: string, regions: Region[]): Set<string> {
   const ids = new Set<string>();
-  function walk(id: string) {
+  const walk = (id: string) => {
     for (const r of regions.filter(r => r.parent_id === id)) {
       ids.add(r.id);
       walk(r.id);
     }
-  }
+  };
   walk(regionId);
   return ids;
 }
