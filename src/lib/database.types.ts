@@ -192,6 +192,8 @@ export interface Database {
           points: number
           level: WineLevel
           brand_id: string | null
+          wine_type: string | null
+          elaboration_method: string | null
           created_at: string
         }
         Insert: {
@@ -203,6 +205,8 @@ export interface Database {
           points?: number
           level: WineLevel
           brand_id?: string | null
+          wine_type?: string | null
+          elaboration_method?: string | null
           created_at?: string
         }
         Update: {
@@ -214,6 +218,8 @@ export interface Database {
           points?: number
           level?: WineLevel
           brand_id?: string | null
+          wine_type?: string | null
+          elaboration_method?: string | null
         }
       }
       collection_items: {
