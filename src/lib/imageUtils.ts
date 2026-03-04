@@ -28,8 +28,25 @@ function canvasToBlob(canvas: HTMLCanvasElement, type: string, quality: number):
   });
 }
 
+/** Converts HEIC/HEIF to JPEG so the Canvas API can process it. */
+async function normalizeFile(file: File): Promise<File> {
+  const isHeic =
+    file.type === 'image/heic' ||
+    file.type === 'image/heif' ||
+    /\.(heic|heif)$/i.test(file.name);
+
+  if (!isHeic) return file;
+
+  // Dynamic import — only loaded when a HEIC file is actually selected
+  const heic2any = (await import('heic2any')).default;
+  const result = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.9 });
+  const blob = Array.isArray(result) ? result[0] : result;
+  return new File([blob], file.name.replace(/\.(heic|heif)$/i, '.jpg'), { type: 'image/jpeg' });
+}
+
 /**
  * Processes a File:
+ * - Converts HEIC/HEIF → JPEG if needed
  * - Resizes to MAX_SIDE (longest side) and converts to WebP
  * - Creates a THUMB_SIZE × THUMB_SIZE square thumbnail in WebP
  * - Uploads both to Supabase Storage
@@ -37,7 +54,8 @@ function canvasToBlob(canvas: HTMLCanvasElement, type: string, quality: number):
  *   (thumbnail URL = mainUrl.replace('image.webp', 'thumb.webp'))
  */
 export async function processAndUpload(file: File): Promise<string> {
-  const img = await loadImage(file);
+  const normalized = await normalizeFile(file);
+  const img = await loadImage(normalized);
   const { naturalWidth: w, naturalHeight: h } = img;
 
   // ── Main image ────────────────────────────────────────────────────────────
