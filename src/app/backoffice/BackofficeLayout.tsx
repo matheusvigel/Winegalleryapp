@@ -13,7 +13,7 @@ const navItems = [
   { to: '/admin/regions', label: 'Regiões', icon: MapPin, end: false, table: 'regions' },
   { to: '/admin/collections', label: 'Coleções', icon: BookOpen, end: false, table: 'collections' },
   { to: '/admin/wines', label: 'Vinhos', icon: Wine, end: false, table: 'wine_items' },
-  { to: '/admin/brands', label: 'Marcas', icon: Building2, end: false, table: 'brands' },
+  { to: '/admin/brands', label: 'Vinícolas', icon: Building2, end: false, table: 'brands' },
   { to: '/admin/grapes', label: 'Uvas', icon: Grape, end: false, table: 'grapes' },
 ] as const;
 

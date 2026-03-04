@@ -62,11 +62,11 @@ export default function Brands() {
     <div className="p-6 max-w-5xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-neutral-900">Marcas</h1>
+          <h1 className="text-2xl font-bold text-neutral-900">Vinícolas</h1>
           <p className="text-sm text-neutral-500 mt-1">{rows.length} registros</p>
         </div>
         <button onClick={openCreate} className="flex items-center gap-2 bg-red-900 text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-red-800 transition-colors">
-          <Plus size={16} /> Nova Marca
+          <Plus size={16} /> Nova Vinícola
         </button>
       </div>
 
@@ -114,7 +114,7 @@ export default function Brands() {
         </div>
       )}
 
-      <FormModal open={modalOpen} onClose={() => setModalOpen(false)} title={editing ? 'Editar Marca' : 'Nova Marca'}>
+      <FormModal open={modalOpen} onClose={() => setModalOpen(false)} title={editing ? 'Editar Vinícola' : 'Nova Vinícola'}>
         <form onSubmit={handleSave} className="space-y-5">
           {error && <p className="text-sm text-red-600 bg-red-50 border border-red-200 px-3 py-2 rounded-lg">{error}</p>}
           <FieldRow>
@@ -135,7 +135,7 @@ export default function Brands() {
             <textarea required value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={3} placeholder="Descrição da marca..." className={ta} />
           </Field>
           <button type="submit" disabled={saving} className={btn}>
-            {saving ? 'Salvando...' : editing ? 'Salvar alterações' : 'Criar Marca'}
+            {saving ? 'Salvando...' : editing ? 'Salvar alterações' : 'Criar Vinícola'}
           </button>
         </form>
       </FormModal>

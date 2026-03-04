@@ -22,7 +22,7 @@ export default function BrandsView() {
         <div className="max-w-lg mx-auto flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold">Wine Gallery</h1>
-            <p className="text-red-100 text-sm">Grandes Marcas</p>
+            <p className="text-red-100 text-sm">Vinícolas</p>
           </div>
           <Link to="/profile" className="w-12 h-12 bg-red-800 rounded-full flex items-center justify-center hover:bg-red-700 transition-colors">
             <User size={24} />

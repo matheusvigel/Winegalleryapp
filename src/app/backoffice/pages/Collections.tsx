@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../../lib/supabase';
-import { Plus, Pencil, Trash2, ChevronDown, MapPin, Building2, Grape } from 'lucide-react';
+import { Plus, Pencil, Trash2, ChevronDown, MapPin, Building2, Grape, Wine } from 'lucide-react';
 import type { WineLevel } from '../../../../lib/database.types';
 import FormModal, { Field, FieldRow, inp, ta, btn } from '../components/FormModal';
 import ImageUpload from '../components/ImageUpload';
@@ -115,11 +115,13 @@ export default function Collections() {
   const [regionOptions, setRegionOptions] = useState<ChipOption[]>([]);
   const [brandOptions, setBrandOptions] = useState<ChipOption[]>([]);
   const [grapeOptions, setGrapeOptions] = useState<ChipOption[]>([]);
+  const [wineOptions, setWineOptions] = useState<ChipOption[]>([]);
 
   // Selected relations
   const [selRegions, setSelRegions] = useState<string[]>([]);
   const [selBrands, setSelBrands] = useState<string[]>([]);
   const [selGrapes, setSelGrapes] = useState<string[]>([]);
+  const [selWines, setSelWines] = useState<string[]>([]);
 
   const load = async () => {
     const { data } = await supabase.from('collections').select('*').order('title');
@@ -131,11 +133,12 @@ export default function Collections() {
   useEffect(() => {
     load();
     const loadOptions = async () => {
-      const [countriesRes, regionsRes, brandsRes, grapesRes] = await Promise.all([
+      const [countriesRes, regionsRes, brandsRes, grapesRes, winesRes] = await Promise.all([
         supabase.from('countries').select('id, name').order('name'),
         supabase.from('regions').select('id, name, country_id').order('name'),
         supabase.from('brands').select('id, name').order('name'),
         supabase.from('grapes').select('id, name, type').order('name'),
+        supabase.from('wine_items').select('id, name, level').order('name'),
       ]);
 
       const countryMap = Object.fromEntries(
@@ -157,6 +160,13 @@ export default function Collections() {
           sub: g.type === 'red' ? ' · Tinta' : ' · Branca',
         }))
       );
+      setWineOptions(
+        (winesRes.data ?? []).map(w => ({
+          id: w.id,
+          label: w.name,
+          sub: ` · ${levelLabel[w.level]}`,
+        }))
+      );
     };
     loadOptions();
   }, []);
@@ -167,6 +177,7 @@ export default function Collections() {
     setSelRegions([]);
     setSelBrands([]);
     setSelGrapes([]);
+    setSelWines([]);
     setError('');
     setSheetOpen(true);
   };
@@ -177,14 +188,16 @@ export default function Collections() {
     setError('');
 
     // Load existing relations
-    const [regRes, brRes, grRes] = await Promise.all([
+    const [regRes, brRes, grRes, wineRes] = await Promise.all([
       supabase.from('region_collections').select('region_id').eq('collection_id', r.id),
       supabase.from('brand_collections').select('brand_id').eq('collection_id', r.id),
       supabase.from('grape_collections').select('grape_id').eq('collection_id', r.id),
+      supabase.from('collection_items').select('item_id').eq('collection_id', r.id),
     ]);
     setSelRegions((regRes.data ?? []).map(x => x.region_id));
     setSelBrands((brRes.data ?? []).map(x => x.brand_id));
     setSelGrapes((grRes.data ?? []).map(x => x.grape_id));
+    setSelWines((wineRes.data ?? []).map(x => x.item_id));
 
     setSheetOpen(true);
   };
@@ -216,6 +229,7 @@ export default function Collections() {
       supabase.from('region_collections').delete().eq('collection_id', collectionId),
       supabase.from('brand_collections').delete().eq('collection_id', collectionId),
       supabase.from('grape_collections').delete().eq('collection_id', collectionId),
+      supabase.from('collection_items').delete().eq('collection_id', collectionId),
     ]);
 
     const inserts: Promise<unknown>[] = [];
@@ -230,6 +244,10 @@ export default function Collections() {
     if (selGrapes.length > 0)
       inserts.push(supabase.from('grape_collections').insert(
         selGrapes.map(gid => ({ grape_id: gid, collection_id: collectionId }))
+      ));
+    if (selWines.length > 0)
+      inserts.push(supabase.from('collection_items').insert(
+        selWines.map(wid => ({ collection_id: collectionId, item_id: wid }))
       ));
 
     await Promise.all(inserts);
@@ -246,7 +264,7 @@ export default function Collections() {
     load();
   };
 
-  const totalRelations = selRegions.length + selBrands.length + selGrapes.length;
+  const totalRelations = selRegions.length + selBrands.length + selGrapes.length + selWines.length;
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
@@ -337,8 +355,9 @@ export default function Collections() {
             </div>
             <div className="space-y-2">
               <MultiChipSelect label="Regiões" icon={<MapPin size={14} />} options={regionOptions} selected={selRegions} onToggle={toggle(setSelRegions)} />
-              <MultiChipSelect label="Marcas" icon={<Building2 size={14} />} options={brandOptions} selected={selBrands} onToggle={toggle(setSelBrands)} />
+              <MultiChipSelect label="Vinícolas" icon={<Building2 size={14} />} options={brandOptions} selected={selBrands} onToggle={toggle(setSelBrands)} />
               <MultiChipSelect label="Uvas" icon={<Grape size={14} />} options={grapeOptions} selected={selGrapes} onToggle={toggle(setSelGrapes)} />
+              <MultiChipSelect label="Vinhos" icon={<Wine size={14} />} options={wineOptions} selected={selWines} onToggle={toggle(setSelWines)} />
             </div>
           </div>
 
@@ -352,7 +371,7 @@ export default function Collections() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir coleção?</AlertDialogTitle>
-            <AlertDialogDescription>Esta ação não pode ser desfeita. As relações com regiões, marcas e uvas também serão removidas.</AlertDialogDescription>
+            <AlertDialogDescription>Esta ação não pode ser desfeita. As relações com regiões, vinícolas, uvas e vinhos também serão removidas.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
