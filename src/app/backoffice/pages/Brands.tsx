@@ -9,10 +9,12 @@ import {
 } from '../../components/ui/alert-dialog';
 
 type Brand = { id: string; name: string; description: string; image_url: string; country: string; region: string | null };
+type CollectionCounts = Record<string, number>;
 const empty = (): Omit<Brand, 'id'> => ({ name: '', description: '', image_url: '', country: '', region: null });
 
 export default function Brands() {
   const [rows, setRows] = useState<Brand[]>([]);
+  const [colCounts, setColCounts] = useState<CollectionCounts>({});
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -22,8 +24,15 @@ export default function Brands() {
   const [error, setError] = useState('');
 
   const load = async () => {
-    const { data } = await supabase.from('brands').select('*').order('name');
-    setRows(data ?? []); setLoading(false);
+    const [{ data }, { data: bc }] = await Promise.all([
+      supabase.from('brands').select('*').order('name'),
+      supabase.from('brand_collections').select('brand_id'),
+    ]);
+    setRows(data ?? []);
+    const cnt: CollectionCounts = {};
+    for (const { brand_id } of bc ?? []) cnt[brand_id] = (cnt[brand_id] ?? 0) + 1;
+    setColCounts(cnt);
+    setLoading(false);
   };
   useEffect(() => { load(); }, []);
 
@@ -73,6 +82,7 @@ export default function Brands() {
                 <th className="px-4 py-3 text-xs font-semibold text-neutral-500 uppercase tracking-wide">Nome</th>
                 <th className="px-4 py-3 text-xs font-semibold text-neutral-500 uppercase tracking-wide hidden md:table-cell">País</th>
                 <th className="px-4 py-3 text-xs font-semibold text-neutral-500 uppercase tracking-wide hidden lg:table-cell">Região</th>
+                <th className="px-4 py-3 text-xs font-semibold text-neutral-500 uppercase tracking-wide hidden sm:table-cell">Coleções</th>
                 <th className="px-4 py-3 w-20"></th>
               </tr>
             </thead>
@@ -82,6 +92,15 @@ export default function Brands() {
                   <td className="px-4 py-3 font-medium text-neutral-900">{r.name}</td>
                   <td className="px-4 py-3 text-neutral-500 hidden md:table-cell">{r.country}</td>
                   <td className="px-4 py-3 text-neutral-500 hidden lg:table-cell">{r.region ?? '—'}</td>
+                  <td className="px-4 py-3 hidden sm:table-cell">
+                    {colCounts[r.id] ? (
+                      <span className="inline-block text-xs font-semibold px-2 py-0.5 rounded-full bg-red-50 text-red-700">
+                        {colCounts[r.id]}
+                      </span>
+                    ) : (
+                      <span className="text-neutral-300 text-xs">—</span>
+                    )}
+                  </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-1">
                       <button onClick={() => openEdit(r)} className="p-1.5 text-neutral-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"><Pencil size={14} /></button>

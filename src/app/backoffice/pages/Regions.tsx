@@ -11,6 +11,7 @@ import {
 type Country = { id: string; name: string };
 type Region = { id: string; name: string; country_id: string; parent_id: string | null; image_url: string; description: string };
 type RegionRow = Region & { depth: number };
+type CollectionCounts = Record<string, number>;
 
 const empty = (): Omit<Region, 'id'> => ({ name: '', country_id: '', parent_id: null, image_url: '', description: '' });
 
@@ -47,6 +48,7 @@ function getDescendantIds(regionId: string, regions: Region[]): Set<string> {
 export default function Regions() {
   const [rows, setRows] = useState<Region[]>([]);
   const [countries, setCountries] = useState<Country[]>([]);
+  const [colCounts, setColCounts] = useState<CollectionCounts>({});
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -56,12 +58,16 @@ export default function Regions() {
   const [error, setError] = useState('');
 
   const load = async () => {
-    const [{ data: regions }, { data: cts }] = await Promise.all([
+    const [{ data: regions }, { data: cts }, { data: rc }] = await Promise.all([
       supabase.from('regions').select('*').order('name'),
       supabase.from('countries').select('id, name').order('name'),
+      supabase.from('region_collections').select('region_id'),
     ]);
     setRows(regions ?? []);
     setCountries(cts ?? []);
+    const cnt: CollectionCounts = {};
+    for (const { region_id } of rc ?? []) cnt[region_id] = (cnt[region_id] ?? 0) + 1;
+    setColCounts(cnt);
     setLoading(false);
   };
   useEffect(() => { load(); }, []);
@@ -123,6 +129,7 @@ export default function Regions() {
               <tr className="bg-neutral-50 border-b border-neutral-200 text-left">
                 <th className="px-4 py-3 text-xs font-semibold text-neutral-500 uppercase tracking-wide">Nome</th>
                 <th className="px-4 py-3 text-xs font-semibold text-neutral-500 uppercase tracking-wide hidden md:table-cell">Descrição</th>
+                <th className="px-4 py-3 text-xs font-semibold text-neutral-500 uppercase tracking-wide hidden sm:table-cell">Coleções</th>
                 <th className="px-4 py-3 w-28"></th>
               </tr>
             </thead>
@@ -148,6 +155,15 @@ export default function Regions() {
                       </div>
                     </td>
                     <td className="px-4 py-3 text-neutral-500 hidden md:table-cell max-w-xs truncate">{r.description}</td>
+                    <td className="px-4 py-3 hidden sm:table-cell">
+                      {colCounts[r.id] ? (
+                        <span className="inline-block text-xs font-semibold px-2 py-0.5 rounded-full bg-red-50 text-red-700">
+                          {colCounts[r.id]}
+                        </span>
+                      ) : (
+                        <span className="text-neutral-300 text-xs">—</span>
+                      )}
+                    </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-1">
                         <button onClick={() => openCreate({ country_id: r.country_id, parent_id: r.id })} className="p-1.5 text-neutral-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors" title="Adicionar sub-região">
