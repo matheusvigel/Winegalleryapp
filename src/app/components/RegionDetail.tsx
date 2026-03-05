@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router';
 import { ItemCard } from './ItemCard';
 import { supabase } from '../../lib/supabase';
-import { ArrowLeft, ChevronDown, ChevronRight, Layers, MapPin } from 'lucide-react';
+import { ArrowLeft, ChevronDown, ChevronRight, Layers } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Collection, WineItem } from '../types';
 import { getProgress } from '../utils/storage';
@@ -194,82 +194,64 @@ function SubRegionsSlide({
   onBack: () => void;
 }) {
   return (
-    <div className="relative h-screen snap-start flex flex-col overflow-hidden bg-neutral-950">
-      {/* Subtle background from first sub-region image */}
-      {subRegions[0]?.image_url && (
-        <>
-          <img
-            src={subRegions[0].image_url}
-            alt=""
-            className="absolute inset-0 w-full h-full object-cover opacity-20"
-            draggable={false}
-          />
-          <div className="absolute inset-0 bg-gradient-to-b from-neutral-950/80 to-neutral-950/95" />
-        </>
-      )}
-
-      {/* Header */}
+    <div className="relative h-screen snap-start flex flex-col overflow-hidden bg-neutral-50">
+      {/* Header — matches CountryDetail header style */}
       <div
-        className="relative z-10 pb-4 px-5"
+        className="bg-white border-b border-neutral-200 px-5 pb-4 flex-shrink-0"
         style={{ paddingTop: isFirst ? '48px' : '196px' }}
       >
         {isFirst && (
-          <div className="flex items-center gap-3 mb-6">
+          <div className="flex items-center gap-3 mb-4">
             <motion.button
               whileTap={{ scale: 0.9 }}
               onClick={onBack}
-              className="w-9 h-9 rounded-full bg-white/10 backdrop-blur-md border border-white/15 flex items-center justify-center flex-shrink-0"
+              className="w-9 h-9 rounded-full bg-neutral-100 border border-neutral-200 flex items-center justify-center flex-shrink-0"
             >
-              <ArrowLeft size={18} className="text-white" />
+              <ArrowLeft size={18} className="text-neutral-700" />
             </motion.button>
             <div className="min-w-0">
               {countryName && (
-                <p className="text-rose-300 text-[11px] font-medium uppercase tracking-wide">{countryName}</p>
+                <p className="text-rose-500 text-[11px] font-medium uppercase tracking-wide">{countryName}</p>
               )}
-              <h1 className="text-white font-bold text-lg leading-tight truncate">{regionName}</h1>
+              <h1 className="text-neutral-900 font-bold text-lg leading-tight truncate">{regionName}</h1>
             </div>
           </div>
         )}
 
-        <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center">
-            <MapPin size={14} className="text-rose-300" />
-          </div>
-          <div>
-            <p className="text-white/50 text-[11px] uppercase tracking-widest font-medium">Sub-regiões</p>
-            <p className="text-white font-bold text-base leading-tight">{regionName}</p>
-          </div>
-        </div>
+        <h2 className="text-sm font-semibold text-neutral-500 uppercase tracking-wider">
+          Sub-regiões de {regionName}
+        </h2>
       </div>
 
-      {/* Sub-region cards */}
-      <div className="relative z-10 flex-1 overflow-y-auto px-5 pb-8 space-y-3">
+      {/* Sub-region cards — same style as CountryDetail regions */}
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
         {subRegions.map((sr, i) => (
           <motion.div
             key={sr.id}
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.05 * i, duration: 0.35 }}
+            initial={{ opacity: 0, x: -16 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.06 * i, duration: 0.3 }}
           >
             <Link to={`/region/${sr.id}`}>
-              <div className="relative h-28 rounded-2xl overflow-hidden shadow-lg">
-                <img
-                  src={sr.image_url}
-                  alt={sr.name}
-                  className="absolute inset-0 w-full h-full object-cover"
-                  draggable={false}
-                />
-                <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/30 to-transparent" />
-                <div className="absolute inset-0 flex items-center justify-between px-4">
-                  <div className="min-w-0">
-                    <p className="text-white font-bold text-base leading-tight">{sr.name}</p>
+              <div className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-shadow">
+                <div className="relative h-40">
+                  <img
+                    src={sr.image_url}
+                    alt={sr.name}
+                    className="w-full h-full object-cover"
+                    draggable={false}
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
+                  <div className="absolute bottom-4 left-4 right-4">
+                    <h3 className="text-xl font-bold text-white mb-1">{sr.name}</h3>
                     {sr.description && (
-                      <p className="text-white/60 text-xs mt-0.5 line-clamp-1">{sr.description}</p>
+                      <p className="text-neutral-200 text-sm line-clamp-1">{sr.description}</p>
                     )}
                   </div>
-                  <div className="w-8 h-8 rounded-full bg-white/15 backdrop-blur-md border border-white/20 flex items-center justify-center flex-shrink-0 ml-3">
-                    <ChevronRight size={16} className="text-white" />
-                  </div>
+                </div>
+                <div className="px-4 py-3 flex items-center justify-between">
+                  <span className="text-sm text-neutral-500">Ver coleções</span>
+                  <ChevronRight size={20} className="text-neutral-400" />
                 </div>
               </div>
             </Link>
