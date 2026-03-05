@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router';
 import { regions } from '../data/wineData';
 import { getStats } from '../utils/storage';
-import { Wine, Trophy, Target, ChevronRight } from 'lucide-react';
+import { Trophy, Target, ChevronRight } from 'lucide-react';
 import { motion } from 'motion/react';
 
 export default function Home() {
@@ -28,15 +28,14 @@ export default function Home() {
   }, []);
   
   return (
-    <div className="min-h-screen bg-gradient-to-b from-red-50 to-neutral-50">
+    <div className="min-h-screen bg-gradient-to-b from-[#f5f0e8] to-neutral-50">
       {/* Header */}
-      <header className="bg-red-900 text-white px-6 pt-8 pb-8">
+      <header className="bg-[#244b6e] text-white px-6 pt-10 pb-8">
         <div className="max-w-lg mx-auto">
-          <div className="flex items-center gap-3 mb-2">
-            <Wine size={32} />
-            <h1 className="text-3xl font-bold">Wine Gallery</h1>
+          <div className="flex items-center justify-center mb-1">
+            <img src="/logo.svg" alt="Wine Gallery" className="h-16 invert" />
           </div>
-          <p className="text-red-100">Sua jornada pelo mundo do vinho</p>
+          <p className="text-[#a8c5d9] text-center text-sm">Sua jornada pelo mundo do vinho</p>
         </div>
       </header>
       
