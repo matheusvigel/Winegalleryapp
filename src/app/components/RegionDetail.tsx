@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router';
-import { findRegion, findCountry } from '../data/wineData';
+import { useParams, useNavigate, Link } from 'react-router';
 import { ItemCard } from './ItemCard';
-import { ArrowLeft, ChevronDown, Layers } from 'lucide-react';
+import { supabase } from '../../lib/supabase';
+import { ArrowLeft, ChevronDown, ChevronRight, Layers } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Collection } from '../types';
+import { Collection, WineItem } from '../types';
 import { getProgress } from '../utils/storage';
 
 const LEVEL_CONFIG = {
@@ -15,11 +15,15 @@ const LEVEL_CONFIG = {
 
 type Level = keyof typeof LEVEL_CONFIG;
 
+type SubRegion = { id: string; name: string; image_url: string; description: string };
+
+// ─── Collection slide ──────────────────────────────────────────────────────────
 function CollectionSlide({
   collection,
   progress,
   isFirst,
   hasNext,
+  nextLabel,
   regionName,
   countryName,
   onBack,
@@ -28,6 +32,7 @@ function CollectionSlide({
   progress: ReturnType<typeof getProgress>;
   isFirst: boolean;
   hasNext: boolean;
+  nextLabel?: string;
   regionName: string;
   countryName?: string;
   onBack: () => void;
@@ -42,7 +47,6 @@ function CollectionSlide({
   const progressPct = totalItems > 0 ? (completedCount / totalItems) * 100 : 0;
   const ptsEarned = completedItems.reduce((sum, item) => sum + item.points, 0);
 
-  // Item carousel dot tracking
   const carouselRef = useRef<HTMLDivElement>(null);
   const [activeItem, setActiveItem] = useState(0);
 
@@ -55,7 +59,6 @@ function CollectionSlide({
 
   return (
     <div className="relative h-screen snap-start flex flex-col overflow-hidden">
-      {/* Background */}
       <img
         src={collection.coverImage}
         alt={collection.title}
@@ -64,9 +67,8 @@ function CollectionSlide({
       />
       <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/10 via-40% to-black/85" />
 
-      {/* === FIXED-POSITION HEADER (only rendered inside first slide to avoid duplication) === */}
       {isFirst && (
-        <div className="absolute top-0 left-0 right-0 z-30 pt-12 pb-4 px-5 bg-gradient-to-b from-black/50 to-transparent">
+        <div className="absolute top-0 left-0 right-0 z-50 pt-12 pb-4 px-5 bg-gradient-to-b from-black/50 to-transparent">
           <div className="flex items-center gap-3">
             <motion.button
               whileTap={{ scale: 0.9 }}
@@ -85,14 +87,10 @@ function CollectionSlide({
         </div>
       )}
 
-      {/* === SLIDE CONTENT === */}
-      <div className="relative z-10 flex flex-col h-full" style={{ paddingTop: isFirst ? '96px' : '48px' }}>
-        {/* Collection info */}
+      <div className="relative z-10 flex flex-col h-full" style={{ paddingTop: isFirst ? '200px' : '196px' }}>
         <div className="px-5 pb-3">
           <div className="flex items-center gap-2 mb-2">
-            <span
-              className={`px-3 py-1 rounded-full text-[11px] font-bold text-white backdrop-blur-md border ${cfg.pill}`}
-            >
+            <span className={`px-3 py-1 rounded-full text-[11px] font-bold text-white backdrop-blur-md border ${cfg.pill}`}>
               {cfg.label}
             </span>
             <span className="text-amber-300 text-xs font-bold">{collection.totalPoints} pts total</span>
@@ -101,7 +99,6 @@ function CollectionSlide({
           <p className="text-white/65 text-[13px] leading-snug line-clamp-2">{collection.description}</p>
         </div>
 
-        {/* Items horizontal carousel */}
         <div className="flex-1 flex flex-col justify-center overflow-hidden">
           <div
             ref={carouselRef}
@@ -118,24 +115,19 @@ function CollectionSlide({
               ) : (
                 <div className="w-[270px] h-[380px] flex-shrink-0 snap-center rounded-2xl border border-white/15 bg-white/10 backdrop-blur-md flex flex-col items-center justify-center gap-3">
                   <Layers size={36} className="text-white/40" />
-                  <p className="text-white/50 text-sm text-center px-4">
-                    Nenhum item nesta coleção ainda
-                  </p>
+                  <p className="text-white/50 text-sm text-center px-4">Nenhum item nesta coleção ainda</p>
                 </div>
               )}
             </div>
           </div>
 
-          {/* Item dots */}
           {collection.items.length > 1 && (
             <div className="flex items-center justify-center gap-1.5 mt-2">
               {collection.items.map((_, i) => (
                 <div
                   key={i}
                   className={`rounded-full transition-all duration-300 ${
-                    i === activeItem
-                      ? `w-4 h-1.5 ${cfg.dot}`
-                      : 'w-1.5 h-1.5 bg-white/30'
+                    i === activeItem ? `w-4 h-1.5 ${cfg.dot}` : 'w-1.5 h-1.5 bg-white/30'
                   }`}
                 />
               ))}
@@ -143,7 +135,6 @@ function CollectionSlide({
           )}
         </div>
 
-        {/* Progress bar */}
         <div className="px-5 pb-4">
           <div className="bg-black/30 backdrop-blur-md rounded-2xl p-3 border border-white/10">
             <div className="flex items-center justify-between mb-2">
@@ -162,7 +153,6 @@ function CollectionSlide({
             </div>
           </div>
 
-          {/* Scroll hint */}
           <AnimatePresence>
             {hasNext && (
               <motion.div
@@ -171,7 +161,9 @@ function CollectionSlide({
                 exit={{ opacity: 0 }}
                 className="flex flex-col items-center gap-1 mt-3"
               >
-                <span className="text-white/40 text-[11px] tracking-wide">Próxima coleção</span>
+                <span className="text-white/40 text-[11px] tracking-wide">
+                  {nextLabel ?? 'Próxima coleção'}
+                </span>
                 <motion.div
                   animate={{ y: [0, 4, 0] }}
                   transition={{ repeat: Infinity, duration: 1.4, ease: 'easeInOut' }}
@@ -182,6 +174,89 @@ function CollectionSlide({
             )}
           </AnimatePresence>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Sub-regions slide ─────────────────────────────────────────────────────────
+function SubRegionsSlide({
+  subRegions,
+  regionName,
+  countryName,
+  isFirst,
+  onBack,
+}: {
+  subRegions: SubRegion[];
+  regionName: string;
+  countryName?: string;
+  isFirst: boolean;
+  onBack: () => void;
+}) {
+  return (
+    <div className="relative h-screen snap-start flex flex-col overflow-hidden bg-neutral-50">
+      {/* Header — matches CountryDetail header style */}
+      <div
+        className="bg-white border-b border-neutral-200 px-5 pb-4 flex-shrink-0"
+        style={{ paddingTop: isFirst ? '48px' : '196px' }}
+      >
+        {isFirst && (
+          <div className="flex items-center gap-3 mb-4">
+            <motion.button
+              whileTap={{ scale: 0.9 }}
+              onClick={onBack}
+              className="w-9 h-9 rounded-full bg-neutral-100 border border-neutral-200 flex items-center justify-center flex-shrink-0"
+            >
+              <ArrowLeft size={18} className="text-neutral-700" />
+            </motion.button>
+            <div className="min-w-0">
+              {countryName && (
+                <p className="text-rose-500 text-[11px] font-medium uppercase tracking-wide">{countryName}</p>
+              )}
+              <h1 className="text-neutral-900 font-bold text-lg leading-tight truncate">{regionName}</h1>
+            </div>
+          </div>
+        )}
+
+        <h2 className="text-sm font-semibold text-neutral-500 uppercase tracking-wider">
+          Sub-regiões de {regionName}
+        </h2>
+      </div>
+
+      {/* Sub-region cards — same style as CountryDetail regions */}
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+        {subRegions.map((sr, i) => (
+          <motion.div
+            key={sr.id}
+            initial={{ opacity: 0, x: -16 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.06 * i, duration: 0.3 }}
+          >
+            <Link to={`/region/${sr.id}`}>
+              <div className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-shadow">
+                <div className="relative h-40">
+                  <img
+                    src={sr.image_url}
+                    alt={sr.name}
+                    className="w-full h-full object-cover"
+                    draggable={false}
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
+                  <div className="absolute bottom-4 left-4 right-4">
+                    <h3 className="text-xl font-bold text-white mb-1">{sr.name}</h3>
+                    {sr.description && (
+                      <p className="text-neutral-200 text-sm line-clamp-1">{sr.description}</p>
+                    )}
+                  </div>
+                </div>
+                <div className="px-4 py-3 flex items-center justify-between">
+                  <span className="text-sm text-neutral-500">Ver coleções</span>
+                  <ChevronRight size={20} className="text-neutral-400" />
+                </div>
+              </div>
+            </Link>
+          </motion.div>
+        ))}
       </div>
     </div>
   );
@@ -218,7 +293,12 @@ function FilterPill({
 export default function RegionDetail() {
   const { regionId } = useParams<{ regionId: string }>();
   const navigate = useNavigate();
-  const region = findRegion(regionId!);
+  const [regionName, setRegionName] = useState('');
+  const [countryName, setCountryName] = useState<string | undefined>(undefined);
+  const [countryId, setCountryId] = useState<string | undefined>(undefined);
+  const [allCollections, setAllCollections] = useState<Collection[]>([]);
+  const [subRegions, setSubRegions] = useState<SubRegion[]>([]);
+  const [loading, setLoading] = useState(true);
   const [selectedLevel, setSelectedLevel] = useState<string>('all');
   const [progress, setProgress] = useState(getProgress());
 
@@ -232,7 +312,87 @@ export default function RegionDetail() {
     };
   }, []);
 
-  if (!region) {
+  useEffect(() => {
+    if (!regionId) return;
+    const load = async () => {
+      // 1. Region + country + sub-regions (parallel)
+      const [{ data: region }, { data: subs }] = await Promise.all([
+        supabase.from('regions').select('id, name, country_id').eq('id', regionId).single(),
+        supabase.from('regions').select('id, name, image_url, description')
+          .eq('parent_id', regionId)
+          .order('name'),
+      ]);
+
+      if (!region) { setLoading(false); return; }
+      setRegionName(region.name);
+      setCountryId(region.country_id);
+      setSubRegions(subs ?? []);
+
+      const { data: country } = await supabase
+        .from('countries').select('name').eq('id', region.country_id).single();
+      if (country) setCountryName(country.name);
+
+      // 2. Collections for this region
+      const { data: rcLinks } = await supabase
+        .from('region_collections').select('collection_id').eq('region_id', regionId);
+      const collectionIds = (rcLinks ?? []).map(r => r.collection_id);
+
+      if (collectionIds.length === 0) { setLoading(false); return; }
+
+      const { data: cols } = await supabase
+        .from('collections').select('*').in('id', collectionIds);
+
+      // 3. Items for all collections
+      const { data: ciLinks } = await supabase
+        .from('collection_items').select('collection_id, item_id').in('collection_id', collectionIds);
+      const itemIds = [...new Set((ciLinks ?? []).map(ci => ci.item_id))];
+
+      let itemMap: Record<string, WineItem> = {};
+      if (itemIds.length > 0) {
+        const { data: wines } = await supabase
+          .from('wine_items')
+          .select('*, brands(name)')
+          .in('id', itemIds);
+        for (const w of wines ?? []) {
+          const brand = w.brands as { name: string } | null;
+          itemMap[w.id] = {
+            id: w.id, name: w.name, description: w.description,
+            type: w.type, imageUrl: w.image_url, points: w.points, level: w.level,
+            wineType: w.wine_type,
+            elaborationMethod: w.elaboration_method,
+            brandName: brand?.name ?? null,
+          };
+        }
+      }
+
+      // 4. Build Collection objects
+      const colItemsMap: Record<string, WineItem[]> = {};
+      for (const ci of ciLinks ?? []) {
+        if (!colItemsMap[ci.collection_id]) colItemsMap[ci.collection_id] = [];
+        if (itemMap[ci.item_id]) colItemsMap[ci.collection_id].push(itemMap[ci.item_id]);
+      }
+
+      const built: Collection[] = (cols ?? []).map(c => ({
+        id: c.id, title: c.title, description: c.description,
+        level: c.level, coverImage: c.cover_image, totalPoints: c.total_points,
+        items: colItemsMap[c.id] ?? [],
+      }));
+
+      setAllCollections(built);
+      setLoading(false);
+    };
+    load();
+  }, [regionId]);
+
+  if (loading) {
+    return (
+      <div className="fixed inset-0 bg-neutral-900 flex items-center justify-center">
+        <p className="text-neutral-400 text-sm">Carregando...</p>
+      </div>
+    );
+  }
+
+  if (!regionName) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-neutral-900">
         <p className="text-neutral-400">Região não encontrada</p>
@@ -240,79 +400,98 @@ export default function RegionDetail() {
     );
   }
 
-  const country = findCountry(region.countryId);
-  const regionCollections = region.collections;
-
-  const essentialCount = regionCollections.filter(c => c.level === 'essential').length;
-  const escapeCount = regionCollections.filter(c => c.level === 'escape').length;
-  const iconCount = regionCollections.filter(c => c.level === 'icon').length;
+  const essentialCount = allCollections.filter(c => c.level === 'essential').length;
+  const escapeCount = allCollections.filter(c => c.level === 'escape').length;
+  const iconCount = allCollections.filter(c => c.level === 'icon').length;
 
   const filteredCollections =
     selectedLevel === 'all'
-      ? regionCollections
-      : regionCollections.filter(c => c.level === selectedLevel);
+      ? allCollections
+      : allCollections.filter(c => c.level === selectedLevel);
 
-  const handleBack = () => {
-    if (country) navigate(`/country/${country.id}`);
-    else navigate('/');
-  };
+  const hasSubRegions = subRegions.length > 0;
+  const hasCollections = filteredCollections.length > 0;
+  const showEmpty = !hasCollections && !hasSubRegions;
+
+  const handleBack = () => navigate(-1);
 
   return (
     <div className="fixed inset-0 bg-black">
-      {/* Filter bar — floats on top, always visible */}
-      <div className="absolute top-0 left-0 right-0 z-40 pointer-events-none">
-        <div className="pointer-events-auto flex gap-2 overflow-x-auto scrollbar-hide px-5 pb-3"
-             style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 148px)' }}>
-          <FilterPill
-            label={`Todas (${regionCollections.length})`}
-            active={selectedLevel === 'all'}
-            color="bg-rose-800"
-            onClick={() => setSelectedLevel('all')}
-          />
-          {essentialCount > 0 && (
+      {/* Filter bar — only shown if there are collections */}
+      {allCollections.length > 0 && (
+        <div className="absolute top-0 left-0 right-0 z-40 pointer-events-none">
+          <div
+            className="pointer-events-auto flex gap-2 overflow-x-auto scrollbar-hide px-5 pb-3"
+            style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 148px)' }}
+          >
             <FilterPill
-              label={`Essencial (${essentialCount})`}
-              active={selectedLevel === 'essential'}
-              color="bg-emerald-600"
-              onClick={() => setSelectedLevel('essential')}
+              label={`Todas (${allCollections.length})`}
+              active={selectedLevel === 'all'}
+              color="bg-rose-800"
+              onClick={() => setSelectedLevel('all')}
             />
-          )}
-          {escapeCount > 0 && (
-            <FilterPill
-              label={`Fugir do Óbvio (${escapeCount})`}
-              active={selectedLevel === 'escape'}
-              color="bg-sky-600"
-              onClick={() => setSelectedLevel('escape')}
-            />
-          )}
-          {iconCount > 0 && (
-            <FilterPill
-              label={`Ícones (${iconCount})`}
-              active={selectedLevel === 'icon'}
-              color="bg-amber-600"
-              onClick={() => setSelectedLevel('icon')}
-            />
-          )}
+            {essentialCount > 0 && (
+              <FilterPill
+                label={`Essencial (${essentialCount})`}
+                active={selectedLevel === 'essential'}
+                color="bg-emerald-600"
+                onClick={() => setSelectedLevel('essential')}
+              />
+            )}
+            {escapeCount > 0 && (
+              <FilterPill
+                label={`Fugir do Óbvio (${escapeCount})`}
+                active={selectedLevel === 'escape'}
+                color="bg-sky-600"
+                onClick={() => setSelectedLevel('escape')}
+              />
+            )}
+            {iconCount > 0 && (
+              <FilterPill
+                label={`Ícones (${iconCount})`}
+                active={selectedLevel === 'icon'}
+                color="bg-amber-600"
+                onClick={() => setSelectedLevel('icon')}
+              />
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Snap scroll container */}
       <div className="h-full overflow-y-scroll snap-y snap-mandatory scrollbar-hide">
-        {filteredCollections.length > 0 ? (
-          filteredCollections.map((collection, index) => (
+        {/* Collection slides */}
+        {filteredCollections.map((collection, index) => {
+          const isLast = index === filteredCollections.length - 1;
+          const nextLabel = isLast && hasSubRegions ? 'Sub-regiões' : undefined;
+          return (
             <CollectionSlide
               key={collection.id}
               collection={collection}
               progress={progress}
               isFirst={index === 0}
-              hasNext={index < filteredCollections.length - 1}
-              regionName={region.name}
-              countryName={country?.name}
+              hasNext={!isLast || hasSubRegions}
+              nextLabel={nextLabel}
+              regionName={regionName}
+              countryName={countryName}
               onBack={handleBack}
             />
-          ))
-        ) : (
-          /* Empty state — fullscreen */
+          );
+        })}
+
+        {/* Sub-regions slide */}
+        {hasSubRegions && (
+          <SubRegionsSlide
+            subRegions={subRegions}
+            regionName={regionName}
+            countryName={countryName}
+            isFirst={!hasCollections}
+            onBack={handleBack}
+          />
+        )}
+
+        {/* Empty state — no collections AND no sub-regions */}
+        {showEmpty && (
           <div className="h-screen snap-start relative flex flex-col items-center justify-center bg-neutral-950">
             <div className="px-5 pt-14 pb-6 absolute top-0 left-0 right-0">
               <div className="flex items-center gap-3">
@@ -324,15 +503,15 @@ export default function RegionDetail() {
                   <ArrowLeft size={18} className="text-white" />
                 </motion.button>
                 <div>
-                  {country && (
-                    <p className="text-rose-300 text-[11px] uppercase tracking-wide">{country.name}</p>
+                  {countryName && (
+                    <p className="text-rose-300 text-[11px] uppercase tracking-wide">{countryName}</p>
                   )}
-                  <h1 className="text-white font-bold text-lg">{region.name}</h1>
+                  <h1 className="text-white font-bold text-lg">{regionName}</h1>
                 </div>
               </div>
             </div>
             <Layers size={48} className="text-white/20 mb-4" />
-            <p className="text-white/40 text-sm">Nenhuma coleção neste filtro</p>
+            <p className="text-white/40 text-sm">Nenhuma coleção cadastrada ainda</p>
           </div>
         )}
       </div>

@@ -1,25 +1,38 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router';
 import { useAuth } from '../contexts/AuthContext';
 import {
   LayoutDashboard, Globe, MapPin, BookOpen,
   Wine, Building2, Grape, LogOut, Menu, X,
 } from 'lucide-react';
+import { supabase } from '../../lib/supabase';
 
 const navItems = [
-  { to: '/admin', label: 'Dashboard', icon: LayoutDashboard, end: true },
-  { to: '/admin/countries', label: 'Países', icon: Globe, end: false },
-  { to: '/admin/regions', label: 'Regiões', icon: MapPin, end: false },
-  { to: '/admin/collections', label: 'Coleções', icon: BookOpen, end: false },
-  { to: '/admin/wines', label: 'Vinhos', icon: Wine, end: false },
-  { to: '/admin/brands', label: 'Marcas', icon: Building2, end: false },
-  { to: '/admin/grapes', label: 'Uvas', icon: Grape, end: false },
-];
+  { to: '/admin', label: 'Dashboard', icon: LayoutDashboard, end: true, table: null },
+  { to: '/admin/countries', label: 'Países', icon: Globe, end: false, table: 'countries' },
+  { to: '/admin/regions', label: 'Regiões', icon: MapPin, end: false, table: 'regions' },
+  { to: '/admin/collections', label: 'Coleções', icon: BookOpen, end: false, table: 'collections' },
+  { to: '/admin/wines', label: 'Vinhos', icon: Wine, end: false, table: 'wine_items' },
+  { to: '/admin/brands', label: 'Vinícolas', icon: Building2, end: false, table: 'brands' },
+  { to: '/admin/grapes', label: 'Uvas', icon: Grape, end: false, table: 'grapes' },
+] as const;
+
+type Counts = Partial<Record<string, number>>;
 
 export default function BackofficeLayout() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
+  const [counts, setCounts] = useState<Counts>({});
+
+  useEffect(() => {
+    const tables = navItems.map(n => n.table).filter(Boolean) as string[];
+    Promise.all(
+      tables.map(t =>
+        supabase.from(t as never).select('*', { count: 'exact', head: true }).then(r => [t, r.count ?? 0] as const)
+      )
+    ).then(results => setCounts(Object.fromEntries(results)));
+  }, []);
 
   const handleSignOut = async () => {
     await signOut();
@@ -47,7 +60,7 @@ export default function BackofficeLayout() {
       {/* Nav */}
       <nav className="flex-1 px-3 py-4 overflow-y-auto">
         <ul className="space-y-0.5">
-          {navItems.map(({ to, label, icon: Icon, end }) => (
+          {navItems.map(({ to, label, icon: Icon, end, table }) => (
             <li key={to}>
               <NavLink
                 to={to}
@@ -61,8 +74,21 @@ export default function BackofficeLayout() {
                   }`
                 }
               >
-                <Icon size={17} />
-                {label}
+                {({ isActive }) => (
+                  <>
+                    <Icon size={17} />
+                    <span className="flex-1">{label}</span>
+                    {table && counts[table] !== undefined && (
+                      <span className={`text-xs font-semibold tabular-nums px-1.5 py-0.5 rounded-md min-w-[20px] text-center ${
+                        isActive
+                          ? 'bg-red-100 text-red-800'
+                          : 'bg-neutral-100 text-neutral-500'
+                      }`}>
+                        {counts[table]}
+                      </span>
+                    )}
+                  </>
+                )}
               </NavLink>
             </li>
           ))}
