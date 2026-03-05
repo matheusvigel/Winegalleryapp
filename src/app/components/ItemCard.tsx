@@ -166,7 +166,7 @@ export function ItemCard({ item }: ItemCardProps) {
   return (
     <>
       <div
-        className="relative w-full rounded-2xl overflow-hidden shadow-xl bg-neutral-900 cursor-pointer select-none"
+        className="relative w-full rounded-2xl overflow-hidden shadow-xl bg-white cursor-pointer select-none"
         onClick={() => setShowDetail(true)}
       >
         {/* ── Image area ─────────────────────────────────────────── */}
@@ -275,17 +275,17 @@ export function ItemCard({ item }: ItemCardProps) {
         </div>
 
         {/* ── Info panel ────────────────────────────────────────── */}
-        <div className="px-3 pt-2.5 pb-3">
-          <h3 className="text-white font-bold text-[15px] leading-tight line-clamp-2">
+        <div className="px-3 pt-2.5 pb-3 min-h-[92px]">
+          <h3 className="text-neutral-900 font-bold text-[15px] leading-tight line-clamp-2">
             {item.name}
           </h3>
           {item.brandName && (
             <div className="flex items-center gap-1 mt-1">
-              <Building2 size={10} className="text-white/40 flex-shrink-0" />
-              <span className="text-white/45 text-[11px] leading-none">{item.brandName}</span>
+              <Building2 size={10} className="text-neutral-400 flex-shrink-0" />
+              <span className="text-neutral-500 text-[11px] leading-none">{item.brandName}</span>
             </div>
           )}
-          <p className="text-white/55 text-[12px] leading-snug mt-1.5 line-clamp-2">
+          <p className="text-neutral-500 text-[12px] leading-snug mt-1.5 line-clamp-2">
             {item.description}
           </p>
         </div>
