@@ -78,9 +78,16 @@ function CollectionSlide({
               <ArrowLeft size={18} className="text-white" />
             </motion.button>
             <div className="min-w-0">
-              {countryName && (
-                <p className="text-[#c5a96d] text-[11px] font-semibold uppercase tracking-widest">{countryName}</p>
-              )}
+              {/* Breadcrumb */}
+              <div className="flex items-center gap-1 mb-0.5">
+                <span className="text-white/40 text-[10px]">Regiões</span>
+                {countryName && (
+                  <>
+                    <span className="text-white/30 text-[10px]">/</span>
+                    <span className="text-[#c5a96d] text-[10px] font-medium">{countryName}</span>
+                  </>
+                )}
+              </div>
               <h1 className="font-gelica text-white font-bold text-xl leading-tight truncate">{regionName}</h1>
             </div>
           </div>
@@ -194,10 +201,10 @@ function SubRegionsSlide({
   onBack: () => void;
 }) {
   return (
-    <div className="relative h-screen snap-start flex flex-col overflow-hidden bg-neutral-50">
-      {/* Header — matches CountryDetail header style */}
+    <div className="relative h-screen snap-start flex flex-col overflow-hidden bg-[#F0EBE0]">
+      {/* Header */}
       <div
-        className="bg-white border-b border-neutral-200 px-5 pb-4 flex-shrink-0"
+        className="bg-[#F0EBE0] border-b border-black/[0.07] px-5 pb-4 flex-shrink-0"
         style={{ paddingTop: isFirst ? '48px' : '196px' }}
       >
         {isFirst && (
@@ -205,53 +212,64 @@ function SubRegionsSlide({
             <motion.button
               whileTap={{ scale: 0.9 }}
               onClick={onBack}
-              className="w-9 h-9 rounded-full bg-neutral-100 border border-neutral-200 flex items-center justify-center flex-shrink-0"
+              className="w-9 h-9 rounded-full bg-black/8 border border-black/[0.07] flex items-center justify-center flex-shrink-0"
             >
-              <ArrowLeft size={18} className="text-neutral-700" />
+              <ArrowLeft size={18} className="text-[#1C1B1F]" />
             </motion.button>
             <div className="min-w-0">
-              {countryName && (
-                <p className="text-[#c5a96d] text-[11px] font-semibold uppercase tracking-widest">{countryName}</p>
-              )}
-              <h1 className="text-neutral-900 font-bold text-lg leading-tight truncate">{regionName}</h1>
+              {/* Breadcrumb */}
+              <div className="flex items-center gap-1 mb-0.5">
+                <span className="text-neutral-400 text-[10px]">Regiões</span>
+                {countryName && (
+                  <>
+                    <span className="text-neutral-300 text-[10px]">/</span>
+                    <span className="text-[#C5A96D] text-[10px] font-medium">{countryName}</span>
+                  </>
+                )}
+              </div>
+              <h1 className="font-gelica text-[#1C1B1F] font-semibold text-xl leading-tight truncate">
+                {regionName}
+              </h1>
             </div>
           </div>
         )}
 
-        <h2 className="text-sm font-semibold text-neutral-500 uppercase tracking-wider">
+        <h2 className="font-gelica text-lg text-[#1C1B1F]">
           Sub-regiões de {regionName}
         </h2>
       </div>
 
-      {/* Sub-region cards — same style as CountryDetail regions */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+      {/* Sub-region cards — same style as CountryDetail + RegionsView */}
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
         {subRegions.map((sr, i) => (
           <motion.div
             key={sr.id}
-            initial={{ opacity: 0, x: -16 }}
-            animate={{ opacity: 1, x: 0 }}
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.06 * i, duration: 0.3 }}
           >
             <Link to={`/region/${sr.id}`}>
-              <div className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-shadow">
-                <div className="relative h-40">
+              <div className="bg-[#FAFAF7] rounded-2xl overflow-hidden border border-black/[0.06]">
+                <div className="relative h-36">
                   <img
                     src={sr.image_url}
                     alt={sr.name}
                     className="w-full h-full object-cover"
                     draggable={false}
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
-                  <div className="absolute bottom-4 left-4 right-4">
-                    <h3 className="text-xl font-bold text-white mb-1">{sr.name}</h3>
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                  <div className="absolute bottom-3 left-4 right-4">
+                    <h3 className="font-gelica text-xl text-white font-semibold uppercase tracking-wide">
+                      {sr.name}
+                    </h3>
                     {sr.description && (
-                      <p className="text-neutral-200 text-sm line-clamp-1">{sr.description}</p>
+                      <p className="text-white/70 text-xs mt-0.5 line-clamp-1">{sr.description}</p>
                     )}
                   </div>
                 </div>
                 <div className="px-4 py-3 flex items-center justify-between">
                   <span className="text-sm text-neutral-500">Ver coleções</span>
-                  <ChevronRight size={20} className="text-neutral-400" />
+                  <ChevronRight size={18} className="text-neutral-300" />
                 </div>
               </div>
             </Link>
@@ -358,7 +376,7 @@ export default function RegionDetail() {
 
   if (loading) {
     return (
-      <div className="fixed inset-0 bg-neutral-900 flex items-center justify-center">
+      <div className="fixed inset-0 bg-[#F0EBE0] flex items-center justify-center">
         <p className="text-neutral-400 text-sm">Carregando...</p>
       </div>
     );
@@ -366,8 +384,8 @@ export default function RegionDetail() {
 
   if (!regionName) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-neutral-900">
-        <p className="text-neutral-400">Região não encontrada</p>
+      <div className="min-h-screen flex items-center justify-center bg-[#F0EBE0]">
+        <p className="text-neutral-500">Região não encontrada</p>
       </div>
     );
   }
@@ -414,26 +432,32 @@ export default function RegionDetail() {
 
         {/* Empty state — no collections AND no sub-regions */}
         {showEmpty && (
-          <div className="h-screen snap-start relative flex flex-col items-center justify-center bg-neutral-950">
+          <div className="h-screen snap-start relative flex flex-col items-center justify-center bg-[#F0EBE0]">
             <div className="px-5 pt-14 pb-6 absolute top-0 left-0 right-0">
               <div className="flex items-center gap-3">
                 <motion.button
                   whileTap={{ scale: 0.9 }}
                   onClick={handleBack}
-                  className="w-9 h-9 rounded-full bg-white/10 backdrop-blur-md border border-white/15 flex items-center justify-center"
+                  className="w-9 h-9 rounded-full bg-black/8 border border-black/[0.07] flex items-center justify-center"
                 >
-                  <ArrowLeft size={18} className="text-white" />
+                  <ArrowLeft size={18} className="text-[#1C1B1F]" />
                 </motion.button>
                 <div>
-                  {countryName && (
-                    <p className="text-[#c5a96d] text-[11px] font-semibold uppercase tracking-widest">{countryName}</p>
-                  )}
-                  <h1 className="text-white font-bold text-lg">{regionName}</h1>
+                  <div className="flex items-center gap-1 mb-0.5">
+                    <span className="text-neutral-400 text-[10px]">Regiões</span>
+                    {countryName && (
+                      <>
+                        <span className="text-neutral-300 text-[10px]">/</span>
+                        <span className="text-[#C5A96D] text-[10px] font-medium">{countryName}</span>
+                      </>
+                    )}
+                  </div>
+                  <h1 className="font-gelica text-[#1C1B1F] font-semibold text-xl">{regionName}</h1>
                 </div>
               </div>
             </div>
-            <Layers size={48} className="text-white/20 mb-4" />
-            <p className="text-white/40 text-sm">Nenhuma coleção cadastrada ainda</p>
+            <Layers size={48} className="text-neutral-300 mb-4" />
+            <p className="text-neutral-400 text-sm">Nenhuma coleção cadastrada ainda</p>
           </div>
         )}
       </div>

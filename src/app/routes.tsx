@@ -1,5 +1,6 @@
 import { createBrowserRouter } from "react-router";
 import Root from "./components/Root";
+import Home from "./components/Home";
 import RegionsView from "./components/RegionsView";
 import CountryDetail from "./components/CountryDetail";
 import RegionDetail from "./components/RegionDetail";
@@ -54,7 +55,8 @@ export const router = createBrowserRouter([
     path: "/",
     Component: Root,
     children: [
-      { index: true, Component: RegionsView },
+      { index: true, Component: Home },
+      { path: "regions", Component: RegionsView },
       { path: "country/:countryId", Component: CountryDetail },
       { path: "region/:regionId", Component: RegionDetail },
       { path: "brands", Component: BrandsView },

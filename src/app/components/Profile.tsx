@@ -1,30 +1,20 @@
 import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router';
-import { getStats, getProgress } from '../utils/storage';
-import { getAllRegions } from '../data/wineData';
-import { ArrowLeft, Trophy, CheckCircle, Heart, Wine, LogOut } from 'lucide-react';
+import { useNavigate } from 'react-router';
+import { getStats } from '../utils/storage';
+import { Trophy, LogOut, CheckCircle2, Heart, Wine } from 'lucide-react';
 import { motion } from 'motion/react';
-import { Progress } from './ui/progress';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function Profile() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const [stats, setStats] = useState(getStats());
-  const [progress, setProgress] = useState(getProgress());
 
   useEffect(() => {
     setStats(getStats());
-    setProgress(getProgress());
-
-    const handleStorage = () => {
-      setStats(getStats());
-      setProgress(getProgress());
-    };
-
+    const handleStorage = () => setStats(getStats());
     window.addEventListener('storage', handleStorage);
     window.addEventListener('statsUpdated', handleStorage);
-
     return () => {
       window.removeEventListener('storage', handleStorage);
       window.removeEventListener('statsUpdated', handleStorage);
@@ -36,186 +26,106 @@ export default function Profile() {
     navigate('/login');
   };
 
-  // Get all items from all regions
-  const allRegions = getAllRegions();
-  const allItems = allRegions.flatMap(region =>
-    region.collections.flatMap(c => c.items)
-  );
-
-  const completedItems = progress
-    .filter(p => p.status === 'completed')
-    .map(p => allItems.find(e => e.id === p.itemId))
-    .filter(Boolean);
-
-  const wishlistItems = progress
-    .filter(p => p.status === 'wishlist')
-    .map(p => allItems.find(e => e.id === p.itemId))
-    .filter(Boolean);
-
-  const levelProgress = (stats.totalPoints % 100);
-  const nextLevelPoints = 100;
-
-  const displayName = user?.user_metadata?.name || user?.email?.split('@')[0] || 'Sommelier';
+  const levelProgress = stats.totalPoints % 100;
+  const displayName =
+    user?.user_metadata?.name || user?.email?.split('@')[0] || 'Sommelier';
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-red-50 to-neutral-50">
-      {/* Header */}
-      <header className="bg-red-900 text-white px-6 pt-8 pb-8">
-        <div className="max-w-lg mx-auto">
-          <div className="flex items-center justify-between mb-4">
-            <Link
-              to="/"
-              className="inline-flex items-center gap-2 text-red-100 hover:text-white transition-colors"
-            >
-              <ArrowLeft size={20} />
-              <span className="text-sm">Voltar</span>
-            </Link>
-            <button
-              onClick={handleSignOut}
-              className="inline-flex items-center gap-1.5 text-red-100 hover:text-white text-sm transition-colors"
-            >
-              <LogOut size={16} />
-              Sair
-            </button>
-          </div>
+    <div className="min-h-screen bg-[#F0EBE0]">
+      {/* Profile header */}
+      <div className="px-4 pt-5 pb-4">
+        <div className="flex items-center justify-between mb-5">
+          <h1 className="font-gelica text-3xl text-[#1C1B1F]">Perfil</h1>
+          <button
+            onClick={handleSignOut}
+            className="flex items-center gap-1.5 text-neutral-400 hover:text-[#5C1A3E] transition-colors text-sm"
+          >
+            <LogOut size={16} />
+            Sair
+          </button>
+        </div>
 
-          <div className="flex items-center gap-4">
-            <div className="w-20 h-20 bg-red-800 rounded-full flex items-center justify-center text-4xl">
+        {/* User card */}
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-[#FAFAF7] rounded-2xl p-5 border border-black/[0.06]"
+        >
+          <div className="flex items-center gap-4 mb-5">
+            <div className="w-16 h-16 bg-[#5C1A3E]/10 rounded-full flex items-center justify-center text-3xl flex-shrink-0">
               🍷
             </div>
-            <div>
-              <h1 className="text-2xl font-bold">{displayName}</h1>
-              <p className="text-red-100">Nível {stats.level} Sommelier</p>
+            <div className="flex-1 min-w-0">
+              <h2 className="font-gelica text-xl text-[#1C1B1F] truncate">{displayName}</h2>
+              <p className="text-sm text-neutral-500">Nível {stats.level} · Sommelier</p>
               {user?.email && (
-                <p className="text-red-200 text-xs mt-0.5">{user.email}</p>
+                <p className="text-xs text-neutral-400 mt-0.5 truncate">{user.email}</p>
               )}
             </div>
           </div>
-        </div>
-      </header>
 
-      {/* Stats Section */}
-      <div className="max-w-lg mx-auto px-6 -mt-6 mb-6">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-white rounded-xl p-6 shadow-lg"
-        >
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <Trophy className="text-yellow-600" size={24} />
-              <span className="font-bold text-lg text-neutral-900">Progresso</span>
-            </div>
-            <span className="text-2xl font-bold text-red-800">{stats.totalPoints}</span>
+          {/* Progress bar */}
+          <div className="mb-1 flex items-center justify-between text-xs text-neutral-500">
+            <span>Progresso para nível {stats.level + 1}</span>
+            <span className="tabular-nums">{levelProgress}/100 pts</span>
           </div>
-
-          <div className="mb-2">
-            <div className="flex justify-between text-sm text-neutral-600 mb-2">
-              <span>Nível {stats.level}</span>
-              <span>{levelProgress}/{nextLevelPoints} pts</span>
-            </div>
-            <Progress value={levelProgress} max={nextLevelPoints} className="h-3" />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4 mt-6 pt-6 border-t border-neutral-200">
-            <div className="text-center">
-              <div className="text-3xl font-bold text-green-600">{stats.completedCount}</div>
-              <div className="text-sm text-neutral-600">Experiências Vividas</div>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-red-600">{stats.wishlistCount}</div>
-              <div className="text-sm text-neutral-600">Na Lista de Desejos</div>
-            </div>
+          <div className="w-full bg-black/8 rounded-full h-1.5 overflow-hidden">
+            <div
+              className="h-full bg-[#5C1A3E] rounded-full transition-all duration-500"
+              style={{ width: `${levelProgress}%` }}
+            />
           </div>
         </motion.div>
       </div>
 
-      {/* Completed Section */}
-      {completedItems.length > 0 && (
-        <div className="max-w-lg mx-auto px-6 mb-6">
-          <div className="flex items-center gap-2 mb-4">
-            <CheckCircle className="text-green-600" size={24} />
-            <h2 className="text-xl font-bold text-neutral-900">Experiências Vividas</h2>
-          </div>
-
-          <div className="space-y-3">
-            {completedItems.map((item, index) => (
-              <motion.div
-                key={item?.id}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.1 * index }}
-                className="bg-white rounded-lg p-4 shadow-md flex items-center gap-4"
-              >
-                <img
-                  src={item?.imageUrl}
-                  alt={item?.name}
-                  className="w-16 h-16 rounded-lg object-cover"
-                />
-                <div className="flex-1">
-                  <h3 className="font-bold text-neutral-900">{item?.name}</h3>
-                  <p className="text-sm text-neutral-600">{item?.description}</p>
-                </div>
-                <div className="text-green-600 flex-shrink-0">
-                  <CheckCircle size={24} />
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Wishlist Section */}
-      {wishlistItems.length > 0 && (
-        <div className="max-w-lg mx-auto px-6 pb-6">
-          <div className="flex items-center gap-2 mb-4">
-            <Heart className="text-red-600" size={24} />
-            <h2 className="text-xl font-bold text-neutral-900">Lista de Desejos</h2>
-          </div>
-
-          <div className="space-y-3">
-            {wishlistItems.map((item, index) => (
-              <motion.div
-                key={item?.id}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.1 * index }}
-                className="bg-white rounded-lg p-4 shadow-md flex items-center gap-4"
-              >
-                <img
-                  src={item?.imageUrl}
-                  alt={item?.name}
-                  className="w-16 h-16 rounded-lg object-cover"
-                />
-                <div className="flex-1">
-                  <h3 className="font-bold text-neutral-900">{item?.name}</h3>
-                  <p className="text-sm text-neutral-600">{item?.description}</p>
-                </div>
-                <div className="text-red-600 flex-shrink-0">
-                  <Heart size={24} fill="currentColor" />
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Empty State */}
-      {completedItems.length === 0 && wishlistItems.length === 0 && (
-        <div className="max-w-lg mx-auto px-6 py-12 text-center">
-          <Wine size={48} className="text-neutral-300 mx-auto mb-4" />
-          <h3 className="text-xl font-bold text-neutral-700 mb-2">
-            Comece sua jornada
-          </h3>
-          <p className="text-neutral-600 mb-6">
-            Explore as regiões e comece a marcar suas experiências
-          </p>
-          <Link
-            to="/"
-            className="inline-block bg-red-900 text-white px-6 py-3 rounded-lg font-medium hover:bg-red-800 transition-colors"
+      {/* Stats grid */}
+      <div className="px-4 pb-4">
+        <div className="grid grid-cols-3 gap-3">
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.05 }}
+            className="bg-[#FAFAF7] rounded-2xl p-4 border border-black/[0.06] text-center"
           >
-            Explorar Regiões
-          </Link>
+            <Trophy size={22} className="text-[#C5A96D] mx-auto mb-2" />
+            <div className="font-gelica text-2xl text-[#1C1B1F]">{stats.totalPoints}</div>
+            <div className="text-xs text-neutral-500 mt-0.5">Pontos</div>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="bg-[#FAFAF7] rounded-2xl p-4 border border-black/[0.06] text-center"
+          >
+            <CheckCircle2 size={22} className="text-[#5C1A3E] mx-auto mb-2" />
+            <div className="font-gelica text-2xl text-[#1C1B1F]">{stats.completedCount}</div>
+            <div className="text-xs text-neutral-500 mt-0.5">Vividas</div>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15 }}
+            className="bg-[#FAFAF7] rounded-2xl p-4 border border-black/[0.06] text-center"
+          >
+            <Heart size={22} className="text-rose-400 mx-auto mb-2" />
+            <div className="font-gelica text-2xl text-[#1C1B1F]">{stats.wishlistCount}</div>
+            <div className="text-xs text-neutral-500 mt-0.5">Desejos</div>
+          </motion.div>
+        </div>
+      </div>
+
+      {/* Empty state */}
+      {stats.completedCount === 0 && stats.wishlistCount === 0 && (
+        <div className="px-4 py-10 text-center">
+          <Wine size={40} className="text-neutral-200 mx-auto mb-3" />
+          <p className="font-gelica text-lg text-neutral-400 mb-1">
+            Comece sua jornada
+          </p>
+          <p className="text-sm text-neutral-400">
+            Explore as regiões e marque suas experiências
+          </p>
         </div>
       )}
     </div>
