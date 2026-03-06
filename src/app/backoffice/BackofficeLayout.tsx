@@ -3,7 +3,7 @@ import { Outlet, NavLink, useNavigate } from 'react-router';
 import { useAuth } from '../contexts/AuthContext';
 import {
   LayoutDashboard, Globe, MapPin, BookOpen,
-  Wine, Building2, Grape, LogOut, Menu, X,
+  Wine, Building2, Grape, LogOut, Menu, X, Star, Sparkles,
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
@@ -13,8 +13,10 @@ const navItems = [
   { to: '/admin/regions', label: 'Regiões', icon: MapPin, end: false, table: 'regions' },
   { to: '/admin/collections', label: 'Coleções', icon: BookOpen, end: false, table: 'collections' },
   { to: '/admin/wines', label: 'Vinhos', icon: Wine, end: false, table: 'wine_items' },
+  { to: '/admin/experiences', label: 'Experiências', icon: Star, end: false, table: 'experiences' },
   { to: '/admin/brands', label: 'Vinícolas', icon: Building2, end: false, table: 'brands' },
   { to: '/admin/grapes', label: 'Uvas', icon: Grape, end: false, table: 'grapes' },
+  { to: '/admin/highlights', label: 'Destaques', icon: Sparkles, end: false, table: 'highlights' },
 ] as const;
 
 type Counts = Partial<Record<string, number>>;

@@ -1,30 +1,48 @@
 import { Outlet, Link } from 'react-router';
-import { Menu, Search } from 'lucide-react';
+import AppBar from '@mui/material/AppBar';
+import Toolbar from '@mui/material/Toolbar';
+import Typography from '@mui/material/Typography';
+import IconButton from '@mui/material/IconButton';
+import MenuIcon from '@mui/icons-material/Menu';
+import SearchIcon from '@mui/icons-material/Search';
+import Box from '@mui/material/Box';
 import { NavigationTabs } from './NavigationTabs';
 
 export default function Root() {
   return (
-    <div className="min-h-screen bg-neutral-50">
-      {/* Global sticky header */}
-      <header className="bg-white border-b border-neutral-100 sticky top-0 z-30 h-[52px] flex items-center px-4">
-        <button className="w-8 h-8 flex items-center justify-center text-neutral-700">
-          <Menu size={22} />
-        </button>
-        <Link to="/" className="flex-1 text-center text-[17px] font-bold text-neutral-900 tracking-tight">
-          Wine Gallery
-        </Link>
-        <button className="w-8 h-8 flex items-center justify-center text-neutral-700">
-          <Search size={22} />
-        </button>
-      </header>
+    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
+      <AppBar
+        position="sticky"
+        elevation={0}
+        sx={{
+          bgcolor: 'white',
+          color: 'text.primary',
+          borderBottom: 0,
+        }}
+      >
+        <Toolbar sx={{ minHeight: '52px !important', px: 1 }}>
+          <IconButton size="small" edge="start" color="inherit" sx={{ mr: 0.5 }}>
+            <MenuIcon fontSize="small" />
+          </IconButton>
+          <Typography
+            component={Link}
+            to="/"
+            variant="subtitle1"
+            fontWeight={700}
+            sx={{ flex: 1, textAlign: 'center', textDecoration: 'none', color: 'inherit', letterSpacing: '-0.3px' }}
+          >
+            Wine Gallery
+          </Typography>
+          <IconButton size="small" edge="end" color="inherit" sx={{ ml: 0.5 }}>
+            <SearchIcon fontSize="small" />
+          </IconButton>
+        </Toolbar>
+        <NavigationTabs />
+      </AppBar>
 
-      {/* Navigation tabs */}
-      <NavigationTabs />
-
-      {/* Page content */}
-      <main>
+      <Box component="main">
         <Outlet />
-      </main>
-    </div>
+      </Box>
+    </Box>
   );
 }
