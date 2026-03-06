@@ -69,7 +69,7 @@ export default function GrapesView() {
   return (
     <div className="min-h-screen bg-[#F0EBE0]">
       <div className="px-4 pt-5 pb-6">
-        <h1 className="font-gelica text-3xl text-[#1C1B1F] mb-5">Uvas</h1>
+        <h1 className="font-gelica text-3xl text-[#2D3A3A] mb-5">Uvas</h1>
 
         {loading ? (
           <div className="space-y-3">
@@ -89,8 +89,8 @@ export default function GrapesView() {
             {redGrapes.length > 0 && (
               <div className="mb-7">
                 <div className="flex items-center gap-2 mb-3">
-                  <h2 className="font-gelica text-xl text-[#1C1B1F]">Uvas Tintas</h2>
-                  <span className="text-xs font-semibold bg-[#5C1A3E]/10 text-[#5C1A3E] px-2 py-0.5 rounded-full">
+                  <h2 className="font-gelica text-xl text-[#2D3A3A]">Uvas Tintas</h2>
+                  <span className="text-xs font-semibold bg-[#690037]/10 text-[#690037] px-2 py-0.5 rounded-full">
                     {redGrapes.length}
                   </span>
                 </div>
@@ -105,8 +105,8 @@ export default function GrapesView() {
             {whiteGrapes.length > 0 && (
               <div>
                 <div className="flex items-center gap-2 mb-3">
-                  <h2 className="font-gelica text-xl text-[#1C1B1F]">Uvas Brancas</h2>
-                  <span className="text-xs font-semibold bg-[#C5A96D]/20 text-[#8a7240] px-2 py-0.5 rounded-full">
+                  <h2 className="font-gelica text-xl text-[#2D3A3A]">Uvas Brancas</h2>
+                  <span className="text-xs font-semibold bg-[#F1BD85]/20 text-[#8a7240] px-2 py-0.5 rounded-full">
                     {whiteGrapes.length}
                   </span>
                 </div>

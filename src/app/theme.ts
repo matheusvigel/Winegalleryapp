@@ -3,27 +3,27 @@ import { createTheme } from '@mui/material/styles';
 const theme = createTheme({
   palette: {
     primary: {
-      main: '#5C1A3E',
-      light: '#8C3066',
-      dark: '#3A0D27',
+      main: '#690037',
+      light: '#94004e',
+      dark: '#450024',
       contrastText: '#fff',
     },
     secondary: {
-      main: '#C5A96D',
-      contrastText: '#1C1B1F',
+      main: '#F1BD85',
+      contrastText: '#2D3A3A',
     },
     background: {
       default: '#F0EBE0',
       paper: '#FAFAF7',
     },
     text: {
-      primary: '#1C1B1F',
+      primary: '#2D3A3A',
       secondary: '#6B6B6B',
     },
     divider: 'rgba(0,0,0,0.07)',
   },
   typography: {
-    fontFamily: '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',
+    fontFamily: '"DM Sans", system-ui, sans-serif',
     h1: { fontFamily: '"Cormorant Garamond", Georgia, serif', fontWeight: 600 },
     h2: { fontFamily: '"Cormorant Garamond", Georgia, serif', fontWeight: 600 },
     h3: { fontFamily: '"Cormorant Garamond", Georgia, serif', fontWeight: 600 },
@@ -69,7 +69,7 @@ const theme = createTheme({
       styleOverrides: {
         root: {
           backgroundColor: '#F0EBE0',
-          color: '#1C1B1F',
+          color: '#2D3A3A',
           boxShadow: 'none',
           borderBottom: '1px solid rgba(0,0,0,0.07)',
         },

@@ -57,11 +57,11 @@ export default function CountryDetail() {
     <div className="min-h-screen bg-[#F0EBE0]">
       {/* Breadcrumb */}
       <div className="px-4 py-3 flex items-center gap-1.5 text-xs text-neutral-400">
-        <Link to="/regions" className="hover:text-[#5C1A3E] transition-colors">
+        <Link to="/regions" className="hover:text-[#690037] transition-colors">
           Regiões
         </Link>
         <ChevronRight size={12} />
-        <span className="text-[#1C1B1F] font-medium">{country.name}</span>
+        <span className="text-[#2D3A3A] font-medium">{country.name}</span>
       </div>
 
       {/* Hero */}
@@ -88,7 +88,7 @@ export default function CountryDetail() {
 
       {/* Regions */}
       <div className="px-4 pt-5 pb-6">
-        <h2 className="font-gelica text-xl text-[#1C1B1F] mb-4">
+        <h2 className="font-gelica text-xl text-[#2D3A3A] mb-4">
           Regiões de {country.name}
         </h2>
 

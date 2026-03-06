@@ -31,7 +31,7 @@ export default function BrandsView() {
   return (
     <div className="min-h-screen bg-[#F0EBE0]">
       <div className="px-4 pt-5 pb-6">
-        <h1 className="font-gelica text-3xl text-[#1C1B1F] mb-5">Vinícolas</h1>
+        <h1 className="font-gelica text-3xl text-[#2D3A3A] mb-5">Vinícolas</h1>
 
         {loading ? (
           <div className="space-y-3">
@@ -77,7 +77,7 @@ export default function BrandsView() {
                     </div>
                     <div className="px-4 py-3 flex items-center justify-between">
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-[#1C1B1F]">{brand.country}</p>
+                        <p className="text-sm font-medium text-[#2D3A3A]">{brand.country}</p>
                         {brand.region && (
                           <p className="text-xs text-neutral-500">{brand.region}</p>
                         )}

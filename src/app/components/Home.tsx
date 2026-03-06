@@ -95,11 +95,11 @@ export default function Home() {
             <div className="flex-1">
               <p className="text-xs text-neutral-500 mb-1.5">
                 Nível{' '}
-                <span className="font-semibold text-[#1C1B1F]">{stats.level}</span>
+                <span className="font-semibold text-[#2D3A3A]">{stats.level}</span>
               </p>
               <div className="w-full bg-black/8 rounded-full h-1.5 overflow-hidden">
                 <div
-                  className="h-full bg-[#5C1A3E] rounded-full transition-all duration-500"
+                  className="h-full bg-[#690037] rounded-full transition-all duration-500"
                   style={{ width: `${pointsInLevel}%` }}
                 />
               </div>
@@ -110,11 +110,11 @@ export default function Home() {
           </div>
         ) : (
           <Link to="/register" className="block">
-            <div className="bg-[#5C1A3E] rounded-2xl px-5 py-5 text-center">
+            <div className="bg-[#690037] rounded-2xl px-5 py-5 text-center">
               <p className="font-gelica text-2xl text-white leading-tight mb-1">
                 Comece sua jornada
               </p>
-              <p className="text-[#C5A96D] text-sm">
+              <p className="text-[#F1BD85] text-sm">
                 Crie sua conta e acumule pontos
               </p>
             </div>
@@ -125,7 +125,7 @@ export default function Home() {
       {/* ── Destaques ───────────────────────────────────── */}
       {(highlights.length > 0 || loading) && (
         <div className="pt-6 pb-1">
-          <h2 className="font-gelica text-[22px] text-[#1C1B1F] px-4 mb-3">
+          <h2 className="font-gelica text-[22px] text-[#2D3A3A] px-4 mb-3">
             Destaques
           </h2>
           <div className="flex gap-3 px-4 overflow-x-auto scrollbar-hide pb-1">
@@ -151,7 +151,7 @@ export default function Home() {
                     <div className="min-w-[140px] h-44 bg-[#FAFAF7] rounded-2xl border border-black/[0.06] overflow-hidden flex flex-col">
                       <div className="flex-1 bg-neutral-100" />
                       <div className="px-3 py-2.5">
-                        <p className="text-xs font-semibold text-[#1C1B1F] truncate">
+                        <p className="text-xs font-semibold text-[#2D3A3A] truncate">
                           {h.label ?? h.entity_id}
                         </p>
                       </div>
@@ -165,7 +165,7 @@ export default function Home() {
       {/* ── Últimas coleções ────────────────────────────── */}
       <div className="px-4 pt-6 pb-2">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="font-gelica text-[22px] text-[#1C1B1F]">
+          <h2 className="font-gelica text-[22px] text-[#2D3A3A]">
             Últimas coleções
           </h2>
         </div>
@@ -199,7 +199,7 @@ export default function Home() {
                     </div>
                   )}
                 </div>
-                <p className="text-sm font-medium text-[#1C1B1F] mt-1.5 truncate leading-snug">
+                <p className="text-sm font-medium text-[#2D3A3A] mt-1.5 truncate leading-snug">
                   {col.title}
                 </p>
               </div>
@@ -210,7 +210,7 @@ export default function Home() {
 
       {/* ── Explore pelos países ─────────────────────────── */}
       <div className="pt-6 pb-6">
-        <h2 className="font-gelica text-[22px] text-[#1C1B1F] px-4 mb-3">
+        <h2 className="font-gelica text-[22px] text-[#2D3A3A] px-4 mb-3">
           Explore pelos países
         </h2>
 
@@ -244,7 +244,7 @@ export default function Home() {
                     {user && (
                       <div className="mt-2 bg-white/20 rounded-full h-1 overflow-hidden">
                         <div
-                          className="h-full bg-[#C5A96D] rounded-full"
+                          className="h-full bg-[#F1BD85] rounded-full"
                           style={{ width: '0%' }}
                         />
                       </div>

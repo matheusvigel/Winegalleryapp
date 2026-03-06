@@ -39,7 +39,7 @@ export default function RegionsView() {
   return (
     <div className="min-h-screen bg-[#F0EBE0]">
       <div className="px-4 pt-5 pb-6">
-        <h1 className="font-gelica text-3xl text-[#1C1B1F] mb-5">Regiões</h1>
+        <h1 className="font-gelica text-3xl text-[#2D3A3A] mb-5">Regiões</h1>
 
         {loading ? (
           <div className="space-y-3">

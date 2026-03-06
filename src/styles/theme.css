@@ -1,21 +1,25 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
+  /* ── Brand palette ──────────────────────────────────────────
+     Primary   : #2D3A3A Verde Adega · #400264 Uva Noturna · #690037 Vinho Intenso
+     Secondary : #C3C085 Oliva Suave · #C3BBEC Lavanda Clara · #F1BD85 Vinho Laranja
+  ─────────────────────────────────────────────────────────── */
   --font-size: 16px;
   --background: #F0EBE0;
-  --foreground: #1C1B1F;
+  --foreground: #2D3A3A;
   --card: #FAFAF7;
-  --card-foreground: #1C1B1F;
+  --card-foreground: #2D3A3A;
   --popover: #FAFAF7;
-  --popover-foreground: #1C1B1F;
-  --primary: #5C1A3E;
+  --popover-foreground: #2D3A3A;
+  --primary: #690037;
   --primary-foreground: #ffffff;
-  --secondary: #C5A96D;
-  --secondary-foreground: #1C1B1F;
+  --secondary: #F1BD85;
+  --secondary-foreground: #2D3A3A;
   --muted: rgba(0, 0, 0, 0.06);
   --muted-foreground: #6B6B6B;
-  --accent: rgba(92, 26, 62, 0.06);
-  --accent-foreground: #5C1A3E;
+  --accent: rgba(105, 0, 55, 0.06);
+  --accent-foreground: #690037;
   --destructive: #d4183d;
   --destructive-foreground: #ffffff;
   --border: rgba(0, 0, 0, 0.07);
@@ -24,7 +28,7 @@
   --switch-background: #cbced4;
   --font-weight-medium: 500;
   --font-weight-normal: 400;
-  --ring: rgba(92, 26, 62, 0.3);
+  --ring: rgba(105, 0, 55, 0.3);
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
@@ -126,6 +130,7 @@
 
   body {
     @apply bg-background text-foreground;
+    font-family: 'DM Sans', system-ui, sans-serif;
   }
 
   /**

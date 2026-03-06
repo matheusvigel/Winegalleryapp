@@ -35,10 +35,10 @@ export default function Profile() {
       {/* Profile header */}
       <div className="px-4 pt-5 pb-4">
         <div className="flex items-center justify-between mb-5">
-          <h1 className="font-gelica text-3xl text-[#1C1B1F]">Perfil</h1>
+          <h1 className="font-gelica text-3xl text-[#2D3A3A]">Perfil</h1>
           <button
             onClick={handleSignOut}
-            className="flex items-center gap-1.5 text-neutral-400 hover:text-[#5C1A3E] transition-colors text-sm"
+            className="flex items-center gap-1.5 text-neutral-400 hover:text-[#690037] transition-colors text-sm"
           >
             <LogOut size={16} />
             Sair
@@ -52,11 +52,11 @@ export default function Profile() {
           className="bg-[#FAFAF7] rounded-2xl p-5 border border-black/[0.06]"
         >
           <div className="flex items-center gap-4 mb-5">
-            <div className="w-16 h-16 bg-[#5C1A3E]/10 rounded-full flex items-center justify-center text-3xl flex-shrink-0">
+            <div className="w-16 h-16 bg-[#690037]/10 rounded-full flex items-center justify-center text-3xl flex-shrink-0">
               🍷
             </div>
             <div className="flex-1 min-w-0">
-              <h2 className="font-gelica text-xl text-[#1C1B1F] truncate">{displayName}</h2>
+              <h2 className="font-gelica text-xl text-[#2D3A3A] truncate">{displayName}</h2>
               <p className="text-sm text-neutral-500">Nível {stats.level} · Sommelier</p>
               {user?.email && (
                 <p className="text-xs text-neutral-400 mt-0.5 truncate">{user.email}</p>
@@ -71,7 +71,7 @@ export default function Profile() {
           </div>
           <div className="w-full bg-black/8 rounded-full h-1.5 overflow-hidden">
             <div
-              className="h-full bg-[#5C1A3E] rounded-full transition-all duration-500"
+              className="h-full bg-[#690037] rounded-full transition-all duration-500"
               style={{ width: `${levelProgress}%` }}
             />
           </div>
@@ -87,8 +87,8 @@ export default function Profile() {
             transition={{ delay: 0.05 }}
             className="bg-[#FAFAF7] rounded-2xl p-4 border border-black/[0.06] text-center"
           >
-            <Trophy size={22} className="text-[#C5A96D] mx-auto mb-2" />
-            <div className="font-gelica text-2xl text-[#1C1B1F]">{stats.totalPoints}</div>
+            <Trophy size={22} className="text-[#F1BD85] mx-auto mb-2" />
+            <div className="font-gelica text-2xl text-[#2D3A3A]">{stats.totalPoints}</div>
             <div className="text-xs text-neutral-500 mt-0.5">Pontos</div>
           </motion.div>
 
@@ -98,8 +98,8 @@ export default function Profile() {
             transition={{ delay: 0.1 }}
             className="bg-[#FAFAF7] rounded-2xl p-4 border border-black/[0.06] text-center"
           >
-            <CheckCircle2 size={22} className="text-[#5C1A3E] mx-auto mb-2" />
-            <div className="font-gelica text-2xl text-[#1C1B1F]">{stats.completedCount}</div>
+            <CheckCircle2 size={22} className="text-[#690037] mx-auto mb-2" />
+            <div className="font-gelica text-2xl text-[#2D3A3A]">{stats.completedCount}</div>
             <div className="text-xs text-neutral-500 mt-0.5">Vividas</div>
           </motion.div>
 
@@ -110,7 +110,7 @@ export default function Profile() {
             className="bg-[#FAFAF7] rounded-2xl p-4 border border-black/[0.06] text-center"
           >
             <Heart size={22} className="text-rose-400 mx-auto mb-2" />
-            <div className="font-gelica text-2xl text-[#1C1B1F]">{stats.wishlistCount}</div>
+            <div className="font-gelica text-2xl text-[#2D3A3A]">{stats.wishlistCount}</div>
             <div className="text-xs text-neutral-500 mt-0.5">Desejos</div>
           </motion.div>
         </div>

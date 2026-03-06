@@ -52,7 +52,7 @@ export function BottomNav() {
                 key={to}
                 to={to}
                 className={`flex flex-col items-center gap-1 flex-1 min-w-0 transition-colors ${
-                  active ? 'text-[#5C1A3E]' : 'text-neutral-400'
+                  active ? 'text-[#690037]' : 'text-neutral-400'
                 }`}
               >
                 <Icon size={22} strokeWidth={active ? 2.2 : 1.6} />

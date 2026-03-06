@@ -1,14 +1,28 @@
-/* Gelica → Cormorant Garamond (free alternative loaded via Google Fonts in index.html)
-   If you have the actual Gelica font files, add them here with @font-face:
+/*
+  TIPOGRAFIA — Wine Gallery Brand Guide
+  ─────────────────────────────────────
+  Header   : Gelica  → Cormorant Garamond (loaded via Google Fonts)
+             Use the .font-gelica utility class.
+             To use the real Gelica files, add @font-face blocks here:
+               @font-face {
+                 font-family: 'Gelica';
+                 src: url('/fonts/Gelica-Bold.woff2') format('woff2');
+                 font-weight: 700;
+               }
+             then replace 'Cormorant Garamond' below.
 
-   @font-face {
-     font-family: 'Gelica';
-     src: url('/fonts/Gelica-Bold.woff2') format('woff2');
-     font-weight: 700;
-     font-style: normal;
-   }
+  Sub-header / Body : Open Sauce Sans → DM Sans (closest Google Fonts substitute)
+             Loaded via Google Fonts in index.html as 'DM Sans'.
+             When you have the real Open Sauce Sans files, add them here and
+             replace 'DM Sans' in the .font-body rule and the body selector.
 */
 
+/* Gelica (headers) */
 .font-gelica {
   font-family: 'Cormorant Garamond', Georgia, serif;
+}
+
+/* Open Sauce Sans / DM Sans (UI body text) */
+.font-body {
+  font-family: 'DM Sans', system-ui, sans-serif;
 }

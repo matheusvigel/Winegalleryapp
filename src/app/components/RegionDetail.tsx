@@ -8,9 +8,9 @@ import { Collection, WineItem } from '../types';
 import { getProgress } from '../utils/storage';
 
 const LEVEL_CONFIG = {
-  essential: { label: 'Essencial', pill: 'bg-[#6b7c5a] text-white', dot: 'bg-[#8a9e72]' },
-  escape: { label: 'Fugir do Óbvio', pill: 'bg-[#3d5a7a] text-white', dot: 'bg-[#4e7299]' },
-  icon: { label: 'Ícone', pill: 'bg-[#7a2e2e] text-white', dot: 'bg-[#a04040]' },
+  essential: { label: 'Essencial', pill: 'bg-[#2D3A3A] text-white', dot: 'bg-[#3d5050]' },
+  escape: { label: 'Fugir do Óbvio', pill: 'bg-[#400264] text-white', dot: 'bg-[#5a0389]' },
+  icon: { label: 'Ícone', pill: 'bg-[#690037] text-white', dot: 'bg-[#8a004a]' },
 } as const;
 
 type Level = keyof typeof LEVEL_CONFIG;
@@ -38,7 +38,7 @@ function Breadcrumb({
         onClick={onBack}
         className="w-9 h-9 rounded-full bg-black/[0.07] border border-black/[0.08] flex items-center justify-center flex-shrink-0"
       >
-        <ArrowLeft size={18} className="text-[#1C1B1F]" />
+        <ArrowLeft size={18} className="text-[#2D3A3A]" />
       </motion.button>
       <nav className="min-w-0 flex-1" aria-label="Breadcrumb">
         <ol className="flex items-center gap-1 flex-wrap">
@@ -53,7 +53,7 @@ function Breadcrumb({
               <li>
                 <Link
                   to={`/country/${countryId}`}
-                  className="text-[#C5A96D] text-[10px] font-medium hover:text-[#a8904f] transition-colors"
+                  className="text-[#F1BD85] text-[10px] font-medium hover:text-[#c49040] transition-colors"
                 >
                   {countryName}
                 </Link>
@@ -61,9 +61,9 @@ function Breadcrumb({
             </>
           )}
           <li><ChevronRight size={9} className="text-neutral-300 flex-shrink-0" /></li>
-          <li className="text-[#1C1B1F] text-[10px] font-medium truncate">{regionName}</li>
+          <li className="text-[#2D3A3A] text-[10px] font-medium truncate">{regionName}</li>
         </ol>
-        <h1 className="font-gelica text-[#1C1B1F] font-bold text-xl leading-tight mt-0.5 truncate">
+        <h1 className="font-gelica text-[#2D3A3A] font-bold text-xl leading-tight mt-0.5 truncate">
           {regionName}
         </h1>
       </nav>
@@ -152,9 +152,9 @@ function CollectionSlide({
           <span className={`px-3 py-1 rounded-full text-[11px] font-bold ${cfg.pill}`}>
             {cfg.label}
           </span>
-          <span className="text-[#C5A96D] text-xs font-bold">{collection.totalPoints} pts total</span>
+          <span className="text-[#F1BD85] text-xs font-bold">{collection.totalPoints} pts total</span>
         </div>
-        <h2 className="font-gelica text-[#1C1B1F] text-[22px] font-bold leading-tight mb-2">
+        <h2 className="font-gelica text-[#2D3A3A] text-[22px] font-bold leading-tight mb-2">
           {collection.title}
         </h2>
         <p className="text-neutral-600 text-[13px] leading-snug">
@@ -206,7 +206,7 @@ function CollectionSlide({
             <span className="text-neutral-600 text-xs">
               {completedCount} de {totalItems} {totalItems === 1 ? 'provado' : 'provados'}
             </span>
-            <span className="text-[#C5A96D] text-xs font-bold">{ptsEarned} pts</span>
+            <span className="text-[#F1BD85] text-xs font-bold">{ptsEarned} pts</span>
           </div>
           <div className="h-1.5 bg-black/[0.08] rounded-full overflow-hidden">
             <motion.div
@@ -277,7 +277,7 @@ function SubRegionsSlide({
           />
         )}
         <div className="px-5 pb-3 border-b border-black/[0.07]" style={{ paddingTop: isFirst ? 0 : '20px' }}>
-          <h2 className="font-gelica text-[#1C1B1F] text-lg font-semibold">
+          <h2 className="font-gelica text-[#2D3A3A] text-lg font-semibold">
             Sub-regiões de {regionName}
           </h2>
         </div>
@@ -374,7 +374,7 @@ function OtherRegionsSlide({
           />
         )}
         <div className="px-5 pb-3 border-b border-black/[0.07]" style={{ paddingTop: isFirst ? 0 : '20px' }}>
-          <h2 className="font-gelica text-[#1C1B1F] text-lg font-semibold">
+          <h2 className="font-gelica text-[#2D3A3A] text-lg font-semibold">
             Explore mais de {countryName ?? 'Brasil'}
           </h2>
           <p className="text-neutral-500 text-sm mt-0.5">Outras regiões e sub-regiões</p>
