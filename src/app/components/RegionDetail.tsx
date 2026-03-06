@@ -8,9 +8,9 @@ import { Collection, WineItem } from '../types';
 import { getProgress } from '../utils/storage';
 
 const LEVEL_CONFIG = {
-  essential: { label: 'Essencial', pill: 'bg-emerald-500/80 border-emerald-400/40', dot: 'bg-emerald-400' },
-  escape: { label: 'Fugir do Óbvio', pill: 'bg-sky-500/80 border-sky-400/40', dot: 'bg-sky-400' },
-  icon: { label: 'Ícone', pill: 'bg-amber-500/80 border-amber-400/40', dot: 'bg-amber-400' },
+  essential: { label: 'Essencial', pill: 'bg-[#6b7c5a]/90 border-[#6b7c5a]/40', dot: 'bg-[#8a9e72]' },
+  escape: { label: 'Fugir do Óbvio', pill: 'bg-[#3d5a7a]/90 border-[#3d5a7a]/40', dot: 'bg-[#4e7299]' },
+  icon: { label: 'Ícone', pill: 'bg-[#7a2e2e]/90 border-[#7a2e2e]/40', dot: 'bg-[#a04040]' },
 } as const;
 
 type Level = keyof typeof LEVEL_CONFIG;
@@ -68,7 +68,7 @@ function CollectionSlide({
       <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/10 via-40% to-black/85" />
 
       {isFirst && (
-        <div className="absolute top-0 left-0 right-0 z-50 pt-12 pb-4 px-5 bg-gradient-to-b from-black/50 to-transparent">
+        <div className="absolute top-0 left-0 right-0 z-50 pt-8 pb-4 px-5 bg-gradient-to-b from-black/50 to-transparent">
           <div className="flex items-center gap-3">
             <motion.button
               whileTap={{ scale: 0.9 }}
@@ -79,23 +79,23 @@ function CollectionSlide({
             </motion.button>
             <div className="min-w-0">
               {countryName && (
-                <p className="text-rose-300 text-[11px] font-medium uppercase tracking-wide">{countryName}</p>
+                <p className="text-[#c5a96d] text-[11px] font-semibold uppercase tracking-widest">{countryName}</p>
               )}
-              <h1 className="text-white font-bold text-lg leading-tight truncate">{regionName}</h1>
+              <h1 className="font-gelica text-white font-bold text-xl leading-tight truncate">{regionName}</h1>
             </div>
           </div>
         </div>
       )}
 
-      <div className="relative z-10 flex flex-col h-full" style={{ paddingTop: isFirst ? '200px' : '196px' }}>
+      <div className="relative z-10 flex flex-col h-full" style={{ paddingTop: isFirst ? '90px' : '60px' }}>
         <div className="px-5 pb-3">
           <div className="flex items-center gap-2 mb-2">
             <span className={`px-3 py-1 rounded-full text-[11px] font-bold text-white backdrop-blur-md border ${cfg.pill}`}>
               {cfg.label}
             </span>
-            <span className="text-amber-300 text-xs font-bold">{collection.totalPoints} pts total</span>
+            <span className="text-[#c5a96d] text-xs font-bold">{collection.totalPoints} pts total</span>
           </div>
-          <h2 className="text-2xl font-bold text-white leading-tight mb-1">{collection.title}</h2>
+          <h2 className="font-gelica text-[26px] font-bold text-white leading-tight mb-1">{collection.title}</h2>
           <p className="text-white/65 text-[13px] leading-snug line-clamp-2">{collection.description}</p>
         </div>
 
@@ -141,7 +141,7 @@ function CollectionSlide({
               <span className="text-white/70 text-xs">
                 {completedCount} de {totalItems} {totalItems === 1 ? 'provado' : 'provados'}
               </span>
-              <span className="text-amber-300 text-xs font-bold">{ptsEarned} pts</span>
+              <span className="text-[#c5a96d] text-xs font-bold">{ptsEarned} pts</span>
             </div>
             <div className="h-1.5 bg-white/15 rounded-full overflow-hidden">
               <motion.div
@@ -211,7 +211,7 @@ function SubRegionsSlide({
             </motion.button>
             <div className="min-w-0">
               {countryName && (
-                <p className="text-rose-500 text-[11px] font-medium uppercase tracking-wide">{countryName}</p>
+                <p className="text-[#c5a96d] text-[11px] font-semibold uppercase tracking-widest">{countryName}</p>
               )}
               <h1 className="text-neutral-900 font-bold text-lg leading-tight truncate">{regionName}</h1>
             </div>
@@ -262,33 +262,6 @@ function SubRegionsSlide({
   );
 }
 
-// ─── Filter pill ───────────────────────────────────────────────────────────────
-function FilterPill({
-  label,
-  active,
-  color,
-  onClick,
-}: {
-  label: string;
-  active: boolean;
-  color: string;
-  onClick: () => void;
-}) {
-  return (
-    <motion.button
-      whileTap={{ scale: 0.93 }}
-      onClick={onClick}
-      className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all border backdrop-blur-md ${
-        active
-          ? `${color} text-white border-transparent shadow-lg`
-          : 'bg-white/10 text-white/70 border-white/15'
-      }`}
-    >
-      {label}
-    </motion.button>
-  );
-}
-
 // ─── Main component ────────────────────────────────────────────────────────────
 export default function RegionDetail() {
   const { regionId } = useParams<{ regionId: string }>();
@@ -299,7 +272,6 @@ export default function RegionDetail() {
   const [allCollections, setAllCollections] = useState<Collection[]>([]);
   const [subRegions, setSubRegions] = useState<SubRegion[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedLevel, setSelectedLevel] = useState<string>('all');
   const [progress, setProgress] = useState(getProgress());
 
   useEffect(() => {
@@ -386,7 +358,7 @@ export default function RegionDetail() {
 
   if (loading) {
     return (
-      <div className="fixed inset-0 bg-neutral-900 flex items-center justify-center">
+      <div className="fixed inset-0 z-50 bg-neutral-900 flex items-center justify-center">
         <p className="text-neutral-400 text-sm">Carregando...</p>
       </div>
     );
@@ -400,69 +372,19 @@ export default function RegionDetail() {
     );
   }
 
-  const essentialCount = allCollections.filter(c => c.level === 'essential').length;
-  const escapeCount = allCollections.filter(c => c.level === 'escape').length;
-  const iconCount = allCollections.filter(c => c.level === 'icon').length;
-
-  const filteredCollections =
-    selectedLevel === 'all'
-      ? allCollections
-      : allCollections.filter(c => c.level === selectedLevel);
-
   const hasSubRegions = subRegions.length > 0;
-  const hasCollections = filteredCollections.length > 0;
+  const hasCollections = allCollections.length > 0;
   const showEmpty = !hasCollections && !hasSubRegions;
 
   const handleBack = () => navigate(-1);
 
   return (
-    <div className="fixed inset-0 bg-black">
-      {/* Filter bar — only shown if there are collections */}
-      {allCollections.length > 0 && (
-        <div className="absolute top-0 left-0 right-0 z-40 pointer-events-none">
-          <div
-            className="pointer-events-auto flex gap-2 overflow-x-auto scrollbar-hide px-5 pb-3"
-            style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 148px)' }}
-          >
-            <FilterPill
-              label={`Todas (${allCollections.length})`}
-              active={selectedLevel === 'all'}
-              color="bg-rose-800"
-              onClick={() => setSelectedLevel('all')}
-            />
-            {essentialCount > 0 && (
-              <FilterPill
-                label={`Essencial (${essentialCount})`}
-                active={selectedLevel === 'essential'}
-                color="bg-emerald-600"
-                onClick={() => setSelectedLevel('essential')}
-              />
-            )}
-            {escapeCount > 0 && (
-              <FilterPill
-                label={`Fugir do Óbvio (${escapeCount})`}
-                active={selectedLevel === 'escape'}
-                color="bg-sky-600"
-                onClick={() => setSelectedLevel('escape')}
-              />
-            )}
-            {iconCount > 0 && (
-              <FilterPill
-                label={`Ícones (${iconCount})`}
-                active={selectedLevel === 'icon'}
-                color="bg-amber-600"
-                onClick={() => setSelectedLevel('icon')}
-              />
-            )}
-          </div>
-        </div>
-      )}
-
+    <div className="fixed inset-0 z-50 bg-black">
       {/* Snap scroll container */}
       <div className="h-full overflow-y-scroll snap-y snap-mandatory scrollbar-hide">
         {/* Collection slides */}
-        {filteredCollections.map((collection, index) => {
-          const isLast = index === filteredCollections.length - 1;
+        {allCollections.map((collection, index) => {
+          const isLast = index === allCollections.length - 1;
           const nextLabel = isLast && hasSubRegions ? 'Sub-regiões' : undefined;
           return (
             <CollectionSlide
@@ -504,7 +426,7 @@ export default function RegionDetail() {
                 </motion.button>
                 <div>
                   {countryName && (
-                    <p className="text-rose-300 text-[11px] uppercase tracking-wide">{countryName}</p>
+                    <p className="text-[#c5a96d] text-[11px] font-semibold uppercase tracking-widest">{countryName}</p>
                   )}
                   <h1 className="text-white font-bold text-lg">{regionName}</h1>
                 </div>
