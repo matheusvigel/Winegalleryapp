@@ -1,41 +1,46 @@
-import { Link } from 'react-router';
-import { MapPin, Award, Grape } from 'lucide-react';
+import { Link, useLocation } from 'react-router';
 import { motion } from 'motion/react';
 
-interface NavigationTabsProps {
-  activeTab: 'regions' | 'brands' | 'grapes';
+const TABS = [
+  { id: 'home',    label: 'Para você',  path: '/' },
+  { id: 'regions', label: 'Regiões',    path: '/regions' },
+  { id: 'brands',  label: 'Vinícolas',  path: '/brands' },
+  { id: 'grapes',  label: 'Uvas',       path: '/grapes' },
+  { id: 'edu',     label: 'Educação',   path: '/educacao' },
+] as const;
+
+function getActiveTab(pathname: string) {
+  if (pathname === '/') return 'home';
+  if (pathname.startsWith('/regions') || pathname.startsWith('/country') || pathname.startsWith('/region')) return 'regions';
+  if (pathname.startsWith('/brands') || pathname.startsWith('/brand')) return 'brands';
+  if (pathname.startsWith('/grapes') || pathname.startsWith('/grape')) return 'grapes';
+  if (pathname.startsWith('/educacao')) return 'edu';
+  return 'home';
 }
 
-export function NavigationTabs({ activeTab }: NavigationTabsProps) {
-  const tabs = [
-    { id: 'regions', label: 'Regiões', icon: MapPin, path: '/' },
-    { id: 'brands', label: 'Grandes Marcas', icon: Award, path: '/brands' },
-    { id: 'grapes', label: 'Uvas', icon: Grape, path: '/grapes' },
-  ] as const;
-  
+export function NavigationTabs() {
+  const { pathname } = useLocation();
+  const activeTab = getActiveTab(pathname);
+
   return (
-    <div className="bg-white border-b border-neutral-200 sticky top-0 z-20">
-      <div className="max-w-lg mx-auto flex">
-        {tabs.map((tab) => {
-          const Icon = tab.icon;
+    <div className="bg-white border-b border-neutral-200 sticky top-[52px] z-20 overflow-x-auto scrollbar-hide">
+      <div className="flex min-w-max px-2">
+        {TABS.map((tab) => {
           const isActive = activeTab === tab.id;
-          
           return (
             <Link
               key={tab.id}
               to={tab.path}
-              className={`flex-1 flex flex-col items-center gap-1 py-3 relative transition-colors ${
-                isActive ? 'text-red-800' : 'text-neutral-600 hover:text-neutral-900'
+              className={`relative px-4 py-3 text-sm font-medium whitespace-nowrap transition-colors ${
+                isActive ? 'text-neutral-900' : 'text-neutral-400 hover:text-neutral-700'
               }`}
             >
-              <Icon size={24} />
-              <span className="text-xs font-medium">{tab.label}</span>
-              
+              {tab.label}
               {isActive && (
                 <motion.div
-                  layoutId="activeTab"
-                  className="absolute bottom-0 left-0 right-0 h-0.5 bg-red-800"
-                  transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                  layoutId="activeTabUnderline"
+                  className="absolute bottom-0 left-0 right-0 h-[2px] bg-neutral-900"
+                  transition={{ type: 'spring', stiffness: 500, damping: 35 }}
                 />
               )}
             </Link>

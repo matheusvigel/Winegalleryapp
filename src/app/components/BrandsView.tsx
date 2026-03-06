@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router';
-import { User, ChevronRight } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import { motion } from 'motion/react';
-import { NavigationTabs } from './NavigationTabs';
 import { supabase } from '../../lib/supabase';
 
 type Brand = { id: string; name: string; description: string; image_url: string; country: string; region: string | null };
@@ -18,20 +17,6 @@ export default function BrandsView() {
 
   return (
     <div className="min-h-screen bg-neutral-50">
-      <header className="bg-red-900 text-white px-6 py-6">
-        <div className="max-w-lg mx-auto flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">Wine Gallery</h1>
-            <p className="text-red-100 text-sm">Vinícolas</p>
-          </div>
-          <Link to="/profile" className="w-12 h-12 bg-red-800 rounded-full flex items-center justify-center hover:bg-red-700 transition-colors">
-            <User size={24} />
-          </Link>
-        </div>
-      </header>
-
-      <NavigationTabs activeTab="brands" />
-
       <div className="max-w-lg mx-auto px-6 py-6">
         {loading ? (
           <div className="space-y-4">
@@ -43,7 +28,7 @@ export default function BrandsView() {
             ))}
           </div>
         ) : brands.length === 0 ? (
-          <p className="text-center py-16 text-neutral-400 text-sm">Nenhuma marca cadastrada.</p>
+          <p className="text-center py-16 text-neutral-400 text-sm">Nenhuma vinícola cadastrada.</p>
         ) : (
           <div className="space-y-4">
             {brands.map((brand, index) => (

@@ -1,152 +1,191 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router';
-import { regions } from '../data/wineData';
+import { ChevronRight } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 import { getStats } from '../utils/storage';
-import { Trophy, Target, ChevronRight } from 'lucide-react';
-import { motion } from 'motion/react';
+import { supabase } from '../../lib/supabase';
+
+type CollectionItem = { id: string; title: string; cover_image: string };
+type Country = {
+  id: string;
+  name: string;
+  image_url: string;
+  regionCount: number;
+  collectionCount: number;
+};
+
+function ProgressBar({ value, max }: { value: number; max: number }) {
+  const pct = max > 0 ? Math.min((value / max) * 100, 100) : 0;
+  return (
+    <div className="h-1.5 bg-white/30 rounded-full overflow-hidden">
+      <div
+        className="h-full rounded-full bg-orange-500 transition-all duration-500"
+        style={{ width: `${pct}%` }}
+      />
+    </div>
+  );
+}
 
 export default function Home() {
+  const { user } = useAuth();
   const [stats, setStats] = useState(getStats());
-  
+  const [collections, setCollections] = useState<CollectionItem[]>([]);
+  const [countries, setCountries] = useState<Country[]>([]);
+  const [loading, setLoading] = useState(true);
+
   useEffect(() => {
-    // Update stats when component mounts
-    setStats(getStats());
-    
-    // Listen for storage changes
-    const handleStorage = () => {
-      setStats(getStats());
-    };
-    
-    window.addEventListener('storage', handleStorage);
-    // Also listen for custom event for same-tab updates
-    window.addEventListener('statsUpdated', handleStorage);
-    
+    const handleUpdate = () => setStats(getStats());
+    window.addEventListener('storage', handleUpdate);
+    window.addEventListener('statsUpdated', handleUpdate);
     return () => {
-      window.removeEventListener('storage', handleStorage);
-      window.removeEventListener('statsUpdated', handleStorage);
+      window.removeEventListener('storage', handleUpdate);
+      window.removeEventListener('statsUpdated', handleUpdate);
     };
   }, []);
-  
+
+  useEffect(() => {
+    const load = async () => {
+      const [
+        { data: cols },
+        { data: cts },
+        { data: regionRows },
+        { data: rcLinks },
+      ] = await Promise.all([
+        supabase.from('collections').select('id, title, cover_image').order('created_at', { ascending: false }).limit(6),
+        supabase.from('countries').select('id, name, image_url').order('name'),
+        supabase.from('regions').select('id, country_id'),
+        supabase.from('region_collections').select('region_id, collection_id'),
+      ]);
+
+      setCollections(cols ?? []);
+
+      const regionCountMap: Record<string, number> = {};
+      for (const r of regionRows ?? []) {
+        regionCountMap[r.country_id] = (regionCountMap[r.country_id] ?? 0) + 1;
+      }
+
+      const regionToCountry: Record<string, string> = {};
+      for (const r of regionRows ?? []) regionToCountry[r.id] = r.country_id;
+
+      const collectionCountMap: Record<string, Set<string>> = {};
+      for (const rc of rcLinks ?? []) {
+        const countryId = regionToCountry[rc.region_id];
+        if (countryId) {
+          if (!collectionCountMap[countryId]) collectionCountMap[countryId] = new Set();
+          collectionCountMap[countryId].add(rc.collection_id);
+        }
+      }
+
+      setCountries(
+        (cts ?? []).map(c => ({
+          ...c,
+          regionCount: regionCountMap[c.id] ?? 0,
+          collectionCount: collectionCountMap[c.id]?.size ?? 0,
+        }))
+      );
+      setLoading(false);
+    };
+    load();
+  }, []);
+
+  const pointsInLevel = stats.totalPoints % 100;
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#f5f0e8] to-neutral-50">
-      {/* Header */}
-      <header className="bg-[#244b6e] text-white px-6 pt-10 pb-8">
-        <div className="max-w-lg mx-auto">
-          <div className="flex items-center justify-center mb-1">
-            <img src="/logo.svg" alt="Wine Gallery" className="h-16 invert" />
+    <div className="min-h-screen bg-white">
+      {/* Progress widget (logged in) or CTA (logged out) */}
+      {user ? (
+        <div className="px-4 pt-4 pb-2">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-sm font-medium text-neutral-700">Nível {stats.level}</span>
+            <ChevronRight size={16} className="text-neutral-400" />
           </div>
-          <p className="text-[#a8c5d9] text-center text-sm">Sua jornada pelo mundo do vinho</p>
-        </div>
-      </header>
-      
-      {/* Stats Cards */}
-      <div className="max-w-lg mx-auto px-6 -mt-6 mb-6">
-        <div className="grid grid-cols-3 gap-3">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-white rounded-xl p-4 shadow-lg"
-          >
-            <div className="flex flex-col items-center">
-              <Trophy className="text-yellow-600 mb-2" size={24} />
-              <div className="text-2xl font-bold text-neutral-900">{stats.totalPoints}</div>
-              <div className="text-xs text-neutral-600">Pontos</div>
-            </div>
-          </motion.div>
-          
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="bg-white rounded-xl p-4 shadow-lg"
-          >
-            <div className="flex flex-col items-center">
-              <div className="text-2xl mb-2">🎯</div>
-              <div className="text-2xl font-bold text-neutral-900">{stats.completedCount}</div>
-              <div className="text-xs text-neutral-600">Vividas</div>
-            </div>
-          </motion.div>
-          
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="bg-white rounded-xl p-4 shadow-lg"
-          >
-            <div className="flex flex-col items-center">
-              <Target className="text-red-600 mb-2" size={24} />
-              <div className="text-2xl font-bold text-neutral-900">{stats.wishlistCount}</div>
-              <div className="text-xs text-neutral-600">Desejos</div>
-            </div>
-          </motion.div>
-        </div>
-      </div>
-      
-      {/* Level Badge */}
-      <div className="max-w-lg mx-auto px-6 mb-6">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.3 }}
-          className="bg-gradient-to-r from-red-800 to-red-900 text-white rounded-xl p-4 shadow-lg"
-        >
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-sm text-red-200">Seu Nível</div>
-              <div className="text-3xl font-bold">Nível {stats.level}</div>
-              <div className="text-xs text-red-200 mt-1">
-                {stats.totalPoints % 100}/100 pontos para o próximo nível
+          <div className="flex items-center gap-3">
+            <span className="text-xl font-bold text-neutral-900">{pointsInLevel}/100</span>
+            <div className="flex-1">
+              <div className="h-1.5 bg-neutral-200 rounded-full overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-orange-500 transition-all duration-500"
+                  style={{ width: `${pointsInLevel}%` }}
+                />
               </div>
             </div>
-            <div className="text-5xl">🍷</div>
           </div>
-          <div className="mt-3 bg-red-950/30 rounded-full h-2 overflow-hidden">
-            <div
-              className="bg-red-300 h-full transition-all duration-500"
-              style={{ width: `${(stats.totalPoints % 100)}%` }}
-            />
+        </div>
+      ) : (
+        <Link to="/register">
+          <div className="mx-4 mt-4 mb-2 rounded-xl bg-[#8fa98f] px-5 py-5 flex items-center justify-center">
+            <span className="text-base font-bold text-neutral-900">Crie sua conta e acumule pontos!</span>
           </div>
-        </motion.div>
-      </div>
-      
-      {/* Regions Section */}
-      <div className="max-w-lg mx-auto px-6 pb-6">
-        <h2 className="text-2xl font-bold text-neutral-900 mb-4">Regiões do Vinho</h2>
-        
-        <div className="space-y-4">
-          {regions.map((region, index) => (
-            <motion.div
-              key={region.id}
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.1 * index }}
-            >
-              <Link
-                to={`/region/${region.id}`}
-                className="block bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-shadow"
-              >
-                <div className="relative h-40">
-                  <img
-                    src={region.imageUrl}
-                    alt={region.name}
-                    className="w-full h-full object-cover"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                  <div className="absolute bottom-4 left-4 right-4">
-                    <h3 className="text-xl font-bold text-white mb-1">{region.name}</h3>
-                    <p className="text-sm text-neutral-200">{region.country}</p>
+        </Link>
+      )}
+
+      {/* Últimas coleções */}
+      <section className="px-4 pt-4 pb-5">
+        <div className="flex items-center gap-3 mb-4">
+          {collections[0] && (
+            <div className="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0">
+              <img src={collections[0].cover_image} alt="" className="w-full h-full object-cover" />
+            </div>
+          )}
+          <h2 className="text-xl font-bold text-neutral-900">Últimas coleções</h2>
+        </div>
+
+        {loading ? (
+          <div className="grid grid-cols-2 gap-3">
+            {[1, 2].map(i => <div key={i} className="aspect-square bg-neutral-200 rounded-xl animate-pulse" />)}
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-3">
+            {collections.map(col => (
+              <div key={col.id}>
+                <div className="aspect-square rounded-xl overflow-hidden bg-neutral-200">
+                  <img src={col.cover_image} alt={col.title} className="w-full h-full object-cover" />
+                </div>
+                <p className="mt-1.5 text-sm text-neutral-800">{col.title}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* Explore pelos países */}
+      <section className="pb-8">
+        <h2 className="px-4 text-xl font-bold text-neutral-900 mb-3">Explore pelos países</h2>
+
+        {loading ? (
+          <div className="space-y-1">
+            {[1, 2].map(i => <div key={i} className="h-52 bg-neutral-200 animate-pulse" />)}
+          </div>
+        ) : (
+          <div className="space-y-1">
+            {countries.map(country => (
+              <Link key={country.id} to={`/country/${country.id}`}>
+                <div className="relative h-52 overflow-hidden">
+                  <img src={country.image_url} alt={country.name} className="w-full h-full object-cover" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
+                  <div className="absolute bottom-0 left-0 right-0 p-4">
+                    <p className="font-black text-white uppercase text-lg tracking-wide leading-none mb-0.5">
+                      {country.name}
+                    </p>
+                    <p className="text-white/80 text-sm">
+                      {country.regionCount} {country.regionCount === 1 ? 'região' : 'regiões'}
+                    </p>
+                    <p className="text-white/80 text-sm">
+                      {country.collectionCount} {country.collectionCount === 1 ? 'Coleção' : 'Coleções'}
+                    </p>
+                    {user && (
+                      <div className="mt-2">
+                        <p className="text-white/70 text-xs mb-1">0/{country.collectionCount}</p>
+                        <ProgressBar value={0} max={country.collectionCount} />
+                      </div>
+                    )}
                   </div>
                 </div>
-                
-                <div className="p-4 flex items-center justify-between">
-                  <p className="text-sm text-neutral-600">{region.description}</p>
-                  <ChevronRight className="text-neutral-400 flex-shrink-0 ml-2" size={20} />
-                </div>
               </Link>
-            </motion.div>
-          ))}
-        </div>
-      </div>
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   );
 }

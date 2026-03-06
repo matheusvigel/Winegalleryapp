@@ -358,7 +358,7 @@ export default function RegionDetail() {
 
   if (loading) {
     return (
-      <div className="fixed inset-0 bg-neutral-900 flex items-center justify-center">
+      <div className="fixed inset-0 z-50 bg-neutral-900 flex items-center justify-center">
         <p className="text-neutral-400 text-sm">Carregando...</p>
       </div>
     );
@@ -379,7 +379,7 @@ export default function RegionDetail() {
   const handleBack = () => navigate(-1);
 
   return (
-    <div className="fixed inset-0 bg-black">
+    <div className="fixed inset-0 z-50 bg-black">
       {/* Snap scroll container */}
       <div className="h-full overflow-y-scroll snap-y snap-mandatory scrollbar-hide">
         {/* Collection slides */}
