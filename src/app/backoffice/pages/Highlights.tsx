@@ -12,7 +12,7 @@ type Highlight = {
   id: string; type: HighlightType; entity_id: string; label: string | null;
   position: number; active: boolean;
 };
-type EntityOption = { id: string; name: string };
+type EntityOption = { id: string; name: string; hasImage: boolean };
 
 const TYPE_LABELS: Record<HighlightType, string> = {
   collection: 'Coleção', country: 'País', region: 'Região', brand: 'Vinícola',
@@ -46,8 +46,11 @@ export default function Highlights() {
       collection: 'collections', country: 'countries', region: 'regions', brand: 'brands',
     };
     const nameCol = type === 'collection' ? 'title' : 'name';
-    const { data } = await supabase.from(tableMap[type] as never).select(`id, ${nameCol}`).order(nameCol);
-    setEntityOptions((data ?? []).map((d: Record<string, string>) => ({ id: d.id, name: d[nameCol] })));
+    const imageCol = type === 'collection' ? 'cover_image' : 'image_url';
+    const { data } = await supabase.from(tableMap[type] as never).select(`id, ${nameCol}, ${imageCol}`).order(nameCol);
+    setEntityOptions((data ?? []).map((d: Record<string, string>) => ({
+      id: d.id, name: d[nameCol], hasImage: !!(d[imageCol]),
+    })));
   };
 
   const openCreate = async () => {
@@ -75,6 +78,11 @@ export default function Highlights() {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.entity_id) { setError('Selecione um item.'); return; }
+    const selectedEntity = entityOptions.find(o => o.id === form.entity_id);
+    if (selectedEntity && !selectedEntity.hasImage) {
+      setError(`Este ${TYPE_LABELS[form.type].toLowerCase()} não possui imagem. Adicione uma imagem a ele antes de criar o destaque.`);
+      return;
+    }
     setSaving(true); setError('');
     const payload = { ...form, label: form.label || null };
     if (editing) {
@@ -178,8 +186,17 @@ export default function Highlights() {
           <Field label="Item *">
             <select required value={form.entity_id} onChange={e => setForm(f => ({ ...f, entity_id: e.target.value }))} className={inp}>
               <option value="">Selecione...</option>
-              {entityOptions.map(opt => <option key={opt.id} value={opt.id}>{opt.name}</option>)}
+              {entityOptions.map(opt => (
+                <option key={opt.id} value={opt.id}>
+                  {opt.hasImage ? opt.name : `⚠️ ${opt.name} (sem imagem)`}
+                </option>
+              ))}
             </select>
+            {form.entity_id && entityOptions.find(o => o.id === form.entity_id && !o.hasImage) && (
+              <p className="text-xs text-amber-600 mt-1.5 bg-amber-50 border border-amber-200 px-3 py-2 rounded-lg">
+                ⚠️ Este item não possui imagem. O destaque não será salvo sem uma imagem.
+              </p>
+            )}
           </Field>
           <Field label="Label (opcional)">
             <input value={form.label ?? ''} onChange={e => setForm(f => ({ ...f, label: e.target.value }))} placeholder="Exibido no card do destaque" className={inp} />

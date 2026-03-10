@@ -15,7 +15,10 @@ import { useAuth } from '../contexts/AuthContext';
 import { getStats } from '../utils/storage';
 import { supabase } from '../../lib/supabase';
 
-type Highlight = { id: string; type: string; entity_id: string; label: string | null };
+type Highlight = {
+  id: string; type: string; entity_id: string; label: string;
+  image_url: string; route: string;
+};
 type CollectionItem = {
   id: string; title: string; cover_image: string;
   content_type: string | null;
@@ -23,6 +26,10 @@ type CollectionItem = {
 type Country = {
   id: string; name: string; image_url: string;
   regionCount: number; collectionCount: number;
+};
+
+const HIGHLIGHT_TYPE_LABELS: Record<string, string> = {
+  collection: 'Coleção', country: 'País', region: 'Região', brand: 'Vinícola',
 };
 
 const CONTENT_TYPE_LABELS: Record<string, string> = {
@@ -56,34 +63,89 @@ export default function Home() {
         supabase.from('collections').select('id, title, cover_image, content_type')
           .order('created_at', { ascending: false }).limit(6),
         supabase.from('countries').select('id, name, image_url').order('name'),
-        supabase.from('regions').select('id, country_id'),
+        supabase.from('regions').select('id, country_id, name, image_url'),
         supabase.from('region_collections').select('region_id, collection_id'),
         supabase.from('highlights').select('id, type, entity_id, label')
           .eq('active', true).order('position'),
       ]);
 
       setCollections(cols ?? []);
-      setHighlights(hls ?? []);
 
+      // ── Build lookup maps ────────────────────────────────
+      const regionToCountry: Record<string, string> = {};
+      const regionById: Record<string, { name: string; image_url: string }> = {};
       const regionCountMap: Record<string, number> = {};
       for (const r of regionRows ?? []) {
+        regionToCountry[r.id] = r.country_id;
+        regionById[r.id] = { name: r.name, image_url: r.image_url };
         regionCountMap[r.country_id] = (regionCountMap[r.country_id] ?? 0) + 1;
       }
-      const regionToCountry: Record<string, string> = {};
-      for (const r of regionRows ?? []) regionToCountry[r.id] = r.country_id;
+
+      const collectionToRegion: Record<string, string> = {};
       const collectionCountMap: Record<string, Set<string>> = {};
       for (const rc of rcLinks ?? []) {
         const cid = regionToCountry[rc.region_id];
+        if (!collectionToRegion[rc.collection_id]) collectionToRegion[rc.collection_id] = rc.region_id;
         if (cid) {
           if (!collectionCountMap[cid]) collectionCountMap[cid] = new Set();
           collectionCountMap[cid].add(rc.collection_id);
         }
       }
+
+      const countryById: Record<string, { name: string; image_url: string }> = {};
+      for (const c of cts ?? []) countryById[c.id] = { name: c.name, image_url: c.image_url };
+
       setCountries((cts ?? []).map(c => ({
         ...c,
         regionCount: regionCountMap[c.id] ?? 0,
         collectionCount: collectionCountMap[c.id]?.size ?? 0,
       })));
+
+      // ── Phase 2: fetch collection + brand images for highlights ──
+      const hlList = hls ?? [];
+      const collectionHlIds = hlList.filter(h => h.type === 'collection').map(h => h.entity_id);
+      const brandHlIds = hlList.filter(h => h.type === 'brand').map(h => h.entity_id);
+
+      const [{ data: hlCols }, { data: hlBrands }] = await Promise.all([
+        collectionHlIds.length > 0
+          ? supabase.from('collections').select('id, title, cover_image').in('id', collectionHlIds)
+          : Promise.resolve({ data: [] as { id: string; title: string; cover_image: string }[] }),
+        brandHlIds.length > 0
+          ? supabase.from('brands').select('id, name, image_url').in('id', brandHlIds)
+          : Promise.resolve({ data: [] as { id: string; name: string; image_url: string }[] }),
+      ]);
+
+      const collectionById: Record<string, { name: string; image_url: string }> = {};
+      for (const c of hlCols ?? []) collectionById[c.id] = { name: c.title, image_url: c.cover_image };
+      const brandById: Record<string, { name: string; image_url: string }> = {};
+      for (const b of hlBrands ?? []) brandById[b.id] = { name: b.name, image_url: b.image_url };
+
+      // ── Enrich highlights ────────────────────────────────
+      setHighlights(hlList.map(h => {
+        let entity: { name: string; image_url: string } | undefined;
+        let route = '/';
+        if (h.type === 'country') {
+          entity = countryById[h.entity_id];
+          route = `/country/${h.entity_id}`;
+        } else if (h.type === 'region') {
+          entity = regionById[h.entity_id];
+          route = `/region/${h.entity_id}`;
+        } else if (h.type === 'collection') {
+          entity = collectionById[h.entity_id];
+          const rid = collectionToRegion[h.entity_id];
+          route = rid ? `/region/${rid}#collection-${h.entity_id}` : '/';
+        } else if (h.type === 'brand') {
+          entity = brandById[h.entity_id];
+          route = `/brand/${h.entity_id}`;
+        }
+        return {
+          id: h.id, type: h.type, entity_id: h.entity_id,
+          label: entity?.name || h.label?.trim() || h.entity_id,
+          image_url: entity?.image_url ?? '',
+          route,
+        };
+      }));
+
       setLoading(false);
     };
     load();
@@ -136,14 +198,30 @@ export default function Home() {
           <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 1.5 }}>Destaques</Typography>
           <Box sx={{ display: 'flex', gap: 1.5, overflowX: 'auto', pb: 0.5, scrollbarWidth: 'none', '&::-webkit-scrollbar': { display: 'none' } }}>
             {highlights.map(h => (
-              <Card key={h.id} sx={{ minWidth: 160, maxWidth: 160, flexShrink: 0, border: 'none', borderRadius: 3, overflow: 'hidden' }}>
-                <CardActionArea component={Link} to={h.type === 'country' ? `/country/${h.entity_id}` : h.type === 'region' ? `/region/${h.entity_id}` : '/'}>
-                  <Box sx={{ height: 96, bgcolor: 'grey.200', display: 'flex', alignItems: 'flex-end', p: 1.5, backgroundSize: 'cover' }} />
-                  <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
-                    <Typography variant="caption" fontWeight={600} noWrap>
-                      {h.label ?? h.entity_id}
-                    </Typography>
-                  </CardContent>
+              <Card key={h.id} sx={{ minWidth: 140, maxWidth: 140, flexShrink: 0, border: 'none', borderRadius: 3, overflow: 'hidden' }}>
+                <CardActionArea component={Link} to={h.route}>
+                  <Box sx={{ position: 'relative', height: 176, bgcolor: 'grey.300' }}>
+                    {h.image_url && (
+                      <img
+                        src={h.image_url}
+                        alt={h.label}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                      />
+                    )}
+                    <Box sx={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.72) 0%, transparent 55%)' }} />
+                    <Box sx={{ position: 'absolute', top: 8, left: 8 }}>
+                      <Chip
+                        label={HIGHLIGHT_TYPE_LABELS[h.type] ?? h.type}
+                        size="small"
+                        sx={{ bgcolor: 'rgba(0,0,0,0.5)', color: 'white', fontSize: '0.6rem', height: 18, backdropFilter: 'blur(4px)', border: '1px solid rgba(255,255,255,0.15)', '& .MuiChip-label': { px: 1, py: 0 } }}
+                      />
+                    </Box>
+                    <Box sx={{ position: 'absolute', bottom: 0, left: 0, right: 0, p: 1.5 }}>
+                      <Typography variant="caption" fontWeight={600} sx={{ color: 'white', lineHeight: 1.3, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                        {h.label}
+                      </Typography>
+                    </Box>
+                  </Box>
                 </CardActionArea>
               </Card>
             ))}
