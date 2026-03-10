@@ -49,12 +49,14 @@ function CollectionSlide({
 
   const carouselRef = useRef<HTMLDivElement>(null);
   const [activeItem, setActiveItem] = useState(0);
+  const [titleAtTop, setTitleAtTop] = useState(false);
 
   const handleCarouselScroll = () => {
     const el = carouselRef.current;
     if (!el || collection.items.length === 0) return;
     const cardWidth = el.scrollWidth / collection.items.length;
     setActiveItem(Math.round(el.scrollLeft / cardWidth));
+    setTitleAtTop(el.scrollLeft > 30);
   };
 
   return (
@@ -88,16 +90,50 @@ function CollectionSlide({
       )}
 
       <div className="relative z-10 flex flex-col h-full" style={{ paddingTop: isFirst ? '90px' : '60px' }}>
-        <div className="px-5 pb-3">
-          <div className="flex items-center gap-2 mb-2">
-            <span className={`px-3 py-1 rounded-full text-[11px] font-bold text-white backdrop-blur-md border ${cfg.pill}`}>
-              {cfg.label}
-            </span>
-            <span className="text-[#c5a96d] text-xs font-bold">{collection.totalPoints} pts total</span>
-          </div>
-          <h2 className="font-gelica text-[26px] font-bold text-white leading-tight mb-1">{collection.title}</h2>
-          <p className="text-white/65 text-[13px] leading-snug line-clamp-2">{collection.description}</p>
-        </div>
+        <motion.div
+          animate={{ paddingBottom: titleAtTop ? 6 : 12 }}
+          transition={{ duration: 0.25 }}
+          className="px-5"
+        >
+          <AnimatePresence initial={false}>
+            {!titleAtTop && (
+              <motion.div
+                key="pills"
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.2 }}
+                className="flex items-center gap-2 mb-2 overflow-hidden"
+              >
+                <span className={`px-3 py-1 rounded-full text-[11px] font-bold text-white backdrop-blur-md border ${cfg.pill}`}>
+                  {cfg.label}
+                </span>
+                <span className="text-[#c5a96d] text-xs font-bold">{collection.totalPoints} pts total</span>
+              </motion.div>
+            )}
+          </AnimatePresence>
+          <motion.h2
+            animate={{ fontSize: titleAtTop ? '18px' : '26px' }}
+            transition={{ duration: 0.25 }}
+            className="font-gelica font-bold text-white leading-tight mb-1"
+          >
+            {collection.title}
+          </motion.h2>
+          <AnimatePresence initial={false}>
+            {!titleAtTop && (
+              <motion.p
+                key="desc"
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.2 }}
+                className="text-white/65 text-[13px] leading-snug line-clamp-2 overflow-hidden"
+              >
+                {collection.description}
+              </motion.p>
+            )}
+          </AnimatePresence>
+        </motion.div>
 
         <div className="flex-1 flex flex-col justify-center overflow-hidden">
           <div
@@ -136,21 +172,19 @@ function CollectionSlide({
         </div>
 
         <div className="px-5 pb-4">
-          <div className="bg-black/30 backdrop-blur-md rounded-2xl p-3 border border-white/10">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-white/70 text-xs">
-                {completedCount} de {totalItems} {totalItems === 1 ? 'provado' : 'provados'}
-              </span>
-              <span className="text-[#c5a96d] text-xs font-bold">{ptsEarned} pts</span>
-            </div>
-            <div className="h-1.5 bg-white/15 rounded-full overflow-hidden">
-              <motion.div
-                className={`h-full rounded-full ${cfg.dot}`}
-                initial={{ width: 0 }}
-                animate={{ width: `${progressPct}%` }}
-                transition={{ duration: 0.6, ease: 'easeOut' }}
-              />
-            </div>
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-white/70 text-xs">
+              {completedCount} de {totalItems} {totalItems === 1 ? 'provado' : 'provados'}
+            </span>
+            <span className="text-[#c5a96d] text-xs font-bold">{ptsEarned} pts</span>
+          </div>
+          <div className="h-1.5 bg-white/15 rounded-full overflow-hidden">
+            <motion.div
+              className={`h-full rounded-full ${cfg.dot}`}
+              initial={{ width: 0 }}
+              animate={{ width: `${progressPct}%` }}
+              transition={{ duration: 0.6, ease: 'easeOut' }}
+            />
           </div>
 
           <AnimatePresence>
@@ -266,6 +300,7 @@ function SubRegionsSlide({
 export default function RegionDetail() {
   const { regionId } = useParams<{ regionId: string }>();
   const navigate = useNavigate();
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [regionName, setRegionName] = useState('');
   const [countryName, setCountryName] = useState<string | undefined>(undefined);
   const [countryId, setCountryId] = useState<string | undefined>(undefined);
@@ -286,6 +321,13 @@ export default function RegionDetail() {
 
   useEffect(() => {
     if (!regionId) return;
+    setLoading(true);
+    setAllCollections([]);
+    setSubRegions([]);
+    setRegionName('');
+    setCountryName(undefined);
+    setCountryId(undefined);
+    if (scrollContainerRef.current) scrollContainerRef.current.scrollTop = 0;
     const load = async () => {
       // 1. Region + country + sub-regions (parallel)
       const [{ data: region }, { data: subs }] = await Promise.all([
@@ -381,7 +423,7 @@ export default function RegionDetail() {
   return (
     <div className="fixed inset-0 z-50 bg-black">
       {/* Snap scroll container */}
-      <div className="h-full overflow-y-scroll snap-y snap-mandatory scrollbar-hide">
+      <div ref={scrollContainerRef} className="h-full overflow-y-scroll snap-y snap-mandatory scrollbar-hide">
         {/* Collection slides */}
         {allCollections.map((collection, index) => {
           const isLast = index === allCollections.length - 1;

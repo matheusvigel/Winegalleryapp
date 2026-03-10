@@ -1,15 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router';
-import Box from '@mui/material/Box';
-import Typography from '@mui/material/Typography';
-import Card from '@mui/material/Card';
-import CardActionArea from '@mui/material/CardActionArea';
-import CardMedia from '@mui/material/CardMedia';
-import IconButton from '@mui/material/IconButton';
-import Skeleton from '@mui/material/Skeleton';
-import Chip from '@mui/material/Chip';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { supabase } from '../../lib/supabase';
+import { ArrowLeft, ChevronRight } from 'lucide-react';
+import { motion } from 'motion/react';
 
 type Country = { id: string; name: string; image_url: string; description: string };
 type Collection = { id: string; title: string; cover_image: string; content_type: string | null };
@@ -57,102 +50,129 @@ export default function CountryDetail() {
 
   if (loading) {
     return (
-      <Box sx={{ bgcolor: 'background.default', minHeight: '100vh' }}>
-        <Skeleton variant="rectangular" height={240} />
-        <Box sx={{ px: 2, pt: 3, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1.5 }}>
-          {[1, 2, 3, 4].map(i => <Skeleton key={i} variant="rectangular" sx={{ aspectRatio: '1', borderRadius: 3 }} />)}
-        </Box>
-      </Box>
+      <div className="min-h-screen bg-neutral-50 flex items-center justify-center">
+        <p className="text-neutral-400 text-sm">Carregando...</p>
+      </div>
     );
   }
 
   if (!country) return (
-    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
-      <Typography color="text.secondary">País não encontrado</Typography>
-    </Box>
+    <div className="min-h-screen flex items-center justify-center bg-neutral-50">
+      <p className="text-neutral-500 text-sm">País não encontrado</p>
+    </div>
   );
 
   return (
-    <Box sx={{ bgcolor: 'background.default', minHeight: '100vh' }}>
-      {/* Hero */}
-      <Box sx={{ position: 'relative', height: 240 }}>
-        <img src={country.image_url} alt={country.name}
-          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-        <Box sx={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.65) 100%)' }} />
-        <IconButton
-          onClick={() => navigate(-1)}
-          size="small"
-          sx={{ position: 'absolute', top: 12, left: 12, bgcolor: 'rgba(255,255,255,0.9)', '&:hover': { bgcolor: 'white' } }}
-        >
-          <ArrowBackIcon fontSize="small" />
-        </IconButton>
-        <Box sx={{ position: 'absolute', bottom: 20, left: 20, right: 20 }}>
-          <Typography variant="h5" fontWeight={800} sx={{ color: 'white' }}>{country.name}</Typography>
-          {country.description && (
-            <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.75)', mt: 0.5 }}>{country.description}</Typography>
-          )}
-        </Box>
-      </Box>
+    <div className="min-h-screen bg-neutral-50">
+      {/* Compact header */}
+      <div className="bg-white border-b border-neutral-200 px-5 pt-12 pb-4 flex-shrink-0">
+        <div className="flex items-center gap-3 mb-1">
+          <motion.button
+            whileTap={{ scale: 0.9 }}
+            onClick={() => navigate(-1)}
+            className="w-9 h-9 rounded-full bg-neutral-100 border border-neutral-200 flex items-center justify-center flex-shrink-0"
+          >
+            <ArrowLeft size={18} className="text-neutral-700" />
+          </motion.button>
+          <div className="min-w-0">
+            <p className="text-[#c5a96d] text-[11px] font-semibold uppercase tracking-widest">Países</p>
+            <h1 className="text-neutral-900 font-bold text-lg leading-tight truncate">{country.name}</h1>
+          </div>
+        </div>
+        {country.description && (
+          <p className="text-neutral-500 text-[13px] leading-snug mt-2 ml-12">{country.description}</p>
+        )}
+      </div>
 
-      {/* Collections */}
-      {collections.length > 0 && (
-        <Box sx={{ px: 2, pt: 3, pb: 2 }}>
-          <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 2 }}>Coleções de {country.name}</Typography>
-          <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1.5 }}>
-            {collections.map(col => (
-              <Box key={col.id}>
-                <Card sx={{ borderRadius: 3, overflow: 'hidden', border: 'none' }}>
-                  <CardActionArea>
-                    <Box sx={{ position: 'relative', aspectRatio: '1', overflow: 'hidden' }}>
-                      <CardMedia component="img" image={col.cover_image} alt={col.title}
-                        sx={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+      <div className="px-4 py-4 space-y-8">
+        {/* Collections */}
+        {collections.length > 0 && (
+          <div>
+            <h2 className="text-sm font-semibold text-neutral-500 uppercase tracking-wider mb-3">
+              Coleções de {country.name}
+            </h2>
+            <div className="grid grid-cols-2 gap-3">
+              {collections.map((col, i) => (
+                <motion.div
+                  key={col.id}
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.05 * i, duration: 0.25 }}
+                >
+                  <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+                    <div className="relative aspect-square overflow-hidden">
+                      <img
+                        src={col.cover_image}
+                        alt={col.title}
+                        className="w-full h-full object-cover"
+                      />
                       {col.content_type && col.content_type !== 'mix' && (
-                        <Box sx={{ position: 'absolute', top: 8, left: 8 }}>
-                          <Chip label={CONTENT_TYPE_LABELS[col.content_type] ?? col.content_type} size="small"
-                            sx={{ bgcolor: 'rgba(0,0,0,0.55)', color: 'white', fontSize: '0.65rem', height: 20, backdropFilter: 'blur(4px)' }} />
-                        </Box>
+                        <div className="absolute top-2 left-2">
+                          <span className="text-[10px] font-semibold text-white bg-black/55 backdrop-blur-md px-2 py-0.5 rounded-full">
+                            {CONTENT_TYPE_LABELS[col.content_type] ?? col.content_type}
+                          </span>
+                        </div>
                       )}
-                    </Box>
-                  </CardActionArea>
-                </Card>
-                <Typography variant="body2" fontWeight={500} sx={{ mt: 0.75, lineHeight: 1.3 }} noWrap>{col.title}</Typography>
-              </Box>
-            ))}
-          </Box>
-        </Box>
-      )}
+                    </div>
+                    <p className="px-2.5 py-2 text-[13px] font-medium text-neutral-800 leading-tight line-clamp-2">
+                      {col.title}
+                    </p>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        )}
 
-      {/* Regions */}
-      {regions.length > 0 && (
-        <Box sx={{ pb: 4 }}>
-          <Typography variant="subtitle1" fontWeight={700} sx={{ px: 2, mb: 2 }}>Regiões de {country.name}</Typography>
-          <Box sx={{ display: 'flex', gap: 1.5, overflowX: 'auto', px: 2, pb: 1, scrollbarWidth: 'none', '&::-webkit-scrollbar': { display: 'none' } }}>
-            {regions.map(region => (
-              <Box key={region.id} sx={{ flexShrink: 0, width: 160 }}>
-                <Card sx={{ borderRadius: 3, overflow: 'hidden', border: 'none' }}>
-                  <CardActionArea component={Link} to={`/region/${region.id}`}>
-                    <Box sx={{ position: 'relative', height: 120, overflow: 'hidden' }}>
-                      <CardMedia component="img" image={region.image_url} alt={region.name} sx={{ height: '100%', objectFit: 'cover' }} />
-                      <Box sx={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 60%)' }} />
-                      <Box sx={{ position: 'absolute', bottom: 0, left: 0, right: 0, p: 1.5 }}>
-                        <Typography variant="caption" fontWeight={700} sx={{ color: 'white', lineHeight: 1.2, display: 'block' }}>
-                          {region.name}
-                        </Typography>
-                      </Box>
-                    </Box>
-                  </CardActionArea>
-                </Card>
-              </Box>
-            ))}
-          </Box>
-        </Box>
-      )}
+        {/* Regions */}
+        {regions.length > 0 && (
+          <div>
+            <h2 className="text-sm font-semibold text-neutral-500 uppercase tracking-wider mb-3">
+              Regiões de {country.name}
+            </h2>
+            <div className="space-y-3">
+              {regions.map((region, i) => (
+                <motion.div
+                  key={region.id}
+                  initial={{ opacity: 0, x: -16 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.06 * i, duration: 0.3 }}
+                >
+                  <Link to={`/region/${region.id}`}>
+                    <div className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-shadow">
+                      <div className="relative h-40">
+                        <img
+                          src={region.image_url}
+                          alt={region.name}
+                          className="w-full h-full object-cover"
+                          draggable={false}
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
+                        <div className="absolute bottom-4 left-4 right-4">
+                          <h3 className="text-xl font-bold text-white mb-1">{region.name}</h3>
+                          {region.description && (
+                            <p className="text-neutral-200 text-sm line-clamp-1">{region.description}</p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="px-4 py-3 flex items-center justify-between">
+                        <span className="text-sm text-neutral-500">Ver coleções</span>
+                        <ChevronRight size={20} className="text-neutral-400" />
+                      </div>
+                    </div>
+                  </Link>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        )}
 
-      {collections.length === 0 && regions.length === 0 && (
-        <Box sx={{ textAlign: 'center', py: 8 }}>
-          <Typography color="text.secondary" variant="body2">Nenhum conteúdo cadastrado ainda.</Typography>
-        </Box>
-      )}
-    </Box>
+        {collections.length === 0 && regions.length === 0 && (
+          <div className="text-center py-16">
+            <p className="text-neutral-400 text-sm">Nenhum conteúdo cadastrado ainda.</p>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
