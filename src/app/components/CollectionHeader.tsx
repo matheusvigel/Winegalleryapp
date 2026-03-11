@@ -1,6 +1,16 @@
 import { Collection } from '../types';
 import { motion } from 'motion/react';
 
+const CARD   = '#FFFFFF';
+const SURF   = '#F5F0E8';
+const VERDE  = '#2D3A3A';
+const UVA    = '#400264';
+const WINE   = '#690037';
+const TEXT1  = '#1C1B1F';
+const TEXT2  = '#5C5C5C';
+const MUTED  = '#9B9B9B';
+const BORDER = 'rgba(0,0,0,0.08)';
+
 interface CollectionHeaderProps {
   collection: Collection;
   completedCount: number;
@@ -9,10 +19,10 @@ interface CollectionHeaderProps {
 export function CollectionHeader({ collection, completedCount }: CollectionHeaderProps) {
   const getLevelConfig = (level: string) => {
     switch (level) {
-      case 'essential': return { label: 'Essencial', color: '#6B8F71', bg: 'rgba(107,143,113,0.15)', border: 'rgba(107,143,113,0.3)' };
-      case 'escape':    return { label: 'Fugir do Óbvio', color: '#4A7BA7', bg: 'rgba(74,123,167,0.15)', border: 'rgba(74,123,167,0.3)' };
-      case 'icon':      return { label: 'Ícone', color: '#C5A25A', bg: 'rgba(197,162,90,0.15)', border: 'rgba(197,162,90,0.3)' };
-      default:          return { label: level, color: '#8C8074', bg: 'rgba(140,128,116,0.15)', border: 'rgba(140,128,116,0.3)' };
+      case 'essential': return { label: 'Essencial',     color: VERDE, bg: `${VERDE}14`, border: `${VERDE}28` };
+      case 'escape':    return { label: 'Fugir do Óbvio', color: UVA,   bg: `${UVA}14`,  border: `${UVA}28`  };
+      case 'icon':      return { label: 'Ícone',          color: WINE,  bg: `${WINE}12`, border: `${WINE}28` };
+      default:          return { label: level,            color: MUTED, bg: 'rgba(0,0,0,0.06)', border: BORDER };
     }
   };
 
@@ -28,10 +38,10 @@ export function CollectionHeader({ collection, completedCount }: CollectionHeade
       <img
         src={collection.coverImage}
         alt={collection.title}
-        style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', opacity: 0.65 }}
+        style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
       />
-      {/* Deep gradient overlay */}
-      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.97) 0%, rgba(0,0,0,0.5) 50%, rgba(0,0,0,0.15) 100%)' }} />
+      {/* Gradient overlay */}
+      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.40) 55%, rgba(0,0,0,0.10) 100%)' }} />
 
       {/* Content */}
       <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '0 20px 20px' }}>
@@ -42,7 +52,7 @@ export function CollectionHeader({ collection, completedCount }: CollectionHeade
             padding: '3px 10px',
             fontFamily: "'DM Sans', system-ui, sans-serif",
             fontSize: '0.6rem',
-            fontWeight: 500,
+            fontWeight: 600,
             letterSpacing: '0.1em',
             textTransform: 'uppercase',
             color: levelCfg.color,
@@ -56,11 +66,12 @@ export function CollectionHeader({ collection, completedCount }: CollectionHeade
 
         <h2 style={{
           margin: '0 0 4px',
-          fontFamily: "'Playfair Display', Georgia, serif",
+          fontFamily: "'DM Sans', system-ui, sans-serif",
           fontSize: '1.3rem',
-          fontWeight: 600,
-          color: '#E2D4BA',
+          fontWeight: 700,
+          color: '#FFFFFF',
           lineHeight: 1.25,
+          letterSpacing: '-0.01em',
         }}>
           {collection.title}
         </h2>
@@ -70,7 +81,7 @@ export function CollectionHeader({ collection, completedCount }: CollectionHeade
             margin: '0 0 12px',
             fontFamily: "'DM Sans', system-ui, sans-serif",
             fontSize: '0.75rem',
-            color: 'rgba(226,212,186,0.5)',
+            color: 'rgba(255,255,255,0.55)',
             lineHeight: 1.5,
             display: '-webkit-box',
             WebkitLineClamp: 2,
@@ -82,38 +93,38 @@ export function CollectionHeader({ collection, completedCount }: CollectionHeade
         )}
 
         {/* Meta row */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 12 }}>
-          <span style={{ fontFamily: "'DM Sans'", fontSize: '0.65rem', color: 'rgba(226,212,186,0.4)', letterSpacing: '0.04em' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 12 }}>
+          <span style={{ fontFamily: "'DM Sans'", fontSize: '0.65rem', color: 'rgba(255,255,255,0.45)', letterSpacing: '0.04em' }}>
             {collection.items.length} {collection.items.length === 1 ? 'item' : 'itens'}
           </span>
-          <span style={{ width: 3, height: 3, borderRadius: '50%', backgroundColor: 'rgba(226,212,186,0.2)', display: 'inline-block', flexShrink: 0 }} />
-          <span style={{ fontFamily: "'DM Sans'", fontSize: '0.65rem', color: 'rgba(226,212,186,0.4)', letterSpacing: '0.04em' }}>
+          <span style={{ width: 3, height: 3, borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.2)', display: 'inline-block', flexShrink: 0 }} />
+          <span style={{ fontFamily: "'DM Sans'", fontSize: '0.65rem', color: 'rgba(255,255,255,0.45)', letterSpacing: '0.04em' }}>
             {collection.totalPoints} pontos
           </span>
         </div>
 
         {/* Progress */}
         <div style={{
-          backgroundColor: 'rgba(11,9,7,0.6)',
+          backgroundColor: 'rgba(0,0,0,0.45)',
           backdropFilter: 'blur(12px)',
           borderRadius: 8,
           padding: '10px 14px',
-          border: '1px solid rgba(255,255,255,0.07)',
+          border: '1px solid rgba(255,255,255,0.10)',
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-            <span style={{ fontFamily: "'DM Sans'", fontSize: '0.65rem', color: 'rgba(226,212,186,0.6)' }}>
+            <span style={{ fontFamily: "'DM Sans'", fontSize: '0.65rem', color: 'rgba(255,255,255,0.55)' }}>
               {completedCount} de {totalItems} completados
             </span>
-            <span style={{ fontFamily: "'DM Sans'", fontSize: '0.65rem', fontWeight: 500, color: '#C5A25A' }}>
+            <span style={{ fontFamily: "'DM Sans'", fontSize: '0.65rem', fontWeight: 500, color: levelCfg.color }}>
               {pointsEarned} pts
             </span>
           </div>
-          <div style={{ position: 'relative', height: 2, borderRadius: 99, backgroundColor: 'rgba(255,255,255,0.08)', overflow: 'hidden' }}>
+          <div style={{ position: 'relative', height: 3, borderRadius: 99, backgroundColor: 'rgba(255,255,255,0.12)', overflow: 'hidden' }}>
             <motion.div
               initial={{ width: 0 }}
               animate={{ width: `${progressPercentage}%` }}
               transition={{ duration: 0.8, ease: [0.34, 1.56, 0.64, 1] }}
-              style={{ position: 'absolute', left: 0, top: 0, bottom: 0, background: 'linear-gradient(to right, #8B1A36, #C5A25A)', borderRadius: 99 }}
+              style={{ position: 'absolute', left: 0, top: 0, bottom: 0, backgroundColor: levelCfg.color, borderRadius: 99 }}
             />
           </div>
         </div>

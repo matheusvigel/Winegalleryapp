@@ -8,9 +8,9 @@ import { Collection, WineItem } from '../types';
 import { getProgress } from '../utils/storage';
 
 const LEVEL_CONFIG = {
-  essential: { label: 'Essencial', pill: 'bg-[#6b7c5a]/90 border-[#6b7c5a]/40', dot: 'bg-[#8a9e72]', solid: 'bg-[#6b7c5a]' },
-  escape: { label: 'Fugir do Óbvio', pill: 'bg-[#3d5a7a]/90 border-[#3d5a7a]/40', dot: 'bg-[#4e7299]', solid: 'bg-[#3d5a7a]' },
-  icon: { label: 'Ícone', pill: 'bg-[#7a2e2e]/90 border-[#7a2e2e]/40', dot: 'bg-[#a04040]', solid: 'bg-[#7a2e2e]' },
+  essential: { label: 'Essencial', pill: 'bg-[#2D3A3A]/90 border-[#2D3A3A]/40', dot: 'bg-[#2D3A3A]', solid: 'bg-[#2D3A3A]' },
+  escape: { label: 'Fugir do Óbvio', pill: 'bg-[#400264]/90 border-[#400264]/40', dot: 'bg-[#400264]', solid: 'bg-[#400264]' },
+  icon: { label: 'Ícone', pill: 'bg-[#690037]/90 border-[#690037]/40', dot: 'bg-[#690037]', solid: 'bg-[#690037]' },
 } as const;
 
 type Level = keyof typeof LEVEL_CONFIG;
@@ -154,7 +154,7 @@ function CollectionCardsSlide({
           {cfg.label}
         </span>
         <h3 className="text-neutral-800 text-sm font-semibold flex-1 line-clamp-1">{collection.title}</h3>
-        <span className="text-[#c5a96d] text-xs font-bold flex-shrink-0">{collection.totalPoints} pts</span>
+        <span className="text-[#A0621A] text-xs font-bold flex-shrink-0">{collection.totalPoints} pts</span>
       </div>
 
       {/* Carousel — takes all remaining vertical space, centers card vertically */}
@@ -205,7 +205,7 @@ function CollectionCardsSlide({
           <span className="text-neutral-500 text-xs">
             {completedCount} de {totalItems} {totalItems === 1 ? 'provado' : 'provados'}
           </span>
-          <span className="text-[#c5a96d] text-xs font-bold">{ptsEarned} pts</span>
+          <span className="text-[#A0621A] text-xs font-bold">{ptsEarned} pts</span>
         </div>
         <div className="h-1.5 bg-neutral-300 rounded-full overflow-hidden">
           <motion.div
@@ -270,7 +270,7 @@ function SubRegionsSlide({
             </motion.button>
             <div className="min-w-0">
               {countryName && (
-                <p className="text-[#c5a96d] text-[11px] font-semibold uppercase tracking-widest">{countryName}</p>
+                <p className="text-[#A0621A] text-[11px] font-semibold uppercase tracking-widest">{countryName}</p>
               )}
               <h1 className="text-neutral-900 font-bold text-lg leading-tight truncate">{regionName}</h1>
             </div>
@@ -487,7 +487,7 @@ export default function RegionDetail() {
                 </motion.button>
                 <div>
                   {countryName && (
-                    <p className="text-[#c5a96d] text-[11px] font-semibold uppercase tracking-widest">{countryName}</p>
+                    <p className="text-[#A0621A] text-[11px] font-semibold uppercase tracking-widest">{countryName}</p>
                   )}
                   <h1 className="text-neutral-900 font-bold text-lg">{regionName}</h1>
                 </div>
