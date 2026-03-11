@@ -33,7 +33,7 @@ test.describe('RegionDetail — CollectionCoverSlide (1º slide)', () => {
   });
 
   test('breadcrumb mostra "Regiões", "Brasil" e "Serra Gaúcha"', async ({ page }) => {
-    await expect(page.getByText('Regiões')).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Regiões' }).first()).toBeVisible();
     await expect(page.getByText('Brasil')).toBeVisible();
     await expect(page.getByText('Serra Gaúcha').first()).toBeVisible();
   });
@@ -75,7 +75,7 @@ test.describe('RegionDetail — CollectionCoverSlide (1º slide)', () => {
   });
 
   test('CTA "Ver vinhos" visível', async ({ page }) => {
-    await expect(page.getByText('Ver vinhos', { exact: false })).toBeVisible();
+    await expect(page.getByText('Ver vinhos').first()).toBeVisible();
   });
 });
 
@@ -147,7 +147,7 @@ test.describe('RegionDetail — CollectionCardsSlide (2º slide)', () => {
   });
 
   test('indicador de progresso visível: "X de Y provados"', async ({ page }) => {
-    const progressText = page.getByText(/de \d+ provados?/);
+    const progressText = page.getByText(/de \d+ provados?/).first();
     await expect(progressText).toBeVisible();
   });
 

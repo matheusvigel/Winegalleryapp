@@ -21,7 +21,7 @@ export default function Root() {
         }}
       >
         <Toolbar sx={{ minHeight: '52px !important', px: 1 }}>
-          <IconButton size="small" edge="start" color="inherit" sx={{ mr: 0.5 }}>
+          <IconButton edge="start" color="inherit" sx={{ mr: 0.5 }}>
             <MenuIcon fontSize="small" />
           </IconButton>
           <Typography
@@ -33,7 +33,7 @@ export default function Root() {
           >
             Wine Gallery
           </Typography>
-          <IconButton size="small" edge="end" color="inherit" sx={{ ml: 0.5 }}>
+          <IconButton edge="end" color="inherit" sx={{ ml: 0.5 }}>
             <SearchIcon fontSize="small" />
           </IconButton>
         </Toolbar>

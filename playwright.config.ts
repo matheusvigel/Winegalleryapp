@@ -28,6 +28,7 @@ export default defineConfig({
     viewport: { width: 390, height: 844 },
     isMobile: true,
     hasTouch: true,
+    reducedMotion: 'reduce',
     deviceScaleFactor: 1, // 1 para screenshots mais leves
   },
   projects: [
