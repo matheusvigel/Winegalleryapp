@@ -170,7 +170,7 @@ export function ItemCard({ item }: ItemCardProps) {
         onClick={() => setShowDetail(true)}
       >
         {/* ── Image area ─────────────────────────────────────────── */}
-        <div className="relative bg-neutral-100" style={{ height: '68vw', minHeight: 260, maxHeight: 360 }}>
+        <div className="relative bg-neutral-100" style={{ height: '58vw', minHeight: 220, maxHeight: 300 }}>
           <img
             src={item.imageUrl}
             alt={item.name}
@@ -275,8 +275,8 @@ export function ItemCard({ item }: ItemCardProps) {
         </div>
 
         {/* ── Info panel ────────────────────────────────────────── */}
-        <div className="px-3 pt-2.5 pb-3 min-h-[92px]">
-          <h3 className="text-neutral-900 font-bold text-[15px] leading-tight line-clamp-2">
+        <div className="px-3 pt-2.5 pb-3">
+          <h3 className="text-neutral-900 font-bold text-[14px] leading-tight">
             {item.name}
           </h3>
           {item.brandName && (
@@ -285,7 +285,7 @@ export function ItemCard({ item }: ItemCardProps) {
               <span className="text-neutral-500 text-[11px] leading-none">{item.brandName}</span>
             </div>
           )}
-          <p className="text-neutral-500 text-[12px] leading-snug mt-1.5 line-clamp-2">
+          <p className="text-neutral-500 text-[11px] leading-snug mt-1.5">
             {item.description}
           </p>
         </div>

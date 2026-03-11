@@ -147,7 +147,10 @@ export default function Root() {
 
       {/* ── Page content ───────────────────────────────────── */}
       <main className="pb-20 md:pb-0">
-        <Outlet />
+        {/* On desktop: centered phone-width column, like Instagram */}
+        <div className="md:max-w-[430px] md:mx-auto md:min-h-screen md:border-x md:border-[#D0C8BC]">
+          <Outlet />
+        </div>
       </main>
 
       {/* ── Bottom tab bar (mobile only) ───────────────────── */}
