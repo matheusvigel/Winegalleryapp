@@ -15,11 +15,11 @@ test.describe('Navegação — Header e Tabs', () => {
   });
 
   test('logotipo "Wine Gallery" visível no header', async ({ page }) => {
-    await expect(page.getByText('Wine Gallery')).toBeVisible();
+    await expect(page.getByText('wine gallery')).toBeVisible();
   });
 
   test('abas de navegação estão presentes', async ({ page }) => {
-    const tabLabels = ['Para você', 'Regiões', 'Vinícolas', 'Uvas'];
+    const tabLabels = ['Início', 'Regiões', 'Vinícolas', 'Uvas'];
     for (const label of tabLabels) {
       await expect(page.getByRole('tab', { name: label })).toBeVisible();
     }

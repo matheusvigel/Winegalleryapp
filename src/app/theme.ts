@@ -3,9 +3,9 @@ import { createTheme } from '@mui/material/styles';
 const theme = createTheme({
   palette: {
     primary: {
-      main: '#5C1A3E',
-      light: '#8C3066',
-      dark: '#3A0D27',
+      main: '#7A1B3A',
+      light: '#A63558',
+      dark: '#4E1025',
       contrastText: '#fff',
     },
     secondary: {
@@ -13,7 +13,7 @@ const theme = createTheme({
       contrastText: '#1C1B1F',
     },
     background: {
-      default: '#F8F5F2',
+      default: '#E8E0D5',
       paper: '#FFFFFF',
     },
     text: {
@@ -55,8 +55,8 @@ const theme = createTheme({
     },
     MuiLinearProgress: {
       styleOverrides: {
-        root: { borderRadius: 4, height: 6 },
-        bar: { borderRadius: 4 },
+        root: { borderRadius: 99, height: 5, backgroundColor: 'rgba(0,0,0,0.08)' },
+        bar: { borderRadius: 99, backgroundColor: '#7A1B3A' },
       },
     },
     MuiButton: {
