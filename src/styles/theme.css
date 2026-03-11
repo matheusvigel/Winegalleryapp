@@ -1,82 +1,88 @@
 @custom-variant dark (&:is(.dark *));
 
+/* ═══════════════════════════════════════════════════════════════════
+   WINE GALLERY — "Cave & Cellar" Design System
+   Dark luxury editorial. Aged brass. Warm charcoal. Parchment text.
+   ═══════════════════════════════════════════════════════════════════ */
+
 :root {
   --font-size: 16px;
-  --background: #ffffff;
-  --foreground: oklch(0.145 0 0);
-  --card: #ffffff;
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: #030213;
-  --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.95 0.0058 264.53);
-  --secondary-foreground: #030213;
-  --muted: #ececf0;
-  --muted-foreground: #717182;
-  --accent: #e9ebef;
-  --accent-foreground: #030213;
-  --destructive: #d4183d;
-  --destructive-foreground: #ffffff;
-  --border: rgba(0, 0, 0, 0.1);
-  --input: transparent;
-  --input-background: #f3f3f5;
-  --switch-background: #cbced4;
+
+  /* ── Backgrounds ─────────────────────────────────────────────── */
+  --background: #0B0907;          /* near-black, warm like charcoal */
+  --surface:    #141210;          /* card backgrounds */
+  --surface-2:  #1C1915;          /* elevated surfaces / modals */
+  --surface-3:  #252018;          /* hover / selected states */
+
+  /* ── Foregrounds ─────────────────────────────────────────────── */
+  --foreground:           #E2D4BA; /* parchment — primary text */
+  --foreground-muted:     #8C8074; /* warm gray — secondary text */
+  --foreground-faint:     #574E47; /* very muted — placeholders */
+
+  /* ── Brand colors ────────────────────────────────────────────── */
+  --wine:        #8B1A36;  /* deep burgundy — primary actions */
+  --wine-light:  #A8234A;  /* hover state */
+  --wine-dark:   #5E1025;  /* pressed state */
+  --gold:        #C5A25A;  /* aged brass — accents, highlights */
+  --gold-light:  #D4B470;  /* lighter gold */
+  --gold-faint:  rgba(197, 162, 90, 0.12); /* gold tint bg */
+
+  /* ── Semantic tokens ─────────────────────────────────────────── */
+  --card:              var(--surface);
+  --card-foreground:   var(--foreground);
+  --popover:           var(--surface-2);
+  --popover-foreground: var(--foreground);
+  --primary:           var(--gold);
+  --primary-foreground: #0B0907;
+  --secondary:         var(--surface-2);
+  --secondary-foreground: var(--foreground);
+  --muted:             var(--surface-2);
+  --muted-foreground:  var(--foreground-muted);
+  --accent:            var(--surface-3);
+  --accent-foreground: var(--foreground);
+  --destructive:       #C0392B;
+  --destructive-foreground: #fff;
+
+  /* ── Borders & inputs ────────────────────────────────────────── */
+  --border:            rgba(255, 255, 255, 0.08);
+  --border-subtle:     rgba(255, 255, 255, 0.04);
+  --border-gold:       rgba(197, 162, 90, 0.25);
+  --input:             transparent;
+  --input-background:  var(--surface-2);
+  --switch-background: var(--surface-3);
+
+  /* ── Focus ring ──────────────────────────────────────────────── */
+  --ring: rgba(197, 162, 90, 0.4);
+
+  /* ── Typography ──────────────────────────────────────────────── */
   --font-weight-medium: 500;
   --font-weight-normal: 400;
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: #030213;
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --font-body: 'DM Sans', system-ui, sans-serif;
+  --font-display: 'Playfair Display', Georgia, serif;
+  --font-brand: 'Cormorant Garamond', Georgia, serif;
+
+  /* ── Charts ──────────────────────────────────────────────────── */
+  --chart-1: #C5A25A;
+  --chart-2: #8B1A36;
+  --chart-3: #6B8F71;
+  --chart-4: #4A7BA7;
+  --chart-5: #9B7DBF;
+
+  /* ── Radius ──────────────────────────────────────────────────── */
+  --radius: 0.75rem;
+
+  /* ── Sidebar (dark, consistent) ─────────────────────────────── */
+  --sidebar:                    var(--surface);
+  --sidebar-foreground:         var(--foreground);
+  --sidebar-primary:            var(--gold);
+  --sidebar-primary-foreground: #0B0907;
+  --sidebar-accent:             var(--surface-2);
+  --sidebar-accent-foreground:  var(--foreground);
+  --sidebar-border:             var(--border);
+  --sidebar-ring:               var(--ring);
 }
 
-.dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.145 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.145 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.985 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.396 0.141 25.723);
-  --destructive-foreground: oklch(0.637 0.237 25.331);
-  --border: oklch(0.269 0 0);
-  --input: oklch(0.269 0 0);
-  --ring: oklch(0.439 0 0);
-  --font-weight-medium: 500;
-  --font-weight-normal: 400;
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(0.269 0 0);
-  --sidebar-ring: oklch(0.439 0 0);
-}
+/* No separate dark mode — the app is always dark */
 
 @theme inline {
   --color-background: var(--background);
@@ -117,6 +123,15 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Expose surface vars to Tailwind */
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-wine: var(--wine);
+  --color-wine-light: var(--wine-light);
+  --color-gold: var(--gold);
+  --color-gold-light: var(--gold-light);
 }
 
 @layer base {
@@ -124,58 +139,91 @@
     @apply border-border outline-ring/50;
   }
 
-  body {
-    @apply bg-background text-foreground;
-  }
-
-  /**
-  * Default typography styles for HTML elements (h1-h4, p, label, button, input).
-  * These are in @layer base, so Tailwind utility classes (like text-sm, text-lg) automatically override them.
-  */
-
   html {
     font-size: var(--font-size);
+    font-family: var(--font-body);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-body);
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-display);
+    color: var(--foreground);
   }
 
   h1 {
     font-size: var(--text-2xl);
-    font-weight: var(--font-weight-medium);
-    line-height: 1.5;
+    font-weight: 700;
+    line-height: 1.2;
   }
 
   h2 {
     font-size: var(--text-xl);
-    font-weight: var(--font-weight-medium);
-    line-height: 1.5;
+    font-weight: 600;
+    line-height: 1.3;
   }
 
   h3 {
     font-size: var(--text-lg);
-    font-weight: var(--font-weight-medium);
-    line-height: 1.5;
+    font-weight: 500;
+    line-height: 1.4;
   }
 
   h4 {
     font-size: var(--text-base);
-    font-weight: var(--font-weight-medium);
+    font-weight: 500;
     line-height: 1.5;
   }
 
   label {
-    font-size: var(--text-base);
+    font-size: var(--text-sm);
     font-weight: var(--font-weight-medium);
     line-height: 1.5;
+    font-family: var(--font-body);
   }
 
   button {
     font-size: var(--text-base);
     font-weight: var(--font-weight-medium);
     line-height: 1.5;
+    font-family: var(--font-body);
   }
 
-  input {
+  input, textarea, select {
     font-size: var(--text-base);
     font-weight: var(--font-weight-normal);
     line-height: 1.5;
+    font-family: var(--font-body);
   }
+}
+
+/* ── Gold divider utility ──────────────────────────────────────────── */
+.gold-divider {
+  height: 1px;
+  background: linear-gradient(to right, transparent, var(--gold), transparent);
+  opacity: 0.3;
+}
+
+/* ── Glass surface utility ─────────────────────────────────────────── */
+.glass-dark {
+  background: rgba(20, 18, 16, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+/* ── Grain overlay for texture ─────────────────────────────────────── */
+.grain::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 0;
 }

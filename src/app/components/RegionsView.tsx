@@ -2,15 +2,9 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
-import LinearProgress from '@mui/material/LinearProgress';
 import CardActionArea from '@mui/material/CardActionArea';
-import InputAdornment from '@mui/material/InputAdornment';
-import TextField from '@mui/material/TextField';
 import Skeleton from '@mui/material/Skeleton';
-import Paper from '@mui/material/Paper';
-import ChevronRightIcon from '@mui/icons-material/ChevronRight';
-import SearchIcon from '@mui/icons-material/Search';
-import MicIcon from '@mui/icons-material/Mic';
+import { Search } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getStats } from '../utils/storage';
 import { supabase } from '../../lib/supabase';
@@ -61,69 +55,104 @@ export default function RegionsView() {
   const filtered = countries.filter(c => c.name.toLowerCase().includes(search.toLowerCase()));
 
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: '#111' }}>
+    <Box sx={{ minHeight: '100vh', bgcolor: '#0B0907' }}>
+
+      {/* ── User level bar ───────────────────────────────────── */}
       {user && (
-        <Box sx={{ px: 2, pt: 2, pb: 1 }}>
-          <Paper elevation={0} sx={{ p: 2, borderRadius: 3 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
-              <Typography variant="body2" color="text.secondary">
-                Nível <strong>{stats.level}</strong> em <strong>Regiões</strong>
+        <Box sx={{ px: 2.5, pt: 2.5, pb: 1 }}>
+          <Box sx={{
+            borderRadius: 2.5,
+            px: 2.5,
+            py: 1.75,
+            background: 'linear-gradient(135deg, #1C1915 0%, #141210 100%)',
+            border: '1px solid rgba(197,162,90,0.14)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 2,
+          }}>
+            <Box sx={{ flex: 1 }}>
+              <Typography sx={{ fontFamily: "'DM Sans'", fontSize: '0.65rem', fontWeight: 500, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#C5A25A', mb: 0.6 }}>
+                Nível {stats.level} em Regiões
               </Typography>
-              <ChevronRightIcon fontSize="small" sx={{ color: 'text.disabled' }} />
-            </Box>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-              <Typography variant="h6">{pointsInLevel}/100</Typography>
-              <Box sx={{ flex: 1 }}>
-                <LinearProgress
-                  variant="determinate" value={pointsInLevel}
-                  sx={{ bgcolor: 'rgba(0,0,0,0.06)', '& .MuiLinearProgress-bar': { bgcolor: '#E8572A' } }}
-                />
+              <Box sx={{ position: 'relative', height: 3, borderRadius: 99, bgcolor: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+                <Box sx={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${pointsInLevel}%`, background: 'linear-gradient(to right, #8B1A36, #C5A25A)', borderRadius: 99 }} />
               </Box>
             </Box>
-          </Paper>
+            <Box sx={{ textAlign: 'right' }}>
+              <Typography sx={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: '1.1rem', fontWeight: 700, color: '#C5A25A', lineHeight: 1 }}>
+                {pointsInLevel}
+              </Typography>
+              <Typography sx={{ fontFamily: "'DM Sans'", fontSize: '0.55rem', color: '#574E47', letterSpacing: '0.06em' }}>
+                /100
+              </Typography>
+            </Box>
+          </Box>
         </Box>
       )}
 
-      <Box sx={{ px: 2, py: 1.5 }}>
-        <TextField
-          fullWidth placeholder="Buscar países..."
-          value={search} onChange={e => setSearch(e.target.value)}
-          size="small"
-          slotProps={{
-            input: {
-              startAdornment: <InputAdornment position="start"><SearchIcon sx={{ color: 'grey.400', fontSize: 18 }} /></InputAdornment>,
-              endAdornment: <InputAdornment position="end"><MicIcon sx={{ color: 'grey.400', fontSize: 18 }} /></InputAdornment>,
-              sx: { bgcolor: 'white', borderRadius: 6, '& fieldset': { border: 'none' } },
-            },
-          }}
-        />
+      {/* ── Search ───────────────────────────────────────────── */}
+      <Box sx={{ px: 2.5, py: 2 }}>
+        <Box sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1.5,
+          bgcolor: '#1C1915',
+          border: '1px solid rgba(255,255,255,0.08)',
+          borderRadius: 2,
+          px: 2,
+          py: 1.25,
+          '&:focus-within': { borderColor: 'rgba(197,162,90,0.35)' },
+          transition: 'border-color 0.2s ease',
+        }}>
+          <Search size={15} color="#574E47" />
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Buscar países..."
+            style={{
+              background: 'none',
+              border: 'none',
+              outline: 'none',
+              flex: 1,
+              fontFamily: "'DM Sans', system-ui, sans-serif",
+              fontSize: '0.875rem',
+              color: '#E2D4BA',
+              caretColor: '#C5A25A',
+            }}
+          />
+        </Box>
       </Box>
 
+      {/* ── Country list ─────────────────────────────────────── */}
       {loading ? (
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.25 }}>
-          {[1, 2, 3].map(i => <Skeleton key={i} variant="rectangular" height={208} sx={{ bgcolor: 'grey.800' }} />)}
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
+          {[1, 2, 3].map(i => <Skeleton key={i} variant="rectangular" height={200} sx={{ bgcolor: 'rgba(255,255,255,0.05)' }} />)}
         </Box>
       ) : filtered.length === 0 ? (
-        <Typography sx={{ textAlign: 'center', py: 8, color: 'grey.500' }}>Nenhum país encontrado.</Typography>
+        <Box sx={{ textAlign: 'center', py: 10 }}>
+          <Typography sx={{ fontFamily: "'DM Sans'", fontSize: '0.85rem', color: '#574E47' }}>Nenhum país encontrado.</Typography>
+        </Box>
       ) : (
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.25 }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
           {filtered.map(country => (
             <CardActionArea key={country.id} component={Link} to={`/country/${country.id}`}>
-              <Box sx={{ position: 'relative', height: 208, overflow: 'hidden' }}>
-                <img src={country.image_url} alt={country.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-                <Box sx={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.78) 0%, rgba(0,0,0,0.2) 55%, transparent 100%)' }} />
-                <Box sx={{ position: 'absolute', bottom: 0, left: 0, right: 0, p: 2 }}>
-                  <Typography variant="subtitle1" fontWeight={900} sx={{ color: 'white', textTransform: 'uppercase', letterSpacing: '0.04em', lineHeight: 1 }}>
+              <Box sx={{ position: 'relative', height: 200, overflow: 'hidden' }}>
+                <img
+                  src={country.image_url}
+                  alt={country.name}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', opacity: 0.75 }}
+                />
+                <Box sx={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.90) 0%, rgba(0,0,0,0.25) 55%, rgba(0,0,0,0.08) 100%)' }} />
+                <Box sx={{ position: 'absolute', bottom: 0, left: 0, right: 0, p: 2.5 }}>
+                  <Typography sx={{ fontFamily: "'Playfair Display', Georgia, serif", fontWeight: 700, fontSize: '1.25rem', color: '#E2D4BA', lineHeight: 1, mb: 0.4 }}>
                     {country.name}
                   </Typography>
-                  <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)', mt: 0.25 }}>
+                  <Typography sx={{ fontFamily: "'DM Sans', system-ui, sans-serif", fontSize: '0.73rem', color: 'rgba(226,212,186,0.45)', letterSpacing: '0.03em' }}>
                     {country.regionCount} {country.regionCount === 1 ? 'região' : 'regiões'} · {country.collectionCount} {country.collectionCount === 1 ? 'coleção' : 'coleções'}
                   </Typography>
                   {user && (
-                    <Box sx={{ mt: 1 }}>
-                      <LinearProgress variant="determinate" value={0}
-                        sx={{ bgcolor: 'rgba(255,255,255,0.22)', height: 4, '& .MuiLinearProgress-bar': { bgcolor: '#E8572A' } }}
-                      />
+                    <Box sx={{ mt: 1.5, position: 'relative', height: 2, borderRadius: 99, bgcolor: 'rgba(255,255,255,0.1)', overflow: 'hidden' }}>
+                      <Box sx={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '0%', background: 'linear-gradient(to right, #8B1A36, #C5A25A)', borderRadius: 99 }} />
                     </Box>
                   )}
                 </Box>

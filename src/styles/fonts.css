@@ -1,14 +1,15 @@
-/* Gelica → Cormorant Garamond (free alternative loaded via Google Fonts in index.html)
-   If you have the actual Gelica font files, add them here with @font-face:
-
-   @font-face {
-     font-family: 'Gelica';
-     src: url('/fonts/Gelica-Bold.woff2') format('woff2');
-     font-weight: 700;
-     font-style: normal;
-   }
-*/
-
-.font-gelica {
+/* ─── Brand / Logo ─────────────────────────────────────────────────── */
+.font-gelica,
+.font-cormorant {
   font-family: 'Cormorant Garamond', Georgia, serif;
+}
+
+/* ─── Display / Section headings ──────────────────────────────────── */
+.font-display {
+  font-family: 'Playfair Display', 'Georgia', serif;
+}
+
+/* ─── UI / Body text ──────────────────────────────────────────────── */
+.font-sans-ui {
+  font-family: 'DM Sans', system-ui, sans-serif;
 }
