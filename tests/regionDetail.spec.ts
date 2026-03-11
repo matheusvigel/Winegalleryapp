@@ -34,7 +34,7 @@ test.describe('RegionDetail — CollectionCoverSlide (1º slide)', () => {
 
   test('breadcrumb mostra "Regiões", "Brasil" e "Serra Gaúcha"', async ({ page }) => {
     await expect(page.getByRole('link', { name: 'Regiões' }).first()).toBeVisible();
-    await expect(page.getByText('Brasil')).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Brasil' })).toBeVisible();
     await expect(page.getByText('Serra Gaúcha').first()).toBeVisible();
   });
 
