@@ -256,59 +256,71 @@ function SubRegionsSlide({
   isFirst: boolean;
   onBack: () => void;
 }) {
+  const WINE  = '#690037';
+  const TEXT1 = '#1C1B1F';
+  const TEXT2 = '#5C5C5C';
+  const MUTED = '#9B9B9B';
+  const SURF  = '#F5F0E8';
+  const BDR   = 'rgba(0,0,0,0.08)';
+
   return (
-    <div className="relative h-screen snap-start flex flex-col overflow-hidden bg-neutral-50">
-      <div className="bg-white border-b border-neutral-200 px-5 pt-12 pb-4 flex-shrink-0">
+    <div style={{ position: 'relative', height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', backgroundColor: '#E9E3D9' }} className="snap-start">
+      {/* Header */}
+      <div style={{ backgroundColor: '#FFFFFF', borderBottom: `1px solid ${BDR}`, padding: '48px 20px 16px', flexShrink: 0 }}>
         {isFirst && (
-          <div className="flex items-center gap-3 mb-4">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
             <motion.button
               whileTap={{ scale: 0.9 }}
               onClick={onBack}
-              className="w-9 h-9 rounded-full bg-neutral-100 border border-neutral-200 flex items-center justify-center flex-shrink-0"
+              style={{ width: 36, height: 36, borderRadius: '50%', backgroundColor: SURF, border: `1px solid ${BDR}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, cursor: 'pointer' }}
             >
-              <ArrowLeft size={18} className="text-neutral-700" />
+              <ArrowLeft size={17} color={TEXT2} />
             </motion.button>
-            <div className="min-w-0">
+            <div style={{ minWidth: 0 }}>
               {countryName && (
-                <p className="text-[#A0621A] text-[11px] font-semibold uppercase tracking-widest">{countryName}</p>
+                <p style={{ margin: 0, fontFamily: "'DM Sans'", fontSize: '0.62rem', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: WINE }}>{countryName}</p>
               )}
-              <h1 className="text-neutral-900 font-bold text-lg leading-tight truncate">{regionName}</h1>
+              <h1 style={{ margin: 0, fontFamily: "'DM Sans'", fontWeight: 700, fontSize: '1.1rem', color: TEXT1, lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{regionName}</h1>
             </div>
           </div>
         )}
-        <h2 className="text-sm font-semibold text-neutral-500 uppercase tracking-wider">
+        <p style={{ margin: 0, fontFamily: "'DM Sans'", fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: MUTED }}>
           Sub-regiões de {regionName}
-        </h2>
+        </p>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+      {/* Cards */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: '16px 16px 24px', display: 'flex', flexDirection: 'column', gap: 10 }}>
         {subRegions.map((sr, i) => (
           <motion.div
             key={sr.id}
-            initial={{ opacity: 0, x: -16 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.06 * i, duration: 0.3 }}
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.05 * i, duration: 0.3 }}
           >
-            <Link to={`/region/${sr.id}`}>
-              <div className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-shadow">
-                <div className="relative h-40">
-                  <img
-                    src={sr.image_url}
-                    alt={sr.name}
-                    className="w-full h-full object-cover"
-                    draggable={false}
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
-                  <div className="absolute bottom-4 left-4 right-4">
-                    <h3 className="text-xl font-bold text-white mb-1">{sr.name}</h3>
+            <Link to={`/region/${sr.id}`} style={{ textDecoration: 'none', display: 'block' }}>
+              <div style={{ backgroundColor: '#FFFFFF', borderRadius: 14, overflow: 'hidden', border: `1px solid ${BDR}` }}>
+                <div style={{ position: 'relative', height: 148, backgroundColor: SURF }}>
+                  <img src={sr.image_url} alt={sr.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} draggable={false} />
+                  <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.12) 55%, transparent 100%)' }} />
+                  <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '0 16px 14px' }}>
+                    <h3 style={{ margin: 0, fontFamily: "'DM Sans'", fontWeight: 700, fontSize: '1.05rem', color: '#FFFFFF', lineHeight: 1.2 }}>{sr.name}</h3>
                     {sr.description && (
-                      <p className="text-neutral-200 text-sm line-clamp-1">{sr.description}</p>
+                      <p style={{ margin: '2px 0 0', fontFamily: "'DM Sans'", fontSize: '0.72rem', color: 'rgba(255,255,255,0.65)', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical' }}>
+                        {sr.description}
+                      </p>
                     )}
                   </div>
                 </div>
-                <div className="px-4 py-3 flex items-center justify-between">
-                  <span className="text-sm text-neutral-500">Ver coleções</span>
-                  <ChevronRight size={20} className="text-neutral-400" />
+                {/* Footer row + progress bar */}
+                <div style={{ padding: '10px 16px 12px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <span style={{ fontFamily: "'DM Sans'", fontSize: '0.78rem', color: WINE, fontWeight: 500 }}>Ver coleções</span>
+                    <ChevronRight size={15} color={WINE} />
+                  </div>
+                  <div style={{ position: 'relative', height: 3, borderRadius: 99, backgroundColor: 'rgba(0,0,0,0.08)', overflow: 'hidden' }}>
+                    <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '0%', backgroundColor: '#F1BD85', borderRadius: 99 }} />
+                  </div>
                 </div>
               </div>
             </Link>

@@ -1,6 +1,14 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router';
 import { Home, MapPin, Building2, Leaf, User } from 'lucide-react';
 
+const BG   = '#E9E3D9';
+const CARD = '#FFFFFF';
+const WINE = '#690037';
+const TEXT1 = '#1C1B1F';
+const TEXT2 = '#5C5C5C';
+const MUTED = '#9B9B9B';
+const BORDER = 'rgba(0,0,0,0.08)';
+
 const TABS = [
   { value: '/',        label: 'Início',    Icon: Home },
   { value: '/regions', label: 'Regiões',   Icon: MapPin },
@@ -28,11 +36,8 @@ function WineArchIcon({ size = 28, color = '#1C1B1F' }: { size?: number; color?:
           <path d="M7,74 L7,24 Q7,4 27,4 Q47,4 47,24 L47,74 Z" />
         </clipPath>
       </defs>
-      {/* Dot at top */}
       <circle cx="27" cy="1.5" r="1.5" fill={color} />
-      {/* Outer arch frame */}
       <path d="M2,76 L2,24 Q2,0 27,0 Q52,0 52,24 L52,76 Z" stroke={color} strokeWidth="2.2" fill="none" />
-      {/* Lattice inside arch */}
       <g clipPath="url(#wg-root-clip)" stroke={color} strokeWidth="1.3" opacity="1">
         <line x1="-20" y1="60"  x2="80" y2="-40" />
         <line x1="-20" y1="80"  x2="80" y2="-20" />
@@ -47,9 +52,7 @@ function WineArchIcon({ size = 28, color = '#1C1B1F' }: { size?: number; color?:
         <line x1="-20" y1="80"  x2="80" y2="180" />
         <line x1="-20" y1="100" x2="80" y2="200" />
       </g>
-      {/* Inner arch frame (on top) */}
       <path d="M7,74 L7,24 Q7,4 27,4 Q47,4 47,24 L47,74 Z" stroke={color} strokeWidth="1.8" fill="none" />
-      {/* Bottom ornament */}
       <circle cx="18" cy="62" r="5.5" stroke={color} strokeWidth="1.6" fill="none" />
       <circle cx="36" cy="62" r="5.5" stroke={color} strokeWidth="1.6" fill="none" />
       <circle cx="27" cy="53" r="3.5" stroke={color} strokeWidth="1.4" fill="none" />
@@ -63,81 +66,32 @@ export default function Root() {
   const active = getActive(pathname);
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: '#E9E3D9', fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+    <div style={{ minHeight: '100vh', backgroundColor: BG, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
 
-      {/* ── Header ───────────────────────────────────────────────── */}
-      <header
-        className="sticky top-0 z-30"
-        style={{ backgroundColor: '#E9E3D9', borderBottom: '1px solid rgba(0,0,0,0.08)' }}
-      >
-        {/* Mobile: centered logo */}
-        <div className="flex items-center justify-center h-14 px-5 md:hidden">
-          <Link to="/" className="flex items-center gap-2.5 hover:opacity-75 transition-opacity" style={{ textDecoration: 'none' }}>
-            <WineArchIcon size={26} color="#1C1B1F" />
-            <span style={{
-              fontFamily: "'Fraunces', Georgia, serif",
-              fontWeight: 700,
-              fontSize: '20px',
-              lineHeight: 1,
-              color: '#1C1B1F',
-              letterSpacing: '-0.01em',
-            }}>
+      {/* ════════════════════════════════════════════════════════
+          MOBILE layout (< lg)
+          ════════════════════════════════════════════════════════ */}
+
+      {/* Mobile header */}
+      <header className="lg:hidden sticky top-0 z-30" style={{ backgroundColor: BG, borderBottom: `1px solid ${BORDER}` }}>
+        <div className="flex items-center justify-center h-14 px-5">
+          <Link to="/" className="flex items-center gap-2.5" style={{ textDecoration: 'none' }}>
+            <WineArchIcon size={26} color={TEXT1} />
+            <span style={{ fontFamily: "'Fraunces', Georgia, serif", fontWeight: 700, fontSize: '20px', lineHeight: 1, color: TEXT1, letterSpacing: '-0.01em' }}>
               wine gallery
             </span>
           </Link>
-        </div>
-
-        {/* Desktop: logo left + nav right */}
-        <div className="hidden md:flex items-center justify-between h-16 px-8 max-w-screen-xl mx-auto">
-          <Link to="/" className="flex items-center gap-3 hover:opacity-75 transition-opacity" style={{ textDecoration: 'none' }}>
-            <WineArchIcon size={30} color="#1C1B1F" />
-            <span style={{
-              fontFamily: "'Fraunces', Georgia, serif",
-              fontWeight: 700,
-              fontSize: '22px',
-              lineHeight: 1,
-              color: '#1C1B1F',
-              letterSpacing: '-0.01em',
-            }}>
-              wine gallery
-            </span>
-          </Link>
-
-          <nav className="flex items-center gap-0.5">
-            {TABS.map(({ value, label }) => (
-              <button
-                key={value}
-                onClick={() => navigate(value)}
-                className="px-4 py-2 rounded-lg text-[13px] transition-colors"
-                style={{
-                  fontFamily: "'DM Sans', system-ui, sans-serif",
-                  fontWeight: active === value ? 600 : 400,
-                  color: active === value ? '#690037' : '#5C5C5C',
-                  backgroundColor: active === value ? 'rgba(105,0,55,0.07)' : 'transparent',
-                  border: 'none',
-                  cursor: 'pointer',
-                }}
-              >
-                {label}
-              </button>
-            ))}
-          </nav>
         </div>
       </header>
 
-      {/* ── Page content ─────────────────────────────────────────── */}
-      <main className="pb-20 md:pb-0">
-        <div className="md:max-w-[430px] md:mx-auto md:min-h-screen" style={{ borderLeft: '1px solid rgba(0,0,0,0.05)', borderRight: '1px solid rgba(0,0,0,0.05)' }}>
-          <Outlet />
-        </div>
+      {/* Mobile main content */}
+      <main className="lg:hidden pb-20">
+        <Outlet />
       </main>
 
-      {/* ── Bottom tab bar (mobile only) ─────────────────────────── */}
-      <nav
-        role="tablist"
-        className="fixed bottom-0 left-0 right-0 z-30 md:hidden"
-        style={{ backgroundColor: '#FFFFFF', borderTop: '1px solid rgba(0,0,0,0.08)', boxShadow: '0 -1px 0 rgba(0,0,0,0.04)' }}
-      >
+      {/* Mobile bottom tab bar */}
+      <nav role="tablist" className="lg:hidden fixed bottom-0 left-0 right-0 z-30"
+        style={{ backgroundColor: CARD, borderTop: `1px solid ${BORDER}` }}>
         <div className="flex h-16">
           {TABS.map(({ value, label, Icon }) => {
             const isActive = active === value;
@@ -150,17 +104,8 @@ export default function Root() {
                 className="flex flex-col items-center justify-center gap-[3px] flex-1 transition-colors"
                 style={{ border: 'none', background: 'none', cursor: 'pointer' }}
               >
-                <Icon
-                  size={22}
-                  strokeWidth={isActive ? 2.5 : 1.75}
-                  color={isActive ? '#690037' : '#9B9B9B'}
-                />
-                <span style={{
-                  fontFamily: "'DM Sans', system-ui, sans-serif",
-                  fontSize: '10px',
-                  fontWeight: isActive ? 600 : 400,
-                  color: isActive ? '#690037' : '#9B9B9B',
-                }}>
+                <Icon size={22} strokeWidth={isActive ? 2.5 : 1.75} color={isActive ? WINE : MUTED} />
+                <span style={{ fontFamily: "'DM Sans'", fontSize: '10px', fontWeight: isActive ? 600 : 400, color: isActive ? WINE : MUTED }}>
                   {label}
                 </span>
               </button>
@@ -168,6 +113,104 @@ export default function Root() {
           })}
         </div>
       </nav>
+
+      {/* ════════════════════════════════════════════════════════
+          DESKTOP layout (lg+) — 3-column Instagram-style
+          ════════════════════════════════════════════════════════ */}
+      <div className="hidden lg:flex min-h-screen">
+
+        {/* ── Left sidebar nav ──────────────────────────────── */}
+        <aside
+          className="sticky top-0 h-screen flex-shrink-0"
+          style={{
+            width: 240,
+            backgroundColor: BG,
+            borderRight: `1px solid ${BORDER}`,
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
+          {/* Logo */}
+          <div style={{ padding: '24px 20px 20px', borderBottom: `1px solid ${BORDER}` }}>
+            <Link to="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 10 }}>
+              <WineArchIcon size={30} color={TEXT1} />
+              <span style={{ fontFamily: "'Fraunces', Georgia, serif", fontWeight: 700, fontSize: '21px', lineHeight: 1, color: TEXT1, letterSpacing: '-0.01em' }}>
+                wine gallery
+              </span>
+            </Link>
+          </div>
+
+          {/* Nav links */}
+          <nav style={{ flex: 1, padding: '12px 12px', display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {TABS.map(({ value, label, Icon }) => {
+              const isActive = active === value;
+              return (
+                <button
+                  key={value}
+                  onClick={() => navigate(value)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 12,
+                    width: '100%',
+                    padding: '10px 12px',
+                    borderRadius: 10,
+                    border: 'none',
+                    cursor: 'pointer',
+                    backgroundColor: isActive ? 'rgba(105,0,55,0.08)' : 'transparent',
+                    transition: 'background-color 0.15s ease',
+                    textAlign: 'left',
+                  }}
+                  onMouseEnter={e => {
+                    if (!isActive) (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'rgba(0,0,0,0.05)';
+                  }}
+                  onMouseLeave={e => {
+                    if (!isActive) (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'transparent';
+                  }}
+                >
+                  <Icon size={20} strokeWidth={isActive ? 2.5 : 1.75} color={isActive ? WINE : TEXT2} />
+                  <span style={{
+                    fontFamily: "'DM Sans'",
+                    fontSize: '0.9rem',
+                    fontWeight: isActive ? 600 : 400,
+                    color: isActive ? WINE : TEXT2,
+                    letterSpacing: '-0.01em',
+                  }}>
+                    {label}
+                  </span>
+                </button>
+              );
+            })}
+          </nav>
+
+          {/* Footer hint */}
+          <div style={{ padding: '12px 20px 20px', borderTop: `1px solid ${BORDER}` }}>
+            <span style={{ fontFamily: "'DM Sans'", fontSize: '0.65rem', color: MUTED, letterSpacing: '0.04em' }}>
+              Beba com moderação
+            </span>
+          </div>
+        </aside>
+
+        {/* ── Center content column ─────────────────────────── */}
+        <main style={{ flex: 1, minWidth: 0, display: 'flex', justifyContent: 'flex-start' }}>
+          <div style={{ width: '100%', maxWidth: 430, minHeight: '100vh', borderRight: `1px solid ${BORDER}` }}>
+            <Outlet />
+          </div>
+        </main>
+
+        {/* ── Right sidebar ─────────────────────────────────── */}
+        <aside
+          className="flex-shrink-0"
+          style={{
+            width: 'calc(100vw - 240px - 430px)',
+            minWidth: 200,
+            maxWidth: 400,
+            backgroundColor: BG,
+          }}
+        >
+          {/* intentionally empty — cream background fills space */}
+        </aside>
+      </div>
     </div>
   );
 }

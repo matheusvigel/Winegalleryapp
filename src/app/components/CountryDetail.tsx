@@ -221,9 +221,14 @@ export default function CountryDetail() {
                           )}
                         </div>
                       </div>
-                      <div style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <span style={{ fontFamily: "'DM Sans'", fontSize: '0.78rem', color: WINE, fontWeight: 500 }}>Ver coleções</span>
-                        <ChevronRight size={16} color={WINE} />
+                      <div style={{ padding: '10px 16px 12px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                          <span style={{ fontFamily: "'DM Sans'", fontSize: '0.78rem', color: WINE, fontWeight: 500 }}>Ver coleções</span>
+                          <ChevronRight size={15} color={WINE} />
+                        </div>
+                        <div style={{ position: 'relative', height: 3, borderRadius: 99, backgroundColor: 'rgba(0,0,0,0.08)', overflow: 'hidden' }}>
+                          <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '0%', backgroundColor: '#F1BD85', borderRadius: 99 }} />
+                        </div>
                       </div>
                     </div>
                   </Link>
