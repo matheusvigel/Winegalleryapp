@@ -2,15 +2,9 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
-import Card from '@mui/material/Card';
 import CardActionArea from '@mui/material/CardActionArea';
-import CardMedia from '@mui/material/CardMedia';
-import CardContent from '@mui/material/CardContent';
-import LinearProgress from '@mui/material/LinearProgress';
 import Skeleton from '@mui/material/Skeleton';
 import Chip from '@mui/material/Chip';
-import Button from '@mui/material/Button';
-import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import { useAuth } from '../contexts/AuthContext';
 import { getStats } from '../utils/storage';
 import { supabase } from '../../lib/supabase';
@@ -36,6 +30,43 @@ const CONTENT_TYPE_LABELS: Record<string, string> = {
   wines: 'Vinhos', wineries: 'Vinícolas', experiences: 'Experiências',
   grapes: 'Uvas', mix: 'Mix',
 };
+
+/* ── Section header with thin gold ornamental line ──────────────────── */
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-3 mb-4">
+      <span
+        style={{
+          width: 18,
+          height: 1,
+          display: 'block',
+          background: 'linear-gradient(to right, transparent, #C5A25A)',
+          flexShrink: 0,
+        }}
+      />
+      <span
+        style={{
+          fontFamily: "'DM Sans', system-ui, sans-serif",
+          fontSize: '0.68rem',
+          fontWeight: 500,
+          letterSpacing: '0.12em',
+          textTransform: 'uppercase',
+          color: '#C5A25A',
+        }}
+      >
+        {children}
+      </span>
+      <span
+        style={{
+          flex: 1,
+          height: 1,
+          display: 'block',
+          background: 'linear-gradient(to right, rgba(197,162,90,0.3), transparent)',
+        }}
+      />
+    </div>
+  );
+}
 
 export default function Home() {
   const { user } = useAuth();
@@ -71,7 +102,6 @@ export default function Home() {
 
       setCollections(cols ?? []);
 
-      // ── Build lookup maps ────────────────────────────────
       const regionToCountry: Record<string, string> = {};
       const regionById: Record<string, { name: string; image_url: string }> = {};
       const regionCountMap: Record<string, number> = {};
@@ -101,7 +131,6 @@ export default function Home() {
         collectionCount: collectionCountMap[c.id]?.size ?? 0,
       })));
 
-      // ── Phase 2: fetch collection + brand images for highlights ──
       const hlList = hls ?? [];
       const collectionHlIds = hlList.filter(h => h.type === 'collection').map(h => h.entity_id);
       const brandHlIds = hlList.filter(h => h.type === 'brand').map(h => h.entity_id);
@@ -120,7 +149,6 @@ export default function Home() {
       const brandById: Record<string, { name: string; image_url: string }> = {};
       for (const b of hlBrands ?? []) brandById[b.id] = { name: b.name, image_url: b.image_url };
 
-      // ── Enrich highlights ────────────────────────────────
       setHighlights(hlList.map(h => {
         let entity: { name: string; image_url: string } | undefined;
         let route = '/';
@@ -154,127 +182,236 @@ export default function Home() {
   const pointsInLevel = stats.totalPoints % 100;
 
   return (
-    <Box sx={{ bgcolor: 'background.default', minHeight: '100vh' }}>
-      {/* ── Progress / CTA ─────────────────────────────────── */}
+    <Box sx={{ bgcolor: '#0B0907', minHeight: '100vh' }}>
+
+      {/* ── Progress / CTA ─────────────────────────────────────── */}
       {user ? (
-        <Box sx={{ px: 2, pt: 2, pb: 1 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
-            <Typography variant="body2" color="text.secondary">
-              Nível <strong>{stats.level}</strong>
-            </Typography>
-            <ChevronRightIcon fontSize="small" sx={{ color: 'text.disabled' }} />
-          </Box>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-            <Typography variant="h6" sx={{ minWidth: 'fit-content' }}>
-              {pointsInLevel}/100
-            </Typography>
-            <Box sx={{ flex: 1 }}>
-              <LinearProgress
-                variant="determinate"
-                value={pointsInLevel}
-                sx={{ bgcolor: 'rgba(0,0,0,0.06)', '& .MuiLinearProgress-bar': { bgcolor: '#E8572A' } }}
+        <Box sx={{ px: 2.5, pt: 2.5, pb: 1 }}>
+          <Box
+            sx={{
+              borderRadius: 2.5,
+              px: 2.5,
+              py: 2,
+              background: 'linear-gradient(135deg, #1C1915 0%, #141210 100%)',
+              border: '1px solid rgba(197,162,90,0.14)',
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+              <Box>
+                <Typography
+                  sx={{
+                    fontFamily: "'DM Sans', system-ui, sans-serif",
+                    fontSize: '0.65rem',
+                    fontWeight: 500,
+                    letterSpacing: '0.1em',
+                    textTransform: 'uppercase',
+                    color: '#C5A25A',
+                    mb: 0.25,
+                  }}
+                >
+                  Sua Jornada
+                </Typography>
+                <Typography
+                  sx={{
+                    fontFamily: "'Playfair Display', Georgia, serif",
+                    fontSize: '1.05rem',
+                    fontWeight: 500,
+                    color: '#E2D4BA',
+                  }}
+                >
+                  Nível <strong>{stats.level}</strong>
+                </Typography>
+              </Box>
+              <Box sx={{ textAlign: 'right' }}>
+                <Typography sx={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: '1.4rem', fontWeight: 700, color: '#C5A25A', lineHeight: 1 }}>
+                  {stats.totalPoints}
+                </Typography>
+                <Typography sx={{ fontFamily: "'DM Sans', system-ui, sans-serif", fontSize: '0.6rem', color: '#574E47', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                  pontos
+                </Typography>
+              </Box>
+            </Box>
+            {/* Gold progress bar */}
+            <Box sx={{ position: 'relative', height: 3, borderRadius: 99, bgcolor: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+              <Box
+                sx={{
+                  position: 'absolute',
+                  left: 0, top: 0, bottom: 0,
+                  width: `${pointsInLevel}%`,
+                  background: 'linear-gradient(to right, #8B1A36, #C5A25A)',
+                  borderRadius: 99,
+                  transition: 'width 0.8s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                }}
               />
+            </Box>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.75 }}>
+              <Typography sx={{ fontFamily: "'DM Sans'", fontSize: '0.6rem', color: '#574E47' }}>
+                {pointsInLevel} pts
+              </Typography>
+              <Typography sx={{ fontFamily: "'DM Sans'", fontSize: '0.6rem', color: '#574E47' }}>
+                100 pts p/ próx. nível
+              </Typography>
             </Box>
           </Box>
         </Box>
       ) : (
-        <Box sx={{ px: 2, pt: 2, pb: 1 }}>
-          <Card sx={{ bgcolor: '#6B8F71', border: 'none', borderRadius: 3 }}>
-            <CardActionArea component={Link} to="/register" sx={{ px: 3, py: 2.5, textAlign: 'center' }}>
-              <Typography variant="subtitle1" fontWeight={700} sx={{ color: '#1C1B1F' }}>
-                Crie sua conta e acumule pontos!
+        <Box sx={{ px: 2.5, pt: 2.5, pb: 1 }}>
+          <Box
+            sx={{
+              borderRadius: 2.5,
+              overflow: 'hidden',
+              position: 'relative',
+              background: 'linear-gradient(135deg, #1C1915 0%, #2A1F14 100%)',
+              border: '1px solid rgba(197,162,90,0.2)',
+            }}
+          >
+            <CardActionArea component={Link} to="/register" sx={{ px: 3, py: 2.5 }}>
+              <Typography
+                sx={{
+                  fontFamily: "'Playfair Display', Georgia, serif",
+                  fontSize: '1.05rem',
+                  fontWeight: 500,
+                  color: '#E2D4BA',
+                  mb: 0.5,
+                }}
+              >
+                Comece sua jornada vinícola
               </Typography>
-              <Typography variant="body2" sx={{ color: 'rgba(0,0,0,0.55)', mt: 0.5 }}>
-                Acompanhe seu progresso e personalize sua experiência
+              <Typography
+                sx={{
+                  fontFamily: "'DM Sans', system-ui, sans-serif",
+                  fontSize: '0.8rem',
+                  color: '#8C8074',
+                }}
+              >
+                Crie sua conta e acumule pontos explorando vinhos do mundo
               </Typography>
+              <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 1, mt: 1.5, px: 2.5, py: 1, bgcolor: 'rgba(197,162,90,0.12)', border: '1px solid rgba(197,162,90,0.25)', borderRadius: 6 }}>
+                <Typography sx={{ fontFamily: "'DM Sans'", fontSize: '0.75rem', fontWeight: 500, color: '#C5A25A' }}>
+                  Criar conta gratuita
+                </Typography>
+              </Box>
             </CardActionArea>
-          </Card>
+          </Box>
         </Box>
       )}
 
-      {/* ── Destaques ─────────────────────────────────────── */}
+      {/* ── Destaques ─────────────────────────────────────────── */}
       {highlights.length > 0 && (
-        <Box sx={{ px: 2, pt: 2, pb: 1 }}>
-          <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 1.5 }}>Destaques</Typography>
-          <Box sx={{ display: 'flex', gap: 1.5, overflowX: 'auto', pb: 0.5, scrollbarWidth: 'none', '&::-webkit-scrollbar': { display: 'none' } }}>
-            {highlights.map(h => (
-              <Card key={h.id} sx={{ minWidth: 140, maxWidth: 140, flexShrink: 0, border: 'none', borderRadius: 3, overflow: 'hidden' }}>
-                <CardActionArea component={Link} to={h.route}>
-                  <Box sx={{ position: 'relative', height: 176, bgcolor: 'grey.300' }}>
-                    {h.image_url && (
-                      <img
-                        src={h.image_url}
-                        alt={h.label}
-                        style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-                      />
-                    )}
-                    <Box sx={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.72) 0%, transparent 55%)' }} />
-                    <Box sx={{ position: 'absolute', top: 8, left: 8 }}>
-                      <Chip
-                        label={HIGHLIGHT_TYPE_LABELS[h.type] ?? h.type}
-                        size="small"
-                        sx={{ bgcolor: 'rgba(0,0,0,0.5)', color: 'white', fontSize: '0.6rem', height: 18, backdropFilter: 'blur(4px)', border: '1px solid rgba(255,255,255,0.15)', '& .MuiChip-label': { px: 1, py: 0 } }}
-                      />
-                    </Box>
-                    <Box sx={{ position: 'absolute', bottom: 0, left: 0, right: 0, p: 1.5 }}>
-                      <Typography variant="caption" fontWeight={600} sx={{ color: 'white', lineHeight: 1.3, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                        {h.label}
+        <Box sx={{ px: 2.5, pt: 3, pb: 1 }}>
+          <SectionLabel>Destaques</SectionLabel>
+          <Box sx={{ display: 'flex', gap: 1.5, overflowX: 'auto', pb: 1, scrollbarWidth: 'none', '&::-webkit-scrollbar': { display: 'none' } }}>
+            {highlights.map((h, i) => (
+              <Box
+                key={h.id}
+                component={Link}
+                to={h.route}
+                sx={{
+                  minWidth: 130,
+                  maxWidth: 130,
+                  flexShrink: 0,
+                  borderRadius: 2,
+                  overflow: 'hidden',
+                  display: 'block',
+                  textDecoration: 'none',
+                  border: '1px solid rgba(255,255,255,0.06)',
+                  transition: 'transform 0.2s ease, border-color 0.2s ease',
+                  animationDelay: `${i * 60}ms`,
+                  '&:hover': {
+                    transform: 'translateY(-2px)',
+                    borderColor: 'rgba(197,162,90,0.25)',
+                  },
+                }}
+              >
+                <Box sx={{ position: 'relative', height: 170, bgcolor: '#1C1915' }}>
+                  {h.image_url && (
+                    <img
+                      src={h.image_url}
+                      alt={h.label}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', opacity: 0.85 }}
+                    />
+                  )}
+                  <Box sx={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.82) 0%, rgba(0,0,0,0.15) 55%, transparent 100%)' }} />
+                  <Box sx={{ position: 'absolute', top: 8, left: 8 }}>
+                    <Box sx={{ px: 1, py: 0.3, bgcolor: 'rgba(197,162,90,0.18)', border: '1px solid rgba(197,162,90,0.3)', borderRadius: 1, backdropFilter: 'blur(8px)' }}>
+                      <Typography sx={{ fontFamily: "'DM Sans'", fontSize: '0.55rem', fontWeight: 500, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#C5A25A' }}>
+                        {HIGHLIGHT_TYPE_LABELS[h.type] ?? h.type}
                       </Typography>
                     </Box>
                   </Box>
-                </CardActionArea>
-              </Card>
+                  <Box sx={{ position: 'absolute', bottom: 0, left: 0, right: 0, p: 1.5 }}>
+                    <Typography sx={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: '0.8rem', fontWeight: 500, color: '#E2D4BA', lineHeight: 1.3, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                      {h.label}
+                    </Typography>
+                  </Box>
+                </Box>
+              </Box>
             ))}
           </Box>
         </Box>
       )}
 
-      {/* ── Últimas coleções ───────────────────────────────── */}
-      <Box sx={{ px: 2, pt: 2, pb: 2 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1.5 }}>
-          {!loading && collections[0] && (
-            <Box sx={{ width: 40, height: 40, borderRadius: 1.5, overflow: 'hidden', flexShrink: 0 }}>
-              <img src={collections[0].cover_image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-            </Box>
-          )}
-          <Typography variant="subtitle1" fontWeight={700}>Últimas coleções</Typography>
-        </Box>
+      {/* ── Últimas coleções ───────────────────────────────────── */}
+      <Box sx={{ px: 2.5, pt: 3, pb: 2 }}>
+        <SectionLabel>Últimas Coleções</SectionLabel>
 
         {loading ? (
           <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1.5 }}>
             {[1, 2, 3, 4].map(i => (
               <Box key={i}>
-                <Skeleton variant="rectangular" sx={{ borderRadius: 3, aspectRatio: '1', width: '100%' }} />
-                <Skeleton variant="text" sx={{ mt: 0.75, width: '70%' }} />
+                <Skeleton variant="rectangular" sx={{ borderRadius: 2, aspectRatio: '1', width: '100%', bgcolor: 'rgba(255,255,255,0.05)' }} />
+                <Skeleton variant="text" sx={{ mt: 0.75, width: '70%', bgcolor: 'rgba(255,255,255,0.04)' }} />
               </Box>
             ))}
           </Box>
         ) : (
           <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1.5 }}>
-            {collections.map(col => (
-              <Box key={col.id}>
-                <Card sx={{ borderRadius: 3, overflow: 'hidden', border: 'none' }}>
+            {collections.map((col, i) => (
+              <Box key={col.id} sx={{ animationDelay: `${i * 50}ms` }}>
+                <Box
+                  sx={{
+                    borderRadius: 2,
+                    overflow: 'hidden',
+                    border: '1px solid rgba(255,255,255,0.06)',
+                    transition: 'transform 0.2s ease, border-color 0.2s ease',
+                    '&:hover': {
+                      transform: 'translateY(-2px)',
+                      borderColor: 'rgba(197,162,90,0.2)',
+                    },
+                  }}
+                >
                   <CardActionArea>
-                    <Box sx={{ position: 'relative', aspectRatio: '1', overflow: 'hidden' }}>
-                      <CardMedia
-                        component="img"
-                        image={col.cover_image}
+                    <Box sx={{ position: 'relative', aspectRatio: '1', overflow: 'hidden', bgcolor: '#1C1915' }}>
+                      <img
+                        src={col.cover_image}
                         alt={col.title}
-                        sx={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', opacity: 0.88 }}
                       />
                       {col.content_type && col.content_type !== 'mix' && (
                         <Box sx={{ position: 'absolute', top: 8, left: 8 }}>
-                          <Chip
-                            label={CONTENT_TYPE_LABELS[col.content_type] ?? col.content_type}
-                            size="small"
-                            sx={{ bgcolor: 'rgba(0,0,0,0.55)', color: 'white', fontSize: '0.65rem', height: 20, backdropFilter: 'blur(4px)' }}
-                          />
+                          <Box sx={{ px: 1, py: 0.3, bgcolor: 'rgba(0,0,0,0.55)', borderRadius: 1, backdropFilter: 'blur(8px)' }}>
+                            <Typography sx={{ fontFamily: "'DM Sans'", fontSize: '0.55rem', fontWeight: 500, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'rgba(226,212,186,0.85)' }}>
+                              {CONTENT_TYPE_LABELS[col.content_type] ?? col.content_type}
+                            </Typography>
+                          </Box>
                         </Box>
                       )}
                     </Box>
                   </CardActionArea>
-                </Card>
-                <Typography variant="body2" sx={{ mt: 0.75, fontWeight: 500, lineHeight: 1.3 }} noWrap>
+                </Box>
+                <Typography
+                  sx={{
+                    mt: 0.875,
+                    fontFamily: "'DM Sans', system-ui, sans-serif",
+                    fontSize: '0.8rem',
+                    fontWeight: 500,
+                    color: '#C4B49A',
+                    lineHeight: 1.35,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
                   {col.title}
                 </Typography>
               </Box>
@@ -283,41 +420,54 @@ export default function Home() {
         )}
       </Box>
 
-      {/* ── Explore pelos países ────────────────────────────── */}
-      <Box sx={{ pb: 4 }}>
-        <Typography variant="subtitle1" fontWeight={700} sx={{ px: 2, mb: 1.5 }}>
-          Explore pelos países
-        </Typography>
+      {/* ── Explore pelos países ────────────────────────────────── */}
+      <Box sx={{ pb: 5 }}>
+        <Box sx={{ px: 2.5, pt: 2, pb: 3 }}>
+          <SectionLabel>Explore pelos Países</SectionLabel>
+        </Box>
 
         {loading ? (
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.25 }}>
-            {[1, 2, 3].map(i => <Skeleton key={i} variant="rectangular" height={208} />)}
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
+            {[1, 2, 3].map(i => <Skeleton key={i} variant="rectangular" height={200} sx={{ bgcolor: 'rgba(255,255,255,0.05)' }} />)}
           </Box>
         ) : (
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.25 }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
             {countries.map(country => (
               <CardActionArea key={country.id} component={Link} to={`/country/${country.id}`}>
-                <Box sx={{ position: 'relative', height: 208, overflow: 'hidden' }}>
+                <Box sx={{ position: 'relative', height: 200, overflow: 'hidden' }}>
                   <img
                     src={country.image_url}
                     alt={country.name}
-                    style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', opacity: 0.75 }}
                   />
-                  <Box sx={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.2) 50%, transparent 100%)' }} />
-                  <Box sx={{ position: 'absolute', bottom: 0, left: 0, right: 0, p: 2 }}>
-                    <Typography variant="subtitle1" fontWeight={900} sx={{ color: 'white', textTransform: 'uppercase', letterSpacing: '0.03em', lineHeight: 1 }}>
+                  <Box sx={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.25) 55%, rgba(0,0,0,0.08) 100%)' }} />
+                  <Box sx={{ position: 'absolute', bottom: 0, left: 0, right: 0, p: 2.5 }}>
+                    <Typography
+                      sx={{
+                        fontFamily: "'Playfair Display', Georgia, serif",
+                        fontWeight: 700,
+                        fontSize: '1.25rem',
+                        color: '#E2D4BA',
+                        lineHeight: 1,
+                        mb: 0.4,
+                        letterSpacing: '0.01em',
+                      }}
+                    >
                       {country.name}
                     </Typography>
-                    <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.75)', mt: 0.25 }}>
+                    <Typography
+                      sx={{
+                        fontFamily: "'DM Sans', system-ui, sans-serif",
+                        fontSize: '0.73rem',
+                        color: 'rgba(226,212,186,0.5)',
+                        letterSpacing: '0.03em',
+                      }}
+                    >
                       {country.regionCount} {country.regionCount === 1 ? 'região' : 'regiões'} · {country.collectionCount} {country.collectionCount === 1 ? 'coleção' : 'coleções'}
                     </Typography>
                     {user && (
-                      <Box sx={{ mt: 1 }}>
-                        <LinearProgress
-                          variant="determinate"
-                          value={0}
-                          sx={{ bgcolor: 'rgba(255,255,255,0.25)', height: 4, '& .MuiLinearProgress-bar': { bgcolor: '#E8572A' } }}
-                        />
+                      <Box sx={{ mt: 1.5, position: 'relative', height: 2, borderRadius: 99, bgcolor: 'rgba(255,255,255,0.1)', overflow: 'hidden' }}>
+                        <Box sx={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '0%', background: 'linear-gradient(to right, #8B1A36, #C5A25A)', borderRadius: 99 }} />
                       </Box>
                     )}
                   </Box>

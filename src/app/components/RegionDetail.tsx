@@ -8,34 +8,123 @@ import { Collection, WineItem } from '../types';
 import { getProgress } from '../utils/storage';
 
 const LEVEL_CONFIG = {
-  essential: { label: 'Essencial', pill: 'bg-[#6b7c5a]/90 border-[#6b7c5a]/40', dot: 'bg-[#8a9e72]' },
-  escape: { label: 'Fugir do Óbvio', pill: 'bg-[#3d5a7a]/90 border-[#3d5a7a]/40', dot: 'bg-[#4e7299]' },
-  icon: { label: 'Ícone', pill: 'bg-[#7a2e2e]/90 border-[#7a2e2e]/40', dot: 'bg-[#a04040]' },
+  essential: { label: 'Essencial', pill: 'bg-[#6b7c5a]/90 border-[#6b7c5a]/40', dot: 'bg-[#8a9e72]', solid: 'bg-[#6b7c5a]' },
+  escape: { label: 'Fugir do Óbvio', pill: 'bg-[#3d5a7a]/90 border-[#3d5a7a]/40', dot: 'bg-[#4e7299]', solid: 'bg-[#3d5a7a]' },
+  icon: { label: 'Ícone', pill: 'bg-[#7a2e2e]/90 border-[#7a2e2e]/40', dot: 'bg-[#a04040]', solid: 'bg-[#7a2e2e]' },
 } as const;
 
 type Level = keyof typeof LEVEL_CONFIG;
-
 type SubRegion = { id: string; name: string; image_url: string; description: string };
 
-// ─── Collection slide ──────────────────────────────────────────────────────────
-function CollectionSlide({
+// ─── Collection cover slide ────────────────────────────────────────────────────
+function CollectionCoverSlide({
   collection,
-  progress,
   isFirst,
-  hasNext,
-  nextLabel,
   regionName,
   countryName,
+  countryId,
   onBack,
 }: {
   collection: Collection;
-  progress: ReturnType<typeof getProgress>;
   isFirst: boolean;
-  hasNext: boolean;
-  nextLabel?: string;
   regionName: string;
   countryName?: string;
+  countryId?: string;
   onBack: () => void;
+}) {
+  const cfg = LEVEL_CONFIG[collection.level as Level] ?? LEVEL_CONFIG.essential;
+
+  return (
+    <div className="h-screen snap-start flex flex-col bg-[#f5f0e8] overflow-hidden">
+      {/* Header — only on first collection */}
+      {isFirst && (
+        <div className="flex-shrink-0 px-5 pt-12 pb-3">
+          <div className="flex items-center gap-3">
+            <motion.button
+              whileTap={{ scale: 0.9 }}
+              onClick={onBack}
+              className="w-9 h-9 rounded-full bg-neutral-200 border border-neutral-300 flex items-center justify-center flex-shrink-0"
+            >
+              <ArrowLeft size={18} className="text-neutral-600" />
+            </motion.button>
+            <div className="min-w-0">
+              {/* Breadcrumb */}
+              <div className="flex items-center gap-0.5 flex-wrap text-[11px] text-neutral-400">
+                <Link to="/regions" className="hover:text-neutral-600 transition-colors">Regiões</Link>
+                {countryName && countryId && (
+                  <>
+                    <ChevronRight size={10} className="flex-shrink-0" />
+                    <Link to={`/country/${countryId}`} className="hover:text-neutral-600 transition-colors">{countryName}</Link>
+                  </>
+                )}
+                <ChevronRight size={10} className="flex-shrink-0" />
+                <span className="text-neutral-700 font-medium truncate">{regionName}</span>
+              </div>
+              <h1 className="font-gelica text-neutral-900 font-bold text-xl leading-tight truncate">{regionName}</h1>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Main content: split layout */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Left: collection info */}
+        <div className="w-[48%] flex flex-col px-5 pt-4 pb-6 overflow-hidden">
+          <span className={`self-start px-3 py-1.5 rounded-xl text-[12px] font-bold text-white mb-4 ${cfg.solid}`}>
+            {cfg.label}
+          </span>
+          <h2 className="font-gelica text-[22px] font-bold text-neutral-900 leading-tight mb-3">
+            {collection.title}
+          </h2>
+          {collection.description && (
+            <p className="text-neutral-600 text-[13px] leading-relaxed line-clamp-[8]">
+              {collection.description}
+            </p>
+          )}
+          {/* Ver vinhos CTA */}
+          <div className="mt-auto flex flex-col items-start gap-1 pt-4">
+            <span className="text-neutral-400 text-[10px] tracking-widest uppercase">Ver vinhos</span>
+            <motion.div
+              animate={{ y: [0, 5, 0] }}
+              transition={{ repeat: Infinity, duration: 1.5, ease: 'easeInOut' }}
+            >
+              <ChevronDown size={18} className="text-neutral-400" />
+            </motion.div>
+          </div>
+        </div>
+
+        {/* Right: first card preview */}
+        <div className="flex-1 flex items-center justify-start pl-2 pr-0 overflow-hidden">
+          {collection.items.length > 0 ? (
+            <div className="flex-shrink-0" style={{ width: 'min(220px, 58vw)' }}>
+              <ItemCard item={collection.items[0]} />
+            </div>
+          ) : (
+            <div
+              className="flex-shrink-0 rounded-2xl border border-neutral-200 bg-white flex flex-col items-center justify-center gap-3"
+              style={{ width: 'min(220px, 58vw)', height: 360 }}
+            >
+              <Layers size={32} className="text-neutral-300" />
+              <p className="text-neutral-400 text-xs text-center px-3">Nenhum item ainda</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Collection cards slide ────────────────────────────────────────────────────
+function CollectionCardsSlide({
+  collection,
+  progress,
+  hasNext,
+  nextLabel,
+}: {
+  collection: Collection;
+  progress: ReturnType<typeof getProgress>;
+  hasNext: boolean;
+  nextLabel?: string;
 }) {
   const cfg = LEVEL_CONFIG[collection.level as Level] ?? LEVEL_CONFIG.essential;
 
@@ -49,165 +138,105 @@ function CollectionSlide({
 
   const carouselRef = useRef<HTMLDivElement>(null);
   const [activeItem, setActiveItem] = useState(0);
-  const [titleAtTop, setTitleAtTop] = useState(false);
 
   const handleCarouselScroll = () => {
     const el = carouselRef.current;
     if (!el || collection.items.length === 0) return;
     const cardWidth = el.scrollWidth / collection.items.length;
     setActiveItem(Math.round(el.scrollLeft / cardWidth));
-    setTitleAtTop(el.scrollLeft > 30);
   };
 
   return (
-    <div className="relative h-screen snap-start flex flex-col overflow-hidden">
-      <img
-        src={collection.coverImage}
-        alt={collection.title}
-        className="absolute inset-0 w-full h-full object-cover"
-        draggable={false}
-      />
-      <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/10 via-40% to-black/85" />
+    <div className="h-screen snap-start flex flex-col bg-[#f5f0e8] overflow-hidden">
+      {/* Compact header strip */}
+      <div className="flex-shrink-0 px-5 pt-10 pb-3 flex items-center gap-2">
+        <span className={`px-2.5 py-1 rounded-xl text-[10px] font-bold text-white ${cfg.solid}`}>
+          {cfg.label}
+        </span>
+        <h3 className="text-neutral-800 text-sm font-semibold flex-1 line-clamp-1">{collection.title}</h3>
+        <span className="text-[#c5a96d] text-xs font-bold flex-shrink-0">{collection.totalPoints} pts</span>
+      </div>
 
-      {isFirst && (
-        <div className="absolute top-0 left-0 right-0 z-50 pt-8 pb-4 px-5 bg-gradient-to-b from-black/50 to-transparent">
-          <div className="flex items-center gap-3">
-            <motion.button
-              whileTap={{ scale: 0.9 }}
-              onClick={onBack}
-              className="w-9 h-9 rounded-full bg-black/30 backdrop-blur-md border border-white/15 flex items-center justify-center flex-shrink-0"
-            >
-              <ArrowLeft size={18} className="text-white" />
-            </motion.button>
-            <div className="min-w-0">
-              {countryName && (
-                <p className="text-[#c5a96d] text-[11px] font-semibold uppercase tracking-widest">{countryName}</p>
-              )}
-              <h1 className="font-gelica text-white font-bold text-xl leading-tight truncate">{regionName}</h1>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <div className="relative z-10 flex flex-col h-full" style={{ paddingTop: isFirst ? '90px' : '60px' }}>
-        <motion.div
-          animate={{ paddingBottom: titleAtTop ? 6 : 12 }}
-          transition={{ duration: 0.25 }}
-          className="px-5"
+      {/* Carousel — takes all remaining vertical space, centers card vertically */}
+      <div className="flex-1 flex items-center overflow-hidden">
+        <div
+          ref={carouselRef}
+          onScroll={handleCarouselScroll}
+          className="overflow-x-auto snap-x snap-mandatory scrollbar-hide w-full"
         >
-          <AnimatePresence initial={false}>
-            {!titleAtTop && (
-              <motion.div
-                key="pills"
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                transition={{ duration: 0.2 }}
-                className="flex items-center gap-2 mb-2 overflow-hidden"
-              >
-                <span className={`px-3 py-1 rounded-full text-[11px] font-bold text-white backdrop-blur-md border ${cfg.pill}`}>
-                  {cfg.label}
-                </span>
-                <span className="text-[#c5a96d] text-xs font-bold">{collection.totalPoints} pts total</span>
-              </motion.div>
-            )}
-          </AnimatePresence>
-          <motion.h2
-            animate={{ fontSize: titleAtTop ? '18px' : '26px' }}
-            transition={{ duration: 0.25 }}
-            className="font-gelica font-bold text-white leading-tight mb-1"
-          >
-            {collection.title}
-          </motion.h2>
-          <AnimatePresence initial={false}>
-            {!titleAtTop && (
-              <motion.p
-                key="desc"
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                transition={{ duration: 0.2 }}
-                className="text-white/65 text-[13px] leading-snug line-clamp-2 overflow-hidden"
-              >
-                {collection.description}
-              </motion.p>
-            )}
-          </AnimatePresence>
-        </motion.div>
-
-        <div className="flex-1 flex flex-col justify-center overflow-hidden">
-          <div
-            ref={carouselRef}
-            onScroll={handleCarouselScroll}
-            className="overflow-x-auto snap-x snap-mandatory scrollbar-hide"
-          >
-            <div className="flex gap-3 px-5 py-2" style={{ width: 'max-content' }}>
-              {collection.items.length > 0 ? (
-                collection.items.map(item => (
-                  <div key={item.id} className="w-[270px] flex-shrink-0 snap-center">
-                    <ItemCard item={item} />
-                  </div>
-                ))
-              ) : (
-                <div className="w-[270px] h-[380px] flex-shrink-0 snap-center rounded-2xl border border-white/15 bg-white/10 backdrop-blur-md flex flex-col items-center justify-center gap-3">
-                  <Layers size={36} className="text-white/40" />
-                  <p className="text-white/50 text-sm text-center px-4">Nenhum item nesta coleção ainda</p>
+          <div className="flex gap-3 px-5" style={{ width: 'max-content' }}>
+            {collection.items.length > 0 ? (
+              collection.items.map(item => (
+                <div key={item.id} className="flex-shrink-0 snap-center" style={{ width: 'min(250px, 68vw)' }}>
+                  <ItemCard item={item} />
                 </div>
-              )}
-            </div>
-          </div>
-
-          {collection.items.length > 1 && (
-            <div className="flex items-center justify-center gap-1.5 mt-2">
-              {collection.items.map((_, i) => (
-                <div
-                  key={i}
-                  className={`rounded-full transition-all duration-300 ${
-                    i === activeItem ? `w-4 h-1.5 ${cfg.dot}` : 'w-1.5 h-1.5 bg-white/30'
-                  }`}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div className="px-5 pb-4">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-white/70 text-xs">
-              {completedCount} de {totalItems} {totalItems === 1 ? 'provado' : 'provados'}
-            </span>
-            <span className="text-[#c5a96d] text-xs font-bold">{ptsEarned} pts</span>
-          </div>
-          <div className="h-1.5 bg-white/15 rounded-full overflow-hidden">
-            <motion.div
-              className={`h-full rounded-full ${cfg.dot}`}
-              initial={{ width: 0 }}
-              animate={{ width: `${progressPct}%` }}
-              transition={{ duration: 0.6, ease: 'easeOut' }}
-            />
-          </div>
-
-          <AnimatePresence>
-            {hasNext && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="flex flex-col items-center gap-1 mt-3"
+              ))
+            ) : (
+              <div
+                className="flex-shrink-0 snap-center rounded-2xl border border-neutral-200 bg-white flex flex-col items-center justify-center gap-3"
+                style={{ width: 'min(250px, 68vw)', height: 400 }}
               >
-                <span className="text-white/40 text-[11px] tracking-wide">
-                  {nextLabel ?? 'Próxima coleção'}
-                </span>
-                <motion.div
-                  animate={{ y: [0, 4, 0] }}
-                  transition={{ repeat: Infinity, duration: 1.4, ease: 'easeInOut' }}
-                >
-                  <ChevronDown size={18} className="text-white/40" />
-                </motion.div>
-              </motion.div>
+                <Layers size={36} className="text-neutral-300" />
+                <p className="text-neutral-500 text-sm text-center px-4">Nenhum item nesta coleção ainda</p>
+              </div>
             )}
-          </AnimatePresence>
+          </div>
         </div>
+      </div>
+
+      {/* Footer: dots + progress + next indicator */}
+      <div className="flex-shrink-0 px-5 pb-5 pt-3">
+        {/* Navigation dots */}
+        {collection.items.length > 1 && (
+          <div className="flex items-center justify-center gap-1.5 mb-3">
+            {collection.items.map((_, i) => (
+              <div
+                key={i}
+                className={`rounded-full transition-all duration-300 ${
+                  i === activeItem ? `w-4 h-1.5 ${cfg.dot}` : 'w-1.5 h-1.5 bg-neutral-300'
+                }`}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* Progress bar */}
+        <div className="flex items-center justify-between mb-1.5">
+          <span className="text-neutral-500 text-xs">
+            {completedCount} de {totalItems} {totalItems === 1 ? 'provado' : 'provados'}
+          </span>
+          <span className="text-[#c5a96d] text-xs font-bold">{ptsEarned} pts</span>
+        </div>
+        <div className="h-1.5 bg-neutral-300 rounded-full overflow-hidden">
+          <motion.div
+            className={`h-full rounded-full ${cfg.dot}`}
+            initial={{ width: 0 }}
+            animate={{ width: `${progressPct}%` }}
+            transition={{ duration: 0.6, ease: 'easeOut' }}
+          />
+        </div>
+
+        {/* Next collection indicator */}
+        <AnimatePresence>
+          {hasNext && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="flex flex-col items-center gap-1 mt-3"
+            >
+              <span className="text-neutral-400 text-[11px] tracking-wide">
+                {nextLabel ?? 'Próxima coleção'}
+              </span>
+              <motion.div
+                animate={{ y: [0, 4, 0] }}
+                transition={{ repeat: Infinity, duration: 1.4, ease: 'easeInOut' }}
+              >
+                <ChevronDown size={16} className="text-neutral-400" />
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );
@@ -229,11 +258,7 @@ function SubRegionsSlide({
 }) {
   return (
     <div className="relative h-screen snap-start flex flex-col overflow-hidden bg-neutral-50">
-      {/* Header — matches CountryDetail header style */}
-      <div
-        className="bg-white border-b border-neutral-200 px-5 pb-4 flex-shrink-0"
-        style={{ paddingTop: isFirst ? '48px' : '196px' }}
-      >
+      <div className="bg-white border-b border-neutral-200 px-5 pt-12 pb-4 flex-shrink-0">
         {isFirst && (
           <div className="flex items-center gap-3 mb-4">
             <motion.button
@@ -251,13 +276,11 @@ function SubRegionsSlide({
             </div>
           </div>
         )}
-
         <h2 className="text-sm font-semibold text-neutral-500 uppercase tracking-wider">
           Sub-regiões de {regionName}
         </h2>
       </div>
 
-      {/* Sub-region cards — same style as CountryDetail regions */}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
         {subRegions.map((sr, i) => (
           <motion.div
@@ -329,12 +352,10 @@ export default function RegionDetail() {
     setCountryId(undefined);
     if (scrollContainerRef.current) scrollContainerRef.current.scrollTop = 0;
     const load = async () => {
-      // 1. Region + country + sub-regions (parallel)
       const [{ data: region }, { data: subs }] = await Promise.all([
         supabase.from('regions').select('id, name, country_id').eq('id', regionId).single(),
         supabase.from('regions').select('id, name, image_url, description')
-          .eq('parent_id', regionId)
-          .order('name'),
+          .eq('parent_id', regionId).order('name'),
       ]);
 
       if (!region) { setLoading(false); return; }
@@ -346,7 +367,6 @@ export default function RegionDetail() {
         .from('countries').select('name').eq('id', region.country_id).single();
       if (country) setCountryName(country.name);
 
-      // 2. Collections for this region
       const { data: rcLinks } = await supabase
         .from('region_collections').select('collection_id').eq('region_id', regionId);
       const collectionIds = (rcLinks ?? []).map(r => r.collection_id);
@@ -356,7 +376,6 @@ export default function RegionDetail() {
       const { data: cols } = await supabase
         .from('collections').select('*').in('id', collectionIds);
 
-      // 3. Items for all collections
       const { data: ciLinks } = await supabase
         .from('collection_items').select('collection_id, item_id').in('collection_id', collectionIds);
       const itemIds = [...new Set((ciLinks ?? []).map(ci => ci.item_id))];
@@ -364,22 +383,18 @@ export default function RegionDetail() {
       let itemMap: Record<string, WineItem> = {};
       if (itemIds.length > 0) {
         const { data: wines } = await supabase
-          .from('wine_items')
-          .select('*, brands(name)')
-          .in('id', itemIds);
+          .from('wine_items').select('*, brands(name)').in('id', itemIds);
         for (const w of wines ?? []) {
           const brand = w.brands as { name: string } | null;
           itemMap[w.id] = {
             id: w.id, name: w.name, description: w.description,
             type: w.type, imageUrl: w.image_url, points: w.points, level: w.level,
-            wineType: w.wine_type,
-            elaborationMethod: w.elaboration_method,
+            wineType: w.wine_type, elaborationMethod: w.elaboration_method,
             brandName: brand?.name ?? null,
           };
         }
       }
 
-      // 4. Build Collection objects
       const colItemsMap: Record<string, WineItem[]> = {};
       for (const ci of ciLinks ?? []) {
         if (!colItemsMap[ci.collection_id]) colItemsMap[ci.collection_id] = [];
@@ -400,7 +415,7 @@ export default function RegionDetail() {
 
   if (loading) {
     return (
-      <div className="fixed inset-0 z-50 bg-neutral-900 flex items-center justify-center">
+      <div className="fixed inset-0 z-50 bg-[#f5f0e8] flex items-center justify-center">
         <p className="text-neutral-400 text-sm">Carregando...</p>
       </div>
     );
@@ -408,7 +423,7 @@ export default function RegionDetail() {
 
   if (!regionName) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-neutral-900">
+      <div className="min-h-screen flex items-center justify-center bg-[#f5f0e8]">
         <p className="text-neutral-400">Região não encontrada</p>
       </div>
     );
@@ -417,30 +432,34 @@ export default function RegionDetail() {
   const hasSubRegions = subRegions.length > 0;
   const hasCollections = allCollections.length > 0;
   const showEmpty = !hasCollections && !hasSubRegions;
-
   const handleBack = () => navigate(-1);
 
   return (
-    <div className="fixed inset-0 z-50 bg-black">
-      {/* Snap scroll container */}
+    <div className="fixed inset-0 z-50 bg-[#f5f0e8]">
       <div ref={scrollContainerRef} className="h-full overflow-y-scroll snap-y snap-mandatory scrollbar-hide">
-        {/* Collection slides */}
+        {/* Two slides per collection: cover + cards */}
         {allCollections.map((collection, index) => {
-          const isLast = index === allCollections.length - 1;
-          const nextLabel = isLast && hasSubRegions ? 'Sub-regiões' : undefined;
-          return (
-            <CollectionSlide
-              key={collection.id}
+          const isLastCollection = index === allCollections.length - 1;
+          const hasNextAfterCards = !isLastCollection || hasSubRegions;
+          const nextLabel = isLastCollection && hasSubRegions ? 'Sub-regiões' : undefined;
+          return [
+            <CollectionCoverSlide
+              key={`cover-${collection.id}`}
               collection={collection}
-              progress={progress}
               isFirst={index === 0}
-              hasNext={!isLast || hasSubRegions}
-              nextLabel={nextLabel}
               regionName={regionName}
               countryName={countryName}
+              countryId={countryId}
               onBack={handleBack}
-            />
-          );
+            />,
+            <CollectionCardsSlide
+              key={`cards-${collection.id}`}
+              collection={collection}
+              progress={progress}
+              hasNext={hasNextAfterCards}
+              nextLabel={nextLabel}
+            />,
+          ];
         })}
 
         {/* Sub-regions slide */}
@@ -454,28 +473,28 @@ export default function RegionDetail() {
           />
         )}
 
-        {/* Empty state — no collections AND no sub-regions */}
+        {/* Empty state */}
         {showEmpty && (
-          <div className="h-screen snap-start relative flex flex-col items-center justify-center bg-neutral-950">
+          <div className="h-screen snap-start relative flex flex-col items-center justify-center bg-[#f5f0e8]">
             <div className="px-5 pt-14 pb-6 absolute top-0 left-0 right-0">
               <div className="flex items-center gap-3">
                 <motion.button
                   whileTap={{ scale: 0.9 }}
                   onClick={handleBack}
-                  className="w-9 h-9 rounded-full bg-white/10 backdrop-blur-md border border-white/15 flex items-center justify-center"
+                  className="w-9 h-9 rounded-full bg-neutral-200 border border-neutral-300 flex items-center justify-center"
                 >
-                  <ArrowLeft size={18} className="text-white" />
+                  <ArrowLeft size={18} className="text-neutral-600" />
                 </motion.button>
                 <div>
                   {countryName && (
                     <p className="text-[#c5a96d] text-[11px] font-semibold uppercase tracking-widest">{countryName}</p>
                   )}
-                  <h1 className="text-white font-bold text-lg">{regionName}</h1>
+                  <h1 className="text-neutral-900 font-bold text-lg">{regionName}</h1>
                 </div>
               </div>
             </div>
-            <Layers size={48} className="text-white/20 mb-4" />
-            <p className="text-white/40 text-sm">Nenhuma coleção cadastrada ainda</p>
+            <Layers size={48} className="text-neutral-300 mb-4" />
+            <p className="text-neutral-400 text-sm">Nenhuma coleção cadastrada ainda</p>
           </div>
         )}
       </div>

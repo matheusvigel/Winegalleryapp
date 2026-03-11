@@ -2,9 +2,8 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { getStats, getProgress } from '../utils/storage';
 import { getAllRegions } from '../data/wineData';
-import { ArrowLeft, Trophy, CheckCircle, Heart, Wine, LogOut } from 'lucide-react';
+import { Trophy, CheckCircle, Heart, Wine, LogOut, ChevronLeft } from 'lucide-react';
 import { motion } from 'motion/react';
-import { Progress } from './ui/progress';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function Profile() {
@@ -16,15 +15,9 @@ export default function Profile() {
   useEffect(() => {
     setStats(getStats());
     setProgress(getProgress());
-
-    const handleStorage = () => {
-      setStats(getStats());
-      setProgress(getProgress());
-    };
-
+    const handleStorage = () => { setStats(getStats()); setProgress(getProgress()); };
     window.addEventListener('storage', handleStorage);
     window.addEventListener('statsUpdated', handleStorage);
-
     return () => {
       window.removeEventListener('storage', handleStorage);
       window.removeEventListener('statsUpdated', handleStorage);
@@ -36,11 +29,8 @@ export default function Profile() {
     navigate('/login');
   };
 
-  // Get all items from all regions
   const allRegions = getAllRegions();
-  const allItems = allRegions.flatMap(region =>
-    region.collections.flatMap(c => c.items)
-  );
+  const allItems = allRegions.flatMap(region => region.collections.flatMap(c => c.items));
 
   const completedItems = progress
     .filter(p => p.status === 'completed')
@@ -52,167 +42,287 @@ export default function Profile() {
     .map(p => allItems.find(e => e.id === p.itemId))
     .filter(Boolean);
 
-  const levelProgress = (stats.totalPoints % 100);
-  const nextLevelPoints = 100;
-
+  const levelProgress = stats.totalPoints % 100;
   const displayName = user?.user_metadata?.name || user?.email?.split('@')[0] || 'Sommelier';
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-red-50 to-neutral-50">
-      {/* Header */}
-      <header className="bg-red-900 text-white px-6 pt-8 pb-8">
-        <div className="max-w-lg mx-auto">
-          <div className="flex items-center justify-between mb-4">
-            <Link
-              to="/"
-              className="inline-flex items-center gap-2 text-red-100 hover:text-white transition-colors"
-            >
-              <ArrowLeft size={20} />
-              <span className="text-sm">Voltar</span>
-            </Link>
-            <button
-              onClick={handleSignOut}
-              className="inline-flex items-center gap-1.5 text-red-100 hover:text-white text-sm transition-colors"
-            >
-              <LogOut size={16} />
-              Sair
-            </button>
-          </div>
+    <div style={{ minHeight: '100vh', backgroundColor: '#0B0907', fontFamily: "'DM Sans', system-ui, sans-serif" }}>
 
-          <div className="flex items-center gap-4">
-            <div className="w-20 h-20 bg-red-800 rounded-full flex items-center justify-center text-4xl">
-              🍷
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold">{displayName}</h1>
-              <p className="text-red-100">Nível {stats.level} Sommelier</p>
-              {user?.email && (
-                <p className="text-red-200 text-xs mt-0.5">{user.email}</p>
-              )}
-            </div>
+      {/* ── Header ───────────────────────────────────────────── */}
+      <div style={{
+        background: 'linear-gradient(180deg, #1A1410 0%, #0B0907 100%)',
+        borderBottom: '1px solid rgba(197,162,90,0.1)',
+        paddingTop: 24,
+        paddingBottom: 28,
+        paddingLeft: 20,
+        paddingRight: 20,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+          <Link
+            to="/"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              fontFamily: "'DM Sans'",
+              fontSize: '0.8rem',
+              color: '#8C8074',
+              textDecoration: 'none',
+              transition: 'color 0.2s',
+            }}
+          >
+            <ChevronLeft size={16} />
+            Voltar
+          </Link>
+          <button
+            onClick={handleSignOut}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              fontFamily: "'DM Sans'",
+              fontSize: '0.8rem',
+              color: '#574E47',
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              transition: 'color 0.2s',
+              padding: 0,
+            }}
+          >
+            <LogOut size={14} />
+            Sair
+          </button>
+        </div>
+
+        {/* Avatar + name */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <div style={{
+            width: 60,
+            height: 60,
+            borderRadius: '50%',
+            border: '1px solid rgba(197,162,90,0.3)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: '#1C1915',
+            flexShrink: 0,
+            fontSize: '1.5rem',
+          }}>
+            🍷
+          </div>
+          <div>
+            <h1 style={{
+              margin: 0,
+              fontFamily: "'Playfair Display', Georgia, serif",
+              fontSize: '1.35rem',
+              fontWeight: 600,
+              color: '#E2D4BA',
+              lineHeight: 1.2,
+            }}>
+              {displayName}
+            </h1>
+            <p style={{ margin: '3px 0 0', fontFamily: "'DM Sans'", fontSize: '0.72rem', color: '#C5A25A', letterSpacing: '0.06em' }}>
+              Nível {stats.level} Sommelier
+            </p>
+            {user?.email && (
+              <p style={{ margin: '2px 0 0', fontFamily: "'DM Sans'", fontSize: '0.65rem', color: '#574E47' }}>
+                {user.email}
+              </p>
+            )}
           </div>
         </div>
-      </header>
+      </div>
 
-      {/* Stats Section */}
-      <div className="max-w-lg mx-auto px-6 -mt-6 mb-6">
+      {/* ── Stats card ───────────────────────────────────────── */}
+      <div style={{ padding: '0 20px', marginTop: -1 }}>
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-white rounded-xl p-6 shadow-lg"
+          transition={{ duration: 0.4 }}
+          style={{
+            backgroundColor: '#141210',
+            borderRadius: 12,
+            padding: '20px 20px',
+            border: '1px solid rgba(197,162,90,0.14)',
+            marginBottom: 20,
+          }}
         >
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <Trophy className="text-yellow-600" size={24} />
-              <span className="font-bold text-lg text-neutral-900">Progresso</span>
+          {/* Header row */}
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Trophy size={16} color="#C5A25A" />
+              <span style={{ fontFamily: "'DM Sans'", fontSize: '0.7rem', fontWeight: 500, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#8C8074' }}>
+                Progresso
+              </span>
             </div>
-            <span className="text-2xl font-bold text-red-800">{stats.totalPoints}</span>
+            <span style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: '1.5rem', fontWeight: 700, color: '#C5A25A', lineHeight: 1 }}>
+              {stats.totalPoints}
+            </span>
           </div>
 
-          <div className="mb-2">
-            <div className="flex justify-between text-sm text-neutral-600 mb-2">
-              <span>Nível {stats.level}</span>
-              <span>{levelProgress}/{nextLevelPoints} pts</span>
+          {/* Level + bar */}
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+              <span style={{ fontFamily: "'DM Sans'", fontSize: '0.72rem', color: '#8C8074' }}>Nível {stats.level}</span>
+              <span style={{ fontFamily: "'DM Sans'", fontSize: '0.72rem', color: '#574E47' }}>{levelProgress}/100 pts</span>
             </div>
-            <Progress value={levelProgress} max={nextLevelPoints} className="h-3" />
+            <div style={{ position: 'relative', height: 3, borderRadius: 99, backgroundColor: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+              <div style={{
+                position: 'absolute', left: 0, top: 0, bottom: 0,
+                width: `${levelProgress}%`,
+                background: 'linear-gradient(to right, #8B1A36, #C5A25A)',
+                borderRadius: 99,
+                transition: 'width 0.8s cubic-bezier(0.34, 1.56, 0.64, 1)',
+              }} />
+            </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4 mt-6 pt-6 border-t border-neutral-200">
-            <div className="text-center">
-              <div className="text-3xl font-bold text-green-600">{stats.completedCount}</div>
-              <div className="text-sm text-neutral-600">Experiências Vividas</div>
+          {/* Stats grid */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr',
+            gap: 12,
+            paddingTop: 16,
+            borderTop: '1px solid rgba(255,255,255,0.06)',
+          }}>
+            <div style={{ textAlign: 'center', padding: '12px 0', backgroundColor: '#1C1915', borderRadius: 8, border: '1px solid rgba(255,255,255,0.04)' }}>
+              <div style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: '1.75rem', fontWeight: 700, color: '#6B8F71', lineHeight: 1 }}>
+                {stats.completedCount}
+              </div>
+              <div style={{ fontFamily: "'DM Sans'", fontSize: '0.65rem', color: '#574E47', marginTop: 4, letterSpacing: '0.04em' }}>
+                Vividas
+              </div>
             </div>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-red-600">{stats.wishlistCount}</div>
-              <div className="text-sm text-neutral-600">Na Lista de Desejos</div>
+            <div style={{ textAlign: 'center', padding: '12px 0', backgroundColor: '#1C1915', borderRadius: 8, border: '1px solid rgba(255,255,255,0.04)' }}>
+              <div style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: '1.75rem', fontWeight: 700, color: '#8B1A36', lineHeight: 1 }}>
+                {stats.wishlistCount}
+              </div>
+              <div style={{ fontFamily: "'DM Sans'", fontSize: '0.65rem', color: '#574E47', marginTop: 4, letterSpacing: '0.04em' }}>
+                Desejos
+              </div>
             </div>
           </div>
         </motion.div>
       </div>
 
-      {/* Completed Section */}
+      {/* ── Completed items ───────────────────────────────────── */}
       {completedItems.length > 0 && (
-        <div className="max-w-lg mx-auto px-6 mb-6">
-          <div className="flex items-center gap-2 mb-4">
-            <CheckCircle className="text-green-600" size={24} />
-            <h2 className="text-xl font-bold text-neutral-900">Experiências Vividas</h2>
+        <div style={{ padding: '0 20px', marginBottom: 20 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+            <CheckCircle size={14} color="#6B8F71" />
+            <span style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: '0.95rem', fontWeight: 500, color: '#E2D4BA' }}>
+              Experiências Vividas
+            </span>
           </div>
-
-          <div className="space-y-3">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {completedItems.map((item, index) => (
               <motion.div
                 key={item?.id}
-                initial={{ opacity: 0, x: -20 }}
+                initial={{ opacity: 0, x: -12 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.1 * index }}
-                className="bg-white rounded-lg p-4 shadow-md flex items-center gap-4"
+                transition={{ delay: 0.06 * index, duration: 0.3 }}
+                style={{
+                  backgroundColor: '#141210',
+                  borderRadius: 10,
+                  padding: '10px 14px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 12,
+                  border: '1px solid rgba(255,255,255,0.05)',
+                }}
               >
                 <img
                   src={item?.imageUrl}
                   alt={item?.name}
-                  className="w-16 h-16 rounded-lg object-cover"
+                  style={{ width: 44, height: 44, borderRadius: 6, objectFit: 'cover', flexShrink: 0, opacity: 0.9 }}
                 />
-                <div className="flex-1">
-                  <h3 className="font-bold text-neutral-900">{item?.name}</h3>
-                  <p className="text-sm text-neutral-600">{item?.description}</p>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <h3 style={{ margin: 0, fontFamily: "'DM Sans'", fontSize: '0.82rem', fontWeight: 500, color: '#C4B49A', lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {item?.name}
+                  </h3>
+                  <p style={{ margin: '2px 0 0', fontFamily: "'DM Sans'", fontSize: '0.68rem', color: '#574E47', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {item?.description}
+                  </p>
                 </div>
-                <div className="text-green-600 flex-shrink-0">
-                  <CheckCircle size={24} />
-                </div>
+                <CheckCircle size={16} color="#6B8F71" style={{ flexShrink: 0 }} />
               </motion.div>
             ))}
           </div>
         </div>
       )}
 
-      {/* Wishlist Section */}
+      {/* ── Wishlist items ────────────────────────────────────── */}
       {wishlistItems.length > 0 && (
-        <div className="max-w-lg mx-auto px-6 pb-6">
-          <div className="flex items-center gap-2 mb-4">
-            <Heart className="text-red-600" size={24} />
-            <h2 className="text-xl font-bold text-neutral-900">Lista de Desejos</h2>
+        <div style={{ padding: '0 20px', paddingBottom: 24 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+            <Heart size={14} color="#8B1A36" />
+            <span style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: '0.95rem', fontWeight: 500, color: '#E2D4BA' }}>
+              Lista de Desejos
+            </span>
           </div>
-
-          <div className="space-y-3">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {wishlistItems.map((item, index) => (
               <motion.div
                 key={item?.id}
-                initial={{ opacity: 0, x: -20 }}
+                initial={{ opacity: 0, x: -12 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.1 * index }}
-                className="bg-white rounded-lg p-4 shadow-md flex items-center gap-4"
+                transition={{ delay: 0.06 * index, duration: 0.3 }}
+                style={{
+                  backgroundColor: '#141210',
+                  borderRadius: 10,
+                  padding: '10px 14px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 12,
+                  border: '1px solid rgba(255,255,255,0.05)',
+                }}
               >
                 <img
                   src={item?.imageUrl}
                   alt={item?.name}
-                  className="w-16 h-16 rounded-lg object-cover"
+                  style={{ width: 44, height: 44, borderRadius: 6, objectFit: 'cover', flexShrink: 0, opacity: 0.9 }}
                 />
-                <div className="flex-1">
-                  <h3 className="font-bold text-neutral-900">{item?.name}</h3>
-                  <p className="text-sm text-neutral-600">{item?.description}</p>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <h3 style={{ margin: 0, fontFamily: "'DM Sans'", fontSize: '0.82rem', fontWeight: 500, color: '#C4B49A', lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {item?.name}
+                  </h3>
+                  <p style={{ margin: '2px 0 0', fontFamily: "'DM Sans'", fontSize: '0.68rem', color: '#574E47', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {item?.description}
+                  </p>
                 </div>
-                <div className="text-red-600 flex-shrink-0">
-                  <Heart size={24} fill="currentColor" />
-                </div>
+                <Heart size={14} color="#8B1A36" fill="#8B1A36" style={{ flexShrink: 0 }} />
               </motion.div>
             ))}
           </div>
         </div>
       )}
 
-      {/* Empty State */}
+      {/* ── Empty state ───────────────────────────────────────── */}
       {completedItems.length === 0 && wishlistItems.length === 0 && (
-        <div className="max-w-lg mx-auto px-6 py-12 text-center">
-          <Wine size={48} className="text-neutral-300 mx-auto mb-4" />
-          <h3 className="text-xl font-bold text-neutral-700 mb-2">
+        <div style={{ padding: '48px 20px', textAlign: 'center' }}>
+          <Wine size={36} color="#2A2218" style={{ margin: '0 auto 16px' }} />
+          <h3 style={{ margin: '0 0 8px', fontFamily: "'Playfair Display', Georgia, serif", fontSize: '1.05rem', fontWeight: 500, color: '#574E47' }}>
             Comece sua jornada
           </h3>
-          <p className="text-neutral-600 mb-6">
-            Explore as regiões e comece a marcar suas experiências
+          <p style={{ margin: '0 0 20px', fontFamily: "'DM Sans'", fontSize: '0.8rem', color: '#3D3530' }}>
+            Explore as regiões e marque suas experiências
           </p>
           <Link
             to="/"
-            className="inline-block bg-red-900 text-white px-6 py-3 rounded-lg font-medium hover:bg-red-800 transition-colors"
+            style={{
+              display: 'inline-block',
+              padding: '10px 24px',
+              backgroundColor: 'rgba(197,162,90,0.12)',
+              border: '1px solid rgba(197,162,90,0.25)',
+              borderRadius: 99,
+              fontFamily: "'DM Sans'",
+              fontSize: '0.8rem',
+              fontWeight: 500,
+              color: '#C5A25A',
+              textDecoration: 'none',
+              letterSpacing: '0.02em',
+            }}
           >
             Explorar Regiões
           </Link>
