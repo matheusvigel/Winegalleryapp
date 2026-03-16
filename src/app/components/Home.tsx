@@ -245,36 +245,64 @@ export default function Home() {
       )}
 
       {/* ── Navegue pelas regiões e países ────────────────────── */}
-      <Box sx={{ pt: 3, pb: 4 }}>
-        <Box sx={{ px: 2.5, mb: 2 }}>
-          <SectionTitle>Navegue pelas regiões e países</SectionTitle>
-        </Box>
+      <Box sx={{ px: 2.5, pt: 3, pb: 4 }}>
+        <SectionTitle>Navegue pelas regiões e países</SectionTitle>
         {loading ? (
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
-            {[1,2,3].map(i => <Skeleton key={i} variant="rectangular" height={190} sx={{ bgcolor: 'rgba(0,0,0,0.07)' }} />)}
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
+            {[1,2,3].map(i => (
+              <Box key={i} sx={{ borderRadius: 2, overflow: 'hidden', border: `1px solid ${BORDER}`, bgcolor: CARD }}>
+                <Skeleton variant="rectangular" height={148} sx={{ bgcolor: 'rgba(0,0,0,0.07)' }} />
+                <Box sx={{ p: 1.5 }}>
+                  <Skeleton variant="text" width="40%" sx={{ bgcolor: 'rgba(0,0,0,0.05)' }} />
+                  <Skeleton variant="rectangular" height={3} sx={{ borderRadius: 99, mt: 1, bgcolor: 'rgba(0,0,0,0.05)' }} />
+                </Box>
+              </Box>
+            ))}
           </Box>
         ) : (
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
-            {countries.map(country => (
-              <CardActionArea key={country.id} component={Link} to={`/country/${country.id}`}>
-                <Box sx={{ position: 'relative', height: 190, overflow: 'hidden' }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
+            {countries.map((country, i) => (
+              <Box
+                key={country.id}
+                component={Link}
+                to={`/country/${country.id}`}
+                sx={{
+                  display: 'block',
+                  textDecoration: 'none',
+                  bgcolor: CARD,
+                  borderRadius: 1.75,
+                  overflow: 'hidden',
+                  border: `1px solid ${BORDER}`,
+                  transition: 'box-shadow 0.2s ease',
+                  '&:hover': { boxShadow: '0 4px 18px rgba(0,0,0,0.10)' },
+                }}
+              >
+                {/* Image */}
+                <Box sx={{ position: 'relative', height: 148, bgcolor: SURF }}>
                   <img src={country.image_url} alt={country.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-                  <Box sx={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.82) 0%, rgba(0,0,0,0.2) 55%, transparent 100%)' }} />
-                  <Box sx={{ position: 'absolute', bottom: 0, left: 0, right: 0, p: 2.5 }}>
-                    <Typography sx={{ fontFamily: "'DM Sans'", fontWeight: 700, fontSize: '1.15rem', color: '#fff', lineHeight: 1, mb: 0.4 }}>
+                  <Box sx={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.12) 55%, transparent 100%)' }} />
+                  <Box sx={{ position: 'absolute', bottom: 0, left: 0, right: 0, p: 2 }}>
+                    <Typography sx={{ fontFamily: "'DM Sans'", fontWeight: 700, fontSize: '1.05rem', color: '#FFFFFF', lineHeight: 1.2 }}>
                       {country.name}
                     </Typography>
                     <Typography sx={{ fontFamily: "'DM Sans'", fontSize: '0.72rem', color: 'rgba(255,255,255,0.65)' }}>
                       {country.regionCount} {country.regionCount === 1 ? 'região' : 'regiões'} · {country.collectionCount} {country.collectionCount === 1 ? 'coleção' : 'coleções'}
                     </Typography>
-                    {user && (
-                      <Box sx={{ mt: 1.5, position: 'relative', height: 3, borderRadius: 99, bgcolor: 'rgba(255,255,255,0.2)', overflow: 'hidden' }}>
-                        <Box sx={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '0%', bgcolor: LARANJA, borderRadius: 99 }} />
-                      </Box>
-                    )}
                   </Box>
                 </Box>
-              </CardActionArea>
+                {/* Footer: "Ver regiões" + progress bar */}
+                <Box sx={{ px: 2, pt: 1.25, pb: 1.5 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                    <Typography sx={{ fontFamily: "'DM Sans'", fontSize: '0.78rem', color: WINE, fontWeight: 500 }}>
+                      Ver regiões
+                    </Typography>
+                    <ChevronRight size={15} color={WINE} />
+                  </Box>
+                  <Box sx={{ position: 'relative', height: 3, borderRadius: 99, bgcolor: 'rgba(0,0,0,0.08)', overflow: 'hidden' }}>
+                    <Box sx={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '0%', bgcolor: LARANJA, borderRadius: 99 }} />
+                  </Box>
+                </Box>
+              </Box>
             ))}
           </Box>
         )}

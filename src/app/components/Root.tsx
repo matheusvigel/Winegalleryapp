@@ -191,25 +191,12 @@ export default function Root() {
           </div>
         </aside>
 
-        {/* ── Center content column ─────────────────────────── */}
-        <main style={{ flex: 1, minWidth: 0, display: 'flex', justifyContent: 'flex-start' }}>
-          <div style={{ width: '100%', maxWidth: 430, minHeight: '100vh', borderRight: `1px solid ${BORDER}` }}>
+        {/* ── Center content column — centered in remaining space ── */}
+        <main style={{ flex: 1, minWidth: 0, display: 'flex', justifyContent: 'center' }}>
+          <div style={{ width: '100%', maxWidth: 430, minHeight: '100vh', borderLeft: `1px solid ${BORDER}`, borderRight: `1px solid ${BORDER}` }}>
             <Outlet />
           </div>
         </main>
-
-        {/* ── Right sidebar ─────────────────────────────────── */}
-        <aside
-          className="flex-shrink-0"
-          style={{
-            width: 'calc(100vw - 240px - 430px)',
-            minWidth: 200,
-            maxWidth: 400,
-            backgroundColor: BG,
-          }}
-        >
-          {/* intentionally empty — cream background fills space */}
-        </aside>
       </div>
     </div>
   );
