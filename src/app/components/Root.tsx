@@ -1,6 +1,14 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router';
 import { Home, MapPin, Building2, Leaf, User } from 'lucide-react';
 
+const BG   = '#E9E3D9';
+const CARD = '#FFFFFF';
+const WINE = '#690037';
+const TEXT1 = '#1C1B1F';
+const TEXT2 = '#5C5C5C';
+const MUTED = '#9B9B9B';
+const BORDER = 'rgba(0,0,0,0.08)';
+
 const TABS = [
   { value: '/',        label: 'Início',    Icon: Home },
   { value: '/regions', label: 'Regiões',   Icon: MapPin },
@@ -18,48 +26,36 @@ function getActive(pathname: string): string {
   return '/';
 }
 
-/** Arch window icon — Wine Gallery brand mark */
-function WineArchIcon({ size = 30, color = 'currentColor' }: { size?: number; color?: string }) {
-  const h = Math.round((size * 68) / 52);
+/** Arch window icon — fiel ao logo oficial */
+function WineArchIcon({ size = 28, color = '#1C1B1F' }: { size?: number; color?: string }) {
+  const h = Math.round((size * 76) / 54);
   return (
-    <svg
-      width={size}
-      height={h}
-      viewBox="0 0 52 68"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
+    <svg width={size} height={h} viewBox="0 0 54 76" fill="none" xmlns="http://www.w3.org/2000/svg">
       <defs>
-        <clipPath id="wg-arch-clip">
-          <path d="M8,66 L8,23 Q8,6 26,6 Q44,6 44,23 L44,66 Z" />
+        <clipPath id="wg-root-clip">
+          <path d="M7,74 L7,24 Q7,4 27,4 Q47,4 47,24 L47,74 Z" />
         </clipPath>
       </defs>
-      <path
-        d="M3,68 L3,23 Q3,2 26,2 Q49,2 49,23 L49,68 Z"
-        stroke={color}
-        strokeWidth="2.5"
-      />
-      <g clipPath="url(#wg-arch-clip)" stroke={color} strokeWidth="1.4">
-        <line x1="-60" y1="74"  x2="120" y2="-106" />
-        <line x1="-60" y1="90"  x2="120" y2="-90"  />
-        <line x1="-60" y1="106" x2="120" y2="-74"  />
-        <line x1="-60" y1="122" x2="120" y2="-58"  />
-        <line x1="-60" y1="138" x2="120" y2="-42"  />
-        <line x1="-40" y1="-78" x2="90" y2="52"  />
-        <line x1="-40" y1="-62" x2="90" y2="68"  />
-        <line x1="-40" y1="-46" x2="90" y2="84"  />
-        <line x1="-40" y1="-30" x2="90" y2="100" />
-        <line x1="-40" y1="-14" x2="90" y2="116" />
-        <line x1="-40" y1="2"   x2="90" y2="132" />
+      <circle cx="27" cy="1.5" r="1.5" fill={color} />
+      <path d="M2,76 L2,24 Q2,0 27,0 Q52,0 52,24 L52,76 Z" stroke={color} strokeWidth="2.2" fill="none" />
+      <g clipPath="url(#wg-root-clip)" stroke={color} strokeWidth="1.3" opacity="1">
+        <line x1="-20" y1="60"  x2="80" y2="-40" />
+        <line x1="-20" y1="80"  x2="80" y2="-20" />
+        <line x1="-20" y1="100" x2="80" y2="0"   />
+        <line x1="-20" y1="120" x2="80" y2="20"  />
+        <line x1="-20" y1="140" x2="80" y2="40"  />
+        <line x1="-20" y1="160" x2="80" y2="60"  />
+        <line x1="-20" y1="0"   x2="80" y2="100" />
+        <line x1="-20" y1="20"  x2="80" y2="120" />
+        <line x1="-20" y1="40"  x2="80" y2="140" />
+        <line x1="-20" y1="60"  x2="80" y2="160" />
+        <line x1="-20" y1="80"  x2="80" y2="180" />
+        <line x1="-20" y1="100" x2="80" y2="200" />
       </g>
-      <path
-        d="M8,66 L8,23 Q8,6 26,6 Q44,6 44,23 L44,66 Z"
-        stroke={color}
-        strokeWidth="2"
-      />
-      <circle cx="18" cy="57" r="5"   stroke={color} strokeWidth="1.8" />
-      <circle cx="34" cy="57" r="5"   stroke={color} strokeWidth="1.8" />
-      <circle cx="26" cy="49" r="3.5" stroke={color} strokeWidth="1.6" />
+      <path d="M7,74 L7,24 Q7,4 27,4 Q47,4 47,24 L47,74 Z" stroke={color} strokeWidth="1.8" fill="none" />
+      <circle cx="18" cy="62" r="5.5" stroke={color} strokeWidth="1.6" fill="none" />
+      <circle cx="36" cy="62" r="5.5" stroke={color} strokeWidth="1.6" fill="none" />
+      <circle cx="27" cy="53" r="3.5" stroke={color} strokeWidth="1.4" fill="none" />
     </svg>
   );
 }
@@ -70,102 +66,32 @@ export default function Root() {
   const active = getActive(pathname);
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: '#0B0907', fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+    <div style={{ minHeight: '100vh', backgroundColor: BG, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
 
-      {/* ── Header ─────────────────────────────────────────────── */}
-      <header
-        className="sticky top-0 z-30"
-        style={{
-          backgroundColor: 'rgba(11, 9, 7, 0.92)',
-          backdropFilter: 'blur(20px)',
-          WebkitBackdropFilter: 'blur(20px)',
-          borderBottom: '1px solid rgba(197, 162, 90, 0.12)',
-        }}
-      >
-        {/* Mobile: centered logo */}
-        <div className="flex items-center justify-center h-14 px-5 md:hidden">
-          <Link
-            to="/"
-            className="flex items-center gap-2.5 hover:opacity-80 transition-opacity"
-            style={{ textDecoration: 'none' }}
-          >
-            <WineArchIcon size={24} color="#C5A25A" />
-            <span
-              style={{
-                fontFamily: "'Cormorant Garamond', Georgia, serif",
-                fontWeight: 600,
-                fontSize: '19px',
-                lineHeight: 1,
-                letterSpacing: '0.02em',
-                color: '#E2D4BA',
-              }}
-            >
+      {/* ════════════════════════════════════════════════════════
+          MOBILE layout (< lg)
+          ════════════════════════════════════════════════════════ */}
+
+      {/* Mobile header */}
+      <header className="lg:hidden sticky top-0 z-30" style={{ backgroundColor: BG, borderBottom: `1px solid ${BORDER}` }}>
+        <div className="flex items-center justify-center h-14 px-5">
+          <Link to="/" className="flex items-center gap-2.5" style={{ textDecoration: 'none' }}>
+            <WineArchIcon size={26} color={TEXT1} />
+            <span style={{ fontFamily: "'Fraunces', Georgia, serif", fontWeight: 700, fontSize: '20px', lineHeight: 1, color: TEXT1, letterSpacing: '-0.01em' }}>
               wine gallery
             </span>
           </Link>
-        </div>
-
-        {/* Desktop: logo left + nav links right */}
-        <div className="hidden md:flex items-center justify-between h-16 px-8 max-w-screen-xl mx-auto">
-          <Link
-            to="/"
-            className="flex items-center gap-3 hover:opacity-80 transition-opacity"
-            style={{ textDecoration: 'none' }}
-          >
-            <WineArchIcon size={28} color="#C5A25A" />
-            <span
-              style={{
-                fontFamily: "'Cormorant Garamond', Georgia, serif",
-                fontWeight: 600,
-                fontSize: '21px',
-                lineHeight: 1,
-                letterSpacing: '0.02em',
-                color: '#E2D4BA',
-              }}
-            >
-              wine gallery
-            </span>
-          </Link>
-
-          <nav className="flex items-center gap-0.5">
-            {TABS.map(({ value, label }) => (
-              <button
-                key={value}
-                onClick={() => navigate(value)}
-                className="px-4 py-2 rounded-lg text-[13px] font-medium transition-all"
-                style={{
-                  fontFamily: "'DM Sans', system-ui, sans-serif",
-                  letterSpacing: '0.01em',
-                  color: active === value ? '#C5A25A' : '#8C8074',
-                  backgroundColor: active === value ? 'rgba(197, 162, 90, 0.10)' : 'transparent',
-                  border: active === value ? '1px solid rgba(197, 162, 90, 0.18)' : '1px solid transparent',
-                }}
-              >
-                {label}
-              </button>
-            ))}
-          </nav>
         </div>
       </header>
 
-      {/* ── Page content ─────────────────────────────────────────── */}
-      <main className="pb-20 md:pb-0">
-        <div className="md:max-w-[430px] md:mx-auto md:min-h-screen" style={{ borderLeft: '1px solid rgba(255,255,255,0.04)', borderRight: '1px solid rgba(255,255,255,0.04)' }}>
-          <Outlet />
-        </div>
+      {/* Mobile main content */}
+      <main className="lg:hidden pb-20">
+        <Outlet />
       </main>
 
-      {/* ── Bottom tab bar (mobile only) ─────────────────────────── */}
-      <nav
-        role="tablist"
-        className="fixed bottom-0 left-0 right-0 z-30 md:hidden"
-        style={{
-          backgroundColor: 'rgba(11, 9, 7, 0.95)',
-          backdropFilter: 'blur(24px)',
-          WebkitBackdropFilter: 'blur(24px)',
-          borderTop: '1px solid rgba(197, 162, 90, 0.10)',
-        }}
-      >
+      {/* Mobile bottom tab bar */}
+      <nav role="tablist" className="lg:hidden fixed bottom-0 left-0 right-0 z-30"
+        style={{ backgroundColor: CARD, borderTop: `1px solid ${BORDER}` }}>
         <div className="flex h-16">
           {TABS.map(({ value, label, Icon }) => {
             const isActive = active === value;
@@ -175,37 +101,11 @@ export default function Root() {
                 role="tab"
                 aria-selected={isActive}
                 onClick={() => navigate(value)}
-                className="flex flex-col items-center justify-center gap-[3px] flex-1 transition-all"
-                style={{ position: 'relative' }}
+                className="flex flex-col items-center justify-center gap-[3px] flex-1 transition-colors"
+                style={{ border: 'none', background: 'none', cursor: 'pointer' }}
               >
-                {isActive && (
-                  <span
-                    style={{
-                      position: 'absolute',
-                      top: 0,
-                      left: '50%',
-                      transform: 'translateX(-50%)',
-                      width: 28,
-                      height: 1.5,
-                      backgroundColor: '#C5A25A',
-                      borderRadius: '0 0 2px 2px',
-                    }}
-                  />
-                )}
-                <Icon
-                  size={20}
-                  strokeWidth={isActive ? 2 : 1.5}
-                  color={isActive ? '#C5A25A' : '#574E47'}
-                />
-                <span
-                  className="text-[10px]"
-                  style={{
-                    fontFamily: "'DM Sans', system-ui, sans-serif",
-                    fontWeight: isActive ? 500 : 400,
-                    color: isActive ? '#C5A25A' : '#574E47',
-                    letterSpacing: '0.02em',
-                  }}
-                >
+                <Icon size={22} strokeWidth={isActive ? 2.5 : 1.75} color={isActive ? WINE : MUTED} />
+                <span style={{ fontFamily: "'DM Sans'", fontSize: '10px', fontWeight: isActive ? 600 : 400, color: isActive ? WINE : MUTED }}>
                   {label}
                 </span>
               </button>
@@ -213,6 +113,91 @@ export default function Root() {
           })}
         </div>
       </nav>
+
+      {/* ════════════════════════════════════════════════════════
+          DESKTOP layout (lg+) — 3-column Instagram-style
+          ════════════════════════════════════════════════════════ */}
+      <div className="hidden lg:flex min-h-screen">
+
+        {/* ── Left sidebar nav ──────────────────────────────── */}
+        <aside
+          className="sticky top-0 h-screen flex-shrink-0"
+          style={{
+            width: 240,
+            backgroundColor: BG,
+            borderRight: `1px solid ${BORDER}`,
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
+          {/* Logo */}
+          <div style={{ padding: '24px 20px 20px', borderBottom: `1px solid ${BORDER}` }}>
+            <Link to="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 10 }}>
+              <WineArchIcon size={30} color={TEXT1} />
+              <span style={{ fontFamily: "'Fraunces', Georgia, serif", fontWeight: 700, fontSize: '21px', lineHeight: 1, color: TEXT1, letterSpacing: '-0.01em' }}>
+                wine gallery
+              </span>
+            </Link>
+          </div>
+
+          {/* Nav links */}
+          <nav style={{ flex: 1, padding: '12px 12px', display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {TABS.map(({ value, label, Icon }) => {
+              const isActive = active === value;
+              return (
+                <button
+                  key={value}
+                  onClick={() => navigate(value)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 12,
+                    width: '100%',
+                    padding: '10px 12px',
+                    borderRadius: 10,
+                    border: 'none',
+                    cursor: 'pointer',
+                    backgroundColor: isActive ? 'rgba(105,0,55,0.08)' : 'transparent',
+                    transition: 'background-color 0.15s ease',
+                    textAlign: 'left',
+                  }}
+                  onMouseEnter={e => {
+                    if (!isActive) (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'rgba(0,0,0,0.05)';
+                  }}
+                  onMouseLeave={e => {
+                    if (!isActive) (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'transparent';
+                  }}
+                >
+                  <Icon size={20} strokeWidth={isActive ? 2.5 : 1.75} color={isActive ? WINE : TEXT2} />
+                  <span style={{
+                    fontFamily: "'DM Sans'",
+                    fontSize: '0.9rem',
+                    fontWeight: isActive ? 600 : 400,
+                    color: isActive ? WINE : TEXT2,
+                    letterSpacing: '-0.01em',
+                  }}>
+                    {label}
+                  </span>
+                </button>
+              );
+            })}
+          </nav>
+
+          {/* Footer hint */}
+          <div style={{ padding: '12px 20px 20px', borderTop: `1px solid ${BORDER}` }}>
+            <span style={{ fontFamily: "'DM Sans'", fontSize: '0.65rem', color: MUTED, letterSpacing: '0.04em' }}>
+              Beba com moderação
+            </span>
+          </div>
+        </aside>
+
+        {/* ── Center content column — centered in remaining space ── */}
+        <main style={{ flex: 1, minWidth: 0, display: 'flex', justifyContent: 'center' }}>
+          <div style={{ width: '100%', maxWidth: 430, minHeight: '100vh', borderLeft: `1px solid ${BORDER}`, borderRight: `1px solid ${BORDER}` }}>
+            <Outlet />
+          </div>
+        </main>
+      </div>
     </div>
   );
 }

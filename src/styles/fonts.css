@@ -1,12 +1,12 @@
-/* ─── Brand / Logo ─────────────────────────────────────────────────── */
+/* ─── Brand wordmark (official logo font) ──────────────────────────── */
+.font-brand {
+  font-family: 'Fraunces', Georgia, serif;
+}
+
+/* ─── Legacy / fallback Cormorant ──────────────────────────────────── */
 .font-gelica,
 .font-cormorant {
   font-family: 'Cormorant Garamond', Georgia, serif;
-}
-
-/* ─── Display / Section headings ──────────────────────────────────── */
-.font-display {
-  font-family: 'Playfair Display', 'Georgia', serif;
 }
 
 /* ─── UI / Body text ──────────────────────────────────────────────── */
