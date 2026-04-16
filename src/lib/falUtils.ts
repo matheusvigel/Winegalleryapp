@@ -16,11 +16,16 @@ export function saveFalKey(key: string) {
   localStorage.setItem(LS_KEY, key.trim());
 }
 
-// ── Google Gemini model (Nano Banana) ─────────────────────────────────────────
-// gemini-3.1-flash-image-preview = Nano Banana 2 — image editing (image-to-image)
-// gemini-2.5-flash-image         = Nano Banana   — text-to-image only
-const GEMINI_MODEL = 'gemini-3.1-flash-image-preview';
-const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
+// ── Google Gemini models (Nano Banana family) ─────────────────────────────────
+// We try models in order until one returns an image.
+// gemini-3.1-flash-image-preview = Nano Banana 2 (best, image editing)
+// gemini-2.0-flash-exp           = Gemini 2.0 Flash Exp (proven for image editing)
+const MODELS_TO_TRY = [
+  'gemini-3.1-flash-image-preview',
+  'gemini-2.0-flash-exp',
+];
+
+const BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 
 // ── Watercolor prompt ─────────────────────────────────────────────────────────
 const WATERCOLOR_PROMPT =
@@ -40,11 +45,9 @@ async function imageUrlToBase64(url: string): Promise<{ base64: string; mimeType
     const reader = new FileReader();
     reader.onloadend = () => {
       const result = reader.result as string;
-      // result = "data:<mimeType>;base64,<data>"
       const commaIdx = result.indexOf(',');
-      const header   = result.slice(0, commaIdx);          // "data:image/jpeg;base64"
-      const base64   = result.slice(commaIdx + 1);         // "<data>"
-      const mimeType = header.match(/:(.*?);/)?.[1] ?? 'image/jpeg';
+      const base64   = result.slice(commaIdx + 1);
+      const mimeType = result.slice(0, commaIdx).match(/:(.*?);/)?.[1] ?? 'image/jpeg';
       resolve({ base64, mimeType });
     };
     reader.onerror = () => reject(new Error('Falha ao ler imagem'));
@@ -52,40 +55,39 @@ async function imageUrlToBase64(url: string): Promise<{ base64: string; mimeType
   });
 }
 
-// ── Main function ─────────────────────────────────────────────────────────────
+// ── Extract image part from Gemini response ───────────────────────────────────
+// The REST API returns camelCase: { inlineData: { mimeType, data } }
+// The SDK / some versions return snake_case: { inline_data: { mime_type, data } }
+// We handle both.
+function extractImagePart(parts: any[]): { base64: string; mime: string } | null {
+  for (const p of parts) {
+    // camelCase (standard REST response)
+    if (p.inlineData?.data) {
+      return { base64: p.inlineData.data, mime: p.inlineData.mimeType ?? 'image/png' };
+    }
+    // snake_case (some SDK / proxy responses)
+    if (p.inline_data?.data) {
+      return { base64: p.inline_data.data, mime: p.inline_data.mime_type ?? 'image/png' };
+    }
+  }
+  return null;
+}
 
-/**
- * Sends an image to Google Gemini (Nano Banana) to generate a watercolor version,
- * then re-uploads the result to Supabase Storage for a permanent URL.
- *
- * @param imageUrl   Public URL of the source image (Supabase or external)
- * @param geminiKey  Google AI Studio API key (aistudio.google.com/app/apikey)
- * @param onStatus   Optional callback to report progress strings
- * @returns          Public Supabase Storage URL of the watercolor image
- */
-export async function transformToWatercolor(
-  imageUrl: string,
+// ── Call one model, return parsed image or null ───────────────────────────────
+async function callGemini(
+  model: string,
   geminiKey: string,
-  onStatus?: (msg: string) => void,
-): Promise<string> {
-  if (!geminiKey) throw new Error('Chave da API Google AI não configurada.');
-
-  // 1. Fetch source image and convert to base64
-  onStatus?.('Carregando imagem…');
-  const { base64, mimeType } = await imageUrlToBase64(imageUrl);
-
-  // 2. Call Gemini image editing API
-  onStatus?.('Enviando para o Nano Banana…');
+  base64: string,
+  mimeType: string,
+): Promise<{ base64: string; mime: string } | null> {
   const body = {
     contents: [
       {
         parts: [
           { text: WATERCOLOR_PROMPT },
           {
-            inline_data: {
-              mime_type: mimeType,
-              data: base64,
-            },
+            // Send in camelCase — matches Google's canonical JSON format
+            inlineData: { mimeType, data: base64 },
           },
         ],
       },
@@ -95,7 +97,7 @@ export async function transformToWatercolor(
     },
   };
 
-  const apiRes = await fetch(`${GEMINI_ENDPOINT}?key=${encodeURIComponent(geminiKey)}`, {
+  const res = await fetch(`${BASE}/${model}:generateContent?key=${encodeURIComponent(geminiKey)}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -104,66 +106,77 @@ export async function transformToWatercolor(
     body: JSON.stringify(body),
   });
 
-  if (!apiRes.ok) {
-    let detail = '';
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    const msg = err?.error?.message ?? `HTTP ${res.status}`;
+    // 400/404 = model not available → try next; 403 = key issue → stop
+    if (res.status === 403) throw new Error(`Chave sem permissão: ${msg}`);
+    console.warn(`[Gemini] ${model} → ${res.status}: ${msg}`);
+    return null;
+  }
+
+  const json = await res.json();
+  const parts: any[] = json?.candidates?.[0]?.content?.parts ?? [];
+
+  console.log(`[Gemini] ${model} response parts:`, parts.map(p => Object.keys(p)));
+
+  return extractImagePart(parts);
+}
+
+// ── Main function ─────────────────────────────────────────────────────────────
+
+/**
+ * Sends an image to Google Gemini (Nano Banana) to generate a watercolor version,
+ * then re-uploads the result to Supabase Storage for a permanent URL.
+ */
+export async function transformToWatercolor(
+  imageUrl: string,
+  geminiKey: string,
+  onStatus?: (msg: string) => void,
+): Promise<string> {
+  if (!geminiKey) throw new Error('Chave da API Google AI não configurada.');
+
+  // 1. Convert source image to base64
+  onStatus?.('Carregando imagem…');
+  const { base64, mimeType } = await imageUrlToBase64(imageUrl);
+
+  // 2. Try each model until one returns an image
+  onStatus?.('Enviando para o Nano Banana…');
+  let imagePart: { base64: string; mime: string } | null = null;
+  let lastError = '';
+
+  for (const model of MODELS_TO_TRY) {
+    onStatus?.(`Gerando aquarela (${model})…`);
     try {
-      const json = await apiRes.json();
-      detail = json?.error?.message ?? '';
-    } catch { /* ignore */ }
-    throw new Error(
-      detail ||
-      (apiRes.status === 400 ? 'Chave inválida ou modelo não disponível.' :
-       apiRes.status === 403 ? 'Chave sem permissão para geração de imagens. Verifique no Google AI Studio.' :
-       `Erro da API Google (${apiRes.status}).`)
-    );
+      imagePart = await callGemini(model, geminiKey, base64, mimeType);
+      if (imagePart) break;
+    } catch (e: any) {
+      lastError = e.message;
+      // 403 = key problem, no point trying next model
+      if (e.message.includes('permissão')) throw e;
+    }
   }
-
-  onStatus?.('Gerando aquarela…');
-  const json = await apiRes.json();
-
-  // 3. Extract base64 image from response
-  // Gemini returns parts array that may contain text + image in any order
-  const candidates: any[] = json?.candidates ?? [];
-  if (!candidates.length) {
-    const blocked = json?.promptFeedback?.blockReason;
-    throw new Error(blocked ? `Geração bloqueada: ${blocked}` : 'Nenhum resultado retornado pela API.');
-  }
-
-  const parts: any[] = candidates[0]?.content?.parts ?? [];
-
-  // Look for any part that has inline_data with an image mime type
-  const imagePart = parts.find((p: any) =>
-    p.inline_data &&
-    (p.inline_data.mime_type?.startsWith('image/') || p.inline_data.data)
-  );
 
   if (!imagePart) {
-    // Model returned only text — likely a safety refusal or wrong model config
-    const textPart = parts.find((p: any) => p.text);
-    const reason = textPart?.text ?? '';
-    console.error('[Gemini] Response parts:', JSON.stringify(parts, null, 2));
     throw new Error(
-      reason.length > 0
-        ? `O modelo retornou texto em vez de imagem: "${reason.slice(0, 120)}…" — verifique se a chave tem acesso ao modelo ${GEMINI_MODEL}.`
-        : 'Nenhuma imagem retornada. Verifique se sua chave tem acesso ao modelo gemini-3.1-flash-image-preview.'
+      lastError ||
+      'Nenhum modelo disponível retornou uma imagem. ' +
+      'Certifique-se de que sua chave do Google AI Studio tem acesso a modelos de geração de imagem.'
     );
   }
 
-  const resultBase64: string = imagePart.inline_data.data;
-  const resultMime: string   = imagePart.inline_data.mime_type ?? 'image/png';
-  const ext = resultMime.includes('jpeg') ? 'jpg' : 'png';
-
-  // 4. Convert base64 → Blob → upload to Supabase Storage
+  // 3. base64 → Blob → upload to Supabase Storage
   onStatus?.('Salvando versão aquarela…');
-  const byteChars = atob(resultBase64);
+  const ext       = imagePart.mime.includes('jpeg') ? 'jpg' : 'png';
+  const byteChars = atob(imagePart.base64);
   const byteArr   = new Uint8Array(byteChars.length);
   for (let i = 0; i < byteChars.length; i++) byteArr[i] = byteChars.charCodeAt(i);
-  const blob = new Blob([byteArr], { type: resultMime });
+  const blob = new Blob([byteArr], { type: imagePart.mime });
 
   const path = `${crypto.randomUUID()}/watercolor.${ext}`;
   const { error: uploadErr } = await supabase.storage
     .from('wine-images')
-    .upload(path, blob, { contentType: resultMime });
+    .upload(path, blob, { contentType: imagePart.mime });
 
   if (uploadErr) throw new Error(`Erro ao salvar: ${uploadErr.message}`);
 
