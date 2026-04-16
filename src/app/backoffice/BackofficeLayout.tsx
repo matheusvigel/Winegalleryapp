@@ -46,7 +46,7 @@ export default function BackofficeLayout() {
       {/* Header */}
       <div className="h-16 flex items-center justify-between px-5 border-b border-neutral-200 shrink-0">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 bg-red-900 rounded-lg flex items-center justify-center">
+          <div className="w-8 h-8 bg-purple-700 rounded-lg flex items-center justify-center">
             <Wine size={15} className="text-white" />
           </div>
           <div>
@@ -71,7 +71,7 @@ export default function BackofficeLayout() {
                 className={({ isActive }) =>
                   `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                     isActive
-                      ? 'bg-red-50 text-red-900'
+                      ? 'bg-purple-50 text-purple-700'
                       : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900'
                   }`
                 }
@@ -83,7 +83,7 @@ export default function BackofficeLayout() {
                     {table && counts[table] !== undefined && (
                       <span className={`text-xs font-semibold tabular-nums px-1.5 py-0.5 rounded-md min-w-[20px] text-center ${
                         isActive
-                          ? 'bg-red-100 text-red-800'
+                          ? 'bg-purple-100 text-purple-700'
                           : 'bg-neutral-100 text-neutral-500'
                       }`}>
                         {counts[table]}
@@ -100,7 +100,7 @@ export default function BackofficeLayout() {
       {/* User footer */}
       <div className="p-4 border-t border-neutral-200 shrink-0">
         <div className="flex items-center gap-2.5 mb-3">
-          <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center text-red-900 font-bold text-sm shrink-0">
+          <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center text-purple-700 font-bold text-sm shrink-0">
             {user?.email?.charAt(0).toUpperCase()}
           </div>
           <div className="min-w-0">
@@ -110,7 +110,7 @@ export default function BackofficeLayout() {
         </div>
         <button
           onClick={handleSignOut}
-          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-neutral-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-neutral-600 hover:text-purple-700 hover:bg-purple-50 rounded-lg transition-colors"
         >
           <LogOut size={15} />
           Sair
@@ -151,7 +151,7 @@ export default function BackofficeLayout() {
             <Menu size={20} />
           </button>
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 bg-red-900 rounded flex items-center justify-center">
+            <div className="w-6 h-6 bg-purple-700 rounded flex items-center justify-center">
               <Wine size={12} className="text-white" />
             </div>
             <span className="font-semibold text-neutral-900 text-sm">Backoffice</span>

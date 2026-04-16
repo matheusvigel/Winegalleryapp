@@ -16,7 +16,7 @@ const cards = [
   { key: 'countries', label: 'Países', icon: Globe, to: '/admin/countries', color: 'bg-blue-50 text-blue-700' },
   { key: 'regions', label: 'Regiões', icon: MapPin, to: '/admin/regions', color: 'bg-green-50 text-green-700' },
   { key: 'collections', label: 'Coleções', icon: BookOpen, to: '/admin/collections', color: 'bg-purple-50 text-purple-700' },
-  { key: 'wines', label: 'Vinhos', icon: Wine, to: '/admin/wines', color: 'bg-red-50 text-red-700' },
+  { key: 'wines', label: 'Vinhos', icon: Wine, to: '/admin/wines', color: 'bg-purple-50 text-purple-700' },
   { key: 'brands', label: 'Marcas', icon: Building2, to: '/admin/brands', color: 'bg-orange-50 text-orange-700' },
   { key: 'grapes', label: 'Uvas', icon: Grape, to: '/admin/grapes', color: 'bg-pink-50 text-pink-700' },
 ] as const;

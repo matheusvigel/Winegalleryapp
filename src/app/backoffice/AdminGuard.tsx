@@ -15,7 +15,7 @@ export default function AdminGuard({ children }: { children: React.ReactNode }) 
   }
 
   if (!session) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/login?from=/admin" replace />;
   }
 
   if (!ADMIN_EMAILS.includes(session.user.email ?? '')) {
