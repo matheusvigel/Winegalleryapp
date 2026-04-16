@@ -5,7 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { getStats } from '../utils/storage';
 import { supabase } from '../../lib/supabase';
 import { CollectionCard } from './CollectionCard';
-import { BottomNav } from './BottomNav';
+
 
 interface CollectionRow {
   id: string;
@@ -87,9 +87,9 @@ export default function Home() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-purple-50 via-white to-pink-50 pb-24">
-      {/* Header */}
-      <header className="bg-white shadow-sm sticky top-0 z-40">
+    <div className="min-h-screen bg-gradient-to-b from-purple-50 via-white to-pink-50">
+      {/* Mobile-only inner header */}
+      <header className="lg:hidden bg-white shadow-sm sticky top-0 z-40">
         <div className="max-w-md mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div>
@@ -107,167 +107,186 @@ export default function Home() {
         </div>
       </header>
 
-      <div className="max-w-md mx-auto px-4 py-6">
-        {/* Welcome card */}
-        <div className="bg-gradient-to-r from-purple-600 to-pink-600 rounded-3xl p-6 mb-6 text-white shadow-xl">
-          <div className="flex items-start gap-3 mb-4">
-            <Sparkles className="w-6 h-6 flex-shrink-0 mt-1" />
-            <div>
-              {user ? (
-                <>
-                  <h2 className="text-xl font-bold mb-1">Bem-vindo de volta!</h2>
-                  <p className="text-purple-100 text-sm">
-                    Continue sua jornada no mundo do vinho. Você já registrou {stats.completedCount} itens.
-                  </p>
-                </>
-              ) : (
-                <>
-                  <h2 className="text-xl font-bold mb-1">Bem-vindo ao Wine Gallery!</h2>
-                  <p className="text-purple-100 text-sm">
-                    Explore vinhos, experiências e vinícolas do mundo inteiro.
-                  </p>
-                </>
-              )}
+      {/* Content wrapper */}
+      <div className="max-w-screen-xl mx-auto px-4 py-6 lg:px-8 lg:py-8 lg:grid lg:grid-cols-[1fr_300px] lg:gap-10 lg:items-start">
+
+        {/* ── Main column ─────────────────────────────────────── */}
+        <div>
+          {/* Welcome card — mobile only (desktop shows it in sidebar) */}
+          <div className="lg:hidden bg-gradient-to-r from-purple-600 to-pink-600 rounded-3xl p-6 mb-6 text-white shadow-xl">
+            <div className="flex items-start gap-3 mb-4">
+              <Sparkles className="w-6 h-6 flex-shrink-0 mt-1" />
+              <div>
+                {user ? (
+                  <>
+                    <h2 className="text-xl font-bold mb-1">Bem-vindo de volta!</h2>
+                    <p className="text-purple-100 text-sm">Continue sua jornada. Você já registrou {stats.completedCount} itens.</p>
+                  </>
+                ) : (
+                  <>
+                    <h2 className="text-xl font-bold mb-1">Bem-vindo ao Wine Gallery!</h2>
+                    <p className="text-purple-100 text-sm">Explore vinhos, experiências e vinícolas do mundo inteiro.</p>
+                  </>
+                )}
+              </div>
             </div>
+            {!user && (
+              <Link to="/register" className="block mt-2 text-center bg-white/20 hover:bg-white/30 transition-colors text-white font-semibold py-3 rounded-xl">
+                Criar conta gratuita →
+              </Link>
+            )}
           </div>
 
-          {user ? (
-            <div className="grid grid-cols-3 gap-3 mt-4 pt-4 border-t border-purple-400/30">
-              <div className="text-center">
-                <div className="text-2xl font-bold">{stats.completedCount}</div>
-                <div className="text-xs text-purple-200">Completos</div>
+          {/* Highlights */}
+          {(loading || highlights.length > 0) && (
+            <div className="mb-8">
+              <div className="flex items-center gap-2 mb-4">
+                <Sparkles className="w-5 h-5 text-purple-600" />
+                <h2 className="text-xl font-bold text-gray-900">Destaques</h2>
               </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold">{stats.totalPoints}</div>
-                <div className="text-xs text-purple-200">Pontos</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold">{stats.level}</div>
-                <div className="text-xs text-purple-200">Nível</div>
-              </div>
+              {loading ? (
+                <div className="flex gap-3 overflow-x-auto pb-2" style={{ scrollbarWidth: 'none' }}>
+                  {[1, 2, 3].map(i => <div key={i} className="min-w-[148px] h-48 rounded-2xl bg-gray-100 animate-pulse flex-shrink-0" />)}
+                </div>
+              ) : (
+                <div className="flex gap-3 overflow-x-auto pb-2 lg:grid lg:grid-cols-3 lg:overflow-visible" style={{ scrollbarWidth: 'none' }}>
+                  {highlights.map(h => (
+                    <Link
+                      key={h.id}
+                      to={h.route}
+                      className="min-w-[148px] lg:min-w-0 flex-shrink-0 lg:flex-shrink rounded-2xl overflow-hidden relative h-48 block group"
+                    >
+                      {h.image_url ? (
+                        <img src={h.image_url} alt={h.label} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=300&q=80'; }} />
+                      ) : (
+                        <div className="w-full h-full bg-gradient-to-br from-purple-300 to-pink-300" />
+                      )}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                      <div className="absolute bottom-0 left-0 right-0 p-3">
+                        <p className="text-white font-semibold text-sm line-clamp-2">{h.label}</p>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              )}
             </div>
-          ) : (
-            <Link
-              to="/register"
-              className="block mt-4 text-center bg-white/20 hover:bg-white/30 transition-colors text-white font-semibold py-3 rounded-xl"
-            >
-              Criar conta gratuita →
-            </Link>
           )}
-        </div>
 
-        {/* Highlights */}
-        {(loading || highlights.length > 0) && (
-          <div className="mb-6">
-            <div className="flex items-center gap-2 mb-4">
-              <Sparkles className="w-5 h-5 text-purple-600" />
-              <h2 className="text-xl font-bold text-gray-900">Destaques</h2>
-            </div>
-            {loading ? (
-              <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
-                {[1, 2, 3].map(i => (
-                  <div key={i} className="min-w-[148px] h-48 rounded-2xl bg-gray-100 animate-pulse flex-shrink-0" />
-                ))}
+          {/* Explore by country */}
+          {countries.length > 0 && (
+            <div className="mb-8">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <MapPin className="w-5 h-5 text-purple-600" />
+                  <h2 className="text-xl font-bold text-gray-900">Explore o Mundo</h2>
+                </div>
+                <Link to="/explore" className="text-sm text-purple-600 font-medium flex items-center gap-1">
+                  Ver tudo <ChevronRight className="w-4 h-4" />
+                </Link>
               </div>
-            ) : (
-              <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
-                {highlights.map(h => (
-                  <Link
-                    key={h.id}
-                    to={h.route}
-                    className="min-w-[148px] flex-shrink-0 rounded-2xl overflow-hidden relative h-48 block group"
-                  >
-                    {h.image_url ? (
-                      <img
-                        src={h.image_url}
-                        alt={h.label}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                        onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=300&q=80'; }}
-                      />
-                    ) : (
-                      <div className="w-full h-full bg-gradient-to-br from-purple-300 to-pink-300" />
-                    )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                    <div className="absolute bottom-0 left-0 right-0 p-3">
-                      <p className="text-white font-semibold text-sm line-clamp-2">{h.label}</p>
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                {countries.map(c => (
+                  <Link key={c.id} to={`/region/${c.id}`} className="relative overflow-hidden rounded-2xl h-28 lg:h-36 block group">
+                    <img src={c.photo} alt={c.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                      onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=300&q=80'; }} />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
+                    <div className="absolute bottom-3 left-3">
+                      <h3 className="text-white font-semibold text-sm">{c.name}</h3>
                     </div>
                   </Link>
                 ))}
               </div>
+            </div>
+          )}
+
+          {/* Collections */}
+          {collections.length > 0 && (
+            <div className="mb-8">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <TrendingUp className="w-5 h-5 text-purple-600" />
+                  <h2 className="text-xl font-bold text-gray-900">Coleções</h2>
+                </div>
+                <Link to="/explore" className="text-sm text-purple-600 font-medium flex items-center gap-1">
+                  Ver todas <ChevronRight className="w-4 h-4" />
+                </Link>
+              </div>
+              <div className="lg:grid lg:grid-cols-2 lg:gap-4 space-y-4 lg:space-y-0">
+                {collections.slice(0, 4).map(col => (
+                  <CollectionCard key={col.id} id={col.id} title={col.title} coverImage={col.photo} description={col.tagline ?? ''} contentType={col.content_type} />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {loading && (
+            <div className="space-y-4">
+              {[1, 2].map(i => <div key={i} className="rounded-3xl bg-gray-100 animate-pulse h-64" />)}
+            </div>
+          )}
+        </div>
+
+        {/* ── Right sidebar (desktop only) ─────────────────────── */}
+        <aside className="hidden lg:block space-y-6 sticky top-24">
+          {/* Stats / Welcome card */}
+          <div className="bg-gradient-to-r from-purple-600 to-pink-600 rounded-3xl p-6 text-white shadow-xl">
+            <div className="flex items-start gap-3 mb-4">
+              <Sparkles className="w-6 h-6 flex-shrink-0 mt-1" />
+              <div>
+                {user ? (
+                  <>
+                    <h2 className="text-lg font-bold mb-1">Bem-vindo de volta!</h2>
+                    <p className="text-purple-100 text-xs">Continue sua jornada no mundo do vinho.</p>
+                  </>
+                ) : (
+                  <>
+                    <h2 className="text-lg font-bold mb-1">Bem-vindo ao Wine Gallery!</h2>
+                    <p className="text-purple-100 text-xs">Explore vinhos, experiências e vinícolas.</p>
+                  </>
+                )}
+              </div>
+            </div>
+            {user ? (
+              <div className="grid grid-cols-3 gap-2 pt-4 border-t border-purple-400/30">
+                <div className="text-center">
+                  <div className="text-2xl font-bold">{stats.completedCount}</div>
+                  <div className="text-[10px] text-purple-200">Completos</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold">{stats.totalPoints}</div>
+                  <div className="text-[10px] text-purple-200">Pontos</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold">{stats.level}</div>
+                  <div className="text-[10px] text-purple-200">Nível</div>
+                </div>
+              </div>
+            ) : (
+              <Link to="/register" className="block mt-4 text-center bg-white/20 hover:bg-white/30 transition-colors text-white font-semibold py-3 rounded-xl text-sm">
+                Criar conta gratuita →
+              </Link>
             )}
           </div>
-        )}
 
-        {/* Explore by country */}
-        {countries.length > 0 && (
-          <div className="mb-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <MapPin className="w-5 h-5 text-purple-600" />
-                <h2 className="text-xl font-bold text-gray-900">Explore o Mundo</h2>
-              </div>
-              <Link to="/explore" className="text-sm text-purple-600 font-medium flex items-center gap-1">
-                Ver tudo <ChevronRight className="w-4 h-4" />
-              </Link>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              {countries.map(c => (
-                <Link
-                  key={c.id}
-                  to={`/region/${c.id}`}
-                  className="relative overflow-hidden rounded-2xl h-28 block group"
-                >
-                  <img
-                    src={c.photo}
-                    alt={c.name}
-                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                    onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=300&q=80'; }}
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
-                  <div className="absolute bottom-3 left-3">
-                    <h3 className="text-white font-semibold text-sm">{c.name}</h3>
-                  </div>
+          {/* Quick links */}
+          <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+            <h3 className="font-bold text-gray-900 text-sm mb-3">Navegar</h3>
+            <div className="space-y-1">
+              {[
+                { to: '/explore',       label: 'Explorar coleções'  },
+                { to: '/brotherhoods',  label: 'Confrarias'         },
+                { to: '/achievements',  label: 'Conquistas'         },
+              ].map(({ to, label }) => (
+                <Link key={to} to={to} className="flex items-center justify-between py-2 px-3 rounded-xl hover:bg-purple-50 transition-colors text-sm text-gray-700 hover:text-purple-700 no-underline">
+                  {label}
+                  <ChevronRight className="w-4 h-4" />
                 </Link>
               ))}
             </div>
           </div>
-        )}
-
-        {/* Collections */}
-        {collections.length > 0 && (
-          <div className="mb-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <TrendingUp className="w-5 h-5 text-purple-600" />
-                <h2 className="text-xl font-bold text-gray-900">Coleções</h2>
-              </div>
-              <Link to="/explore" className="text-sm text-purple-600 font-medium flex items-center gap-1">
-                Ver todas <ChevronRight className="w-4 h-4" />
-              </Link>
-            </div>
-            {collections.slice(0, 4).map(col => (
-              <CollectionCard
-                key={col.id}
-                id={col.id}
-                title={col.title}
-                coverImage={col.photo}
-                description={col.tagline ?? ''}
-                contentType={col.content_type}
-              />
-            ))}
-          </div>
-        )}
-
-        {loading && (
-          <div className="space-y-4">
-            {[1, 2].map(i => (
-              <div key={i} className="rounded-3xl bg-gray-100 animate-pulse h-64" />
-            ))}
-          </div>
-        )}
+        </aside>
       </div>
-
-      <BottomNav />
     </div>
   );
 }

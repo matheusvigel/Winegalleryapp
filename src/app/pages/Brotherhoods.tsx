@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router';
-import { BottomNav } from '../components/BottomNav';
+
 import { Users, Plus, Globe, Lock, ChevronRight, Sparkles } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -82,8 +82,8 @@ export default function Brotherhoods() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-purple-50 via-white to-pink-50 pb-24">
-      <header className="bg-white shadow-sm sticky top-0 z-40">
+    <div className="min-h-screen bg-gradient-to-b from-purple-50 via-white to-pink-50">
+      <header className="lg:hidden bg-white shadow-sm sticky top-0 z-40">
         <div className="max-w-md mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div>
@@ -102,7 +102,7 @@ export default function Brotherhoods() {
         </div>
       </header>
 
-      <div className="max-w-md mx-auto px-4 py-6">
+      <div className="max-w-screen-xl mx-auto px-4 py-6 lg:px-8 lg:py-8">
         {/* Tabs */}
         <div className="flex gap-1 mb-6 bg-white rounded-2xl p-1 shadow-sm">
           {tabs.map(({ key, label }) => (
@@ -292,7 +292,7 @@ export default function Brotherhoods() {
         </div>
       )}
 
-      <BottomNav />
+
     </div>
   );
 }
