@@ -215,7 +215,7 @@ export default function ImageUpload({ value, onChange }: Props) {
           <div className="bg-neutral-50 border border-neutral-200 rounded-lg p-3 space-y-2">
             <div className="flex items-center gap-1.5 text-xs font-medium text-neutral-700">
               <Key size={12} />
-              Chave da API fal.ai
+              Chave da API Google AI Studio
             </div>
             <div className="flex gap-2">
               <input
@@ -223,7 +223,7 @@ export default function ImageUpload({ value, onChange }: Props) {
                 value={keyDraft}
                 onChange={e => setKeyDraft(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && saveKey()}
-                placeholder="fal_key_…"
+                placeholder="AIza…"
                 autoFocus
                 className="flex-1 h-8 px-2.5 text-xs rounded-md border border-neutral-300 outline-none focus:border-purple-600 focus:ring-2 focus:ring-purple-600/20 bg-white"
               />
@@ -238,8 +238,8 @@ export default function ImageUpload({ value, onChange }: Props) {
             </div>
             <p className="text-[10px] text-neutral-400 leading-relaxed">
               Gere sua chave em{' '}
-              <a href="https://fal.ai/dashboard/keys" target="_blank" rel="noopener noreferrer" className="text-purple-600 underline">
-                fal.ai/dashboard/keys
+              <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-purple-600 underline">
+                aistudio.google.com/app/apikey
               </a>
               . Salva apenas neste navegador.
             </p>
@@ -250,9 +250,9 @@ export default function ImageUpload({ value, onChange }: Props) {
         {!showKeyInput && !generatingWc && (
           <p className="text-[10px] text-neutral-400 text-center">
             {hasKey ? (
-              <>Chave fal.ai configurada · <button type="button" onClick={() => setShowKeyInput(true)} className="text-purple-600 underline">alterar</button></>
+              <>Chave Google AI configurada · <button type="button" onClick={() => setShowKeyInput(true)} className="text-purple-600 underline">alterar</button></>
             ) : (
-              <>Configure sua chave fal.ai para transformar em aquarela · <button type="button" onClick={() => setShowKeyInput(true)} className="text-purple-600 underline">configurar</button></>
+              <>Configure sua chave Google AI para ativar a transformação em aquarela · <button type="button" onClick={() => setShowKeyInput(true)} className="text-purple-600 underline">configurar</button></>
             )}
           </p>
         )}

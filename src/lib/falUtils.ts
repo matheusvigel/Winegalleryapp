@@ -1,12 +1,12 @@
-import { fal } from '@fal-ai/client';
 import { supabase } from './supabase';
 
-// ── Storage key for persisting the API key in the browser ────────────────────
-const LS_KEY = 'winegallery_fal_key';
+// ── Storage key for persisting the Google AI key in the browser ───────────────
+const LS_KEY = 'winegallery_gemini_key';
 
+// Exported as getFalKey/saveFalKey to keep ImageUpload.tsx unchanged
 export function getFalKey(): string {
   return (
-    (import.meta.env.VITE_FAL_KEY as string | undefined) ||
+    (import.meta.env.VITE_GEMINI_KEY as string | undefined) ||
     localStorage.getItem(LS_KEY) ||
     ''
   );
@@ -15,6 +15,12 @@ export function getFalKey(): string {
 export function saveFalKey(key: string) {
   localStorage.setItem(LS_KEY, key.trim());
 }
+
+// ── Google Gemini model (Nano Banana) ─────────────────────────────────────────
+// gemini-2.5-flash-image = Nano Banana (stable)
+// gemini-3.1-flash-image-preview = Nano Banana 2 (newer preview)
+const GEMINI_MODEL = 'gemini-2.5-flash-image';
+const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
 // ── Watercolor prompt ─────────────────────────────────────────────────────────
 const WATERCOLOR_PROMPT =
@@ -25,69 +31,118 @@ const WATERCOLOR_PROMPT =
   'Romantic, sophisticated fine-art wine illustration style — the same bottle, ' +
   'reimagined as a hand-painted watercolor artwork.';
 
+// ── Helper: fetch any URL and return base64 + mimeType ───────────────────────
+async function imageUrlToBase64(url: string): Promise<{ base64: string; mimeType: string }> {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Não foi possível carregar a imagem (${res.status}).`);
+  const blob = await res.blob();
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const result = reader.result as string;
+      // result = "data:<mimeType>;base64,<data>"
+      const commaIdx = result.indexOf(',');
+      const header   = result.slice(0, commaIdx);          // "data:image/jpeg;base64"
+      const base64   = result.slice(commaIdx + 1);         // "<data>"
+      const mimeType = header.match(/:(.*?);/)?.[1] ?? 'image/jpeg';
+      resolve({ base64, mimeType });
+    };
+    reader.onerror = () => reject(new Error('Falha ao ler imagem'));
+    reader.readAsDataURL(blob);
+  });
+}
+
 // ── Main function ─────────────────────────────────────────────────────────────
 
 /**
- * Sends an image to Nano Banana Pro (via fal.ai) to generate a watercolor version,
+ * Sends an image to Google Gemini (Nano Banana) to generate a watercolor version,
  * then re-uploads the result to Supabase Storage for a permanent URL.
  *
  * @param imageUrl   Public URL of the source image (Supabase or external)
- * @param falKey     fal.ai API key
+ * @param geminiKey  Google AI Studio API key (aistudio.google.com/app/apikey)
  * @param onStatus   Optional callback to report progress strings
  * @returns          Public Supabase Storage URL of the watercolor image
  */
 export async function transformToWatercolor(
   imageUrl: string,
-  falKey: string,
+  geminiKey: string,
   onStatus?: (msg: string) => void,
 ): Promise<string> {
-  if (!falKey) throw new Error('Chave da API fal.ai não configurada.');
+  if (!geminiKey) throw new Error('Chave da API Google AI não configurada.');
 
-  fal.config({ credentials: falKey });
+  // 1. Fetch source image and convert to base64
+  onStatus?.('Carregando imagem…');
+  const { base64, mimeType } = await imageUrlToBase64(imageUrl);
 
-  onStatus?.('Enviando imagem para o modelo…');
-
-  let outputUrl: string | undefined;
-
-  try {
-    const result = await fal.subscribe('fal-ai/nano-banana-pro/edit', {
-      input: {
-        prompt: WATERCOLOR_PROMPT,
-        image_urls: [imageUrl],
-        output_format: 'png',
-        resolution: '2K',
-        num_images: 1,
+  // 2. Call Gemini image editing API
+  onStatus?.('Enviando para o Nano Banana…');
+  const body = {
+    contents: [
+      {
+        parts: [
+          { text: WATERCOLOR_PROMPT },
+          {
+            inline_data: {
+              mime_type: mimeType,
+              data: base64,
+            },
+          },
+        ],
       },
-      logs: true,
-      onQueueUpdate(update) {
-        if (update.status === 'IN_PROGRESS') onStatus?.('Gerando aquarela…');
-        if (update.status === 'IN_QUEUE')    onStatus?.('Na fila…');
-      },
-    });
+    ],
+    generationConfig: {
+      responseModalities: ['TEXT', 'IMAGE'],
+    },
+  };
 
-    outputUrl = (result.data as any)?.images?.[0]?.url;
-  } catch (err: any) {
-    // Try to surface a readable message from the fal.ai error
-    const msg =
-      err?.body?.detail?.[0]?.msg ??
-      err?.message ??
-      'Erro na API fal.ai';
-    throw new Error(msg);
+  const apiRes = await fetch(`${GEMINI_ENDPOINT}?key=${encodeURIComponent(geminiKey)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+
+  if (!apiRes.ok) {
+    let detail = '';
+    try {
+      const json = await apiRes.json();
+      detail = json?.error?.message ?? '';
+    } catch { /* ignore */ }
+    throw new Error(
+      detail ||
+      (apiRes.status === 400 ? 'Chave inválida ou modelo não disponível.' :
+       apiRes.status === 403 ? 'Chave sem permissão para geração de imagens. Verifique no Google AI Studio.' :
+       `Erro da API Google (${apiRes.status}).`)
+    );
   }
 
-  if (!outputUrl) throw new Error('Nenhuma imagem retornada pela API.');
+  onStatus?.('Gerando aquarela…');
+  const json = await apiRes.json();
 
-  // ── Re-upload to Supabase Storage for a permanent URL ─────────────────────
+  // 3. Extract base64 image from response
+  const parts: any[] = json?.candidates?.[0]?.content?.parts ?? [];
+  const imagePart = parts.find((p: any) => p.inline_data?.mime_type?.startsWith('image/'));
+
+  if (!imagePart) {
+    // Sometimes the model returns only text (safety block, etc.)
+    const textPart = parts.find((p: any) => p.text);
+    throw new Error(textPart?.text ?? 'Nenhuma imagem foi gerada. Tente novamente.');
+  }
+
+  const resultBase64: string = imagePart.inline_data.data;
+  const resultMime: string   = imagePart.inline_data.mime_type ?? 'image/png';
+  const ext = resultMime.includes('jpeg') ? 'jpg' : 'png';
+
+  // 4. Convert base64 → Blob → upload to Supabase Storage
   onStatus?.('Salvando versão aquarela…');
+  const byteChars = atob(resultBase64);
+  const byteArr   = new Uint8Array(byteChars.length);
+  for (let i = 0; i < byteChars.length; i++) byteArr[i] = byteChars.charCodeAt(i);
+  const blob = new Blob([byteArr], { type: resultMime });
 
-  const fetchRes = await fetch(outputUrl);
-  if (!fetchRes.ok) throw new Error('Não foi possível baixar a imagem gerada.');
-  const blob = await fetchRes.blob();
-
-  const path = `${crypto.randomUUID()}/watercolor.png`;
+  const path = `${crypto.randomUUID()}/watercolor.${ext}`;
   const { error: uploadErr } = await supabase.storage
     .from('wine-images')
-    .upload(path, blob, { contentType: 'image/png' });
+    .upload(path, blob, { contentType: resultMime });
 
   if (uploadErr) throw new Error(`Erro ao salvar: ${uploadErr.message}`);
 
