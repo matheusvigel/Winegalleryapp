@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { BottomNav } from '../components/BottomNav';
+
 import { CollectionCard } from '../components/CollectionCard';
 import { Search, MapPin } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
@@ -62,8 +62,8 @@ export default function Explore() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-purple-50 via-white to-pink-50 pb-24">
-      <header className="bg-white shadow-sm sticky top-0 z-40">
+    <div className="min-h-screen bg-gradient-to-b from-purple-50 via-white to-pink-50">
+      <header className="lg:hidden bg-white shadow-sm sticky top-0 z-40">
         <div className="max-w-md mx-auto px-4 py-4">
           <h1 className="text-2xl font-bold text-gray-900 mb-4">Explorar</h1>
 
@@ -96,14 +96,14 @@ export default function Explore() {
         </div>
       </header>
 
-      <div className="max-w-md mx-auto px-4 py-6">
+      <div className="max-w-screen-xl mx-auto px-4 py-6 lg:px-8 lg:py-8">
         {regions.length > 0 && (
           <div className="mb-8">
             <div className="flex items-center gap-2 mb-4">
               <MapPin className="w-5 h-5 text-purple-600" />
               <h2 className="text-xl font-bold text-gray-900">Explore por Região</h2>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {regions.map((region) => (
                 <Link
                   key={region.id}
@@ -166,7 +166,7 @@ export default function Explore() {
         </div>
       </div>
 
-      <BottomNav />
+
     </div>
   );
 }

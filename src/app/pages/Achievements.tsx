@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { BottomNav } from '../components/BottomNav';
+
 import { AchievementCard, type Achievement } from '../components/AchievementCard';
 import { Trophy, Target } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
@@ -69,8 +69,8 @@ export default function Achievements() {
     : 0;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-purple-50 via-white to-pink-50 pb-24">
-      <header className="bg-white shadow-sm sticky top-0 z-40">
+    <div className="min-h-screen bg-gradient-to-b from-purple-50 via-white to-pink-50">
+      <header className="lg:hidden bg-white shadow-sm sticky top-0 z-40">
         <div className="max-w-md mx-auto px-4 py-4">
           <h1 className="text-2xl font-bold text-gray-900 mb-1">Conquistas</h1>
           <p className="text-sm text-gray-600">Seu mapa de vivências no mundo do vinho</p>
@@ -151,7 +151,7 @@ export default function Achievements() {
         </div>
       </div>
 
-      <BottomNav />
+
     </div>
   );
 }

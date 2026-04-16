@@ -23,7 +23,6 @@ import Grapes from "./backoffice/pages/Grapes";
 import Experiences from "./backoffice/pages/Experiences";
 import Highlights from "./backoffice/pages/Highlights";
 
-// New pages from Figma design
 import Explore from "./pages/Explore";
 import Achievements from "./pages/Achievements";
 import WineDetail from "./pages/WineDetail";
@@ -32,21 +31,12 @@ import Brotherhoods from "./pages/Brotherhoods";
 import BrotherhoodDetail from "./pages/BrotherhoodDetail";
 
 export const router = createBrowserRouter([
-  // ── Auth ──────────────────────────────────────────────────
+  // ── Auth (standalone, no shell) ───────────────────────────
   { path: "/login",      Component: Login      },
   { path: "/register",   Component: Register   },
   { path: "/onboarding", Component: Onboarding },
 
-  // ── New top-level pages (outside Root layout) ──────────────
-  { path: "/explore",                      Component: Explore           },
-  { path: "/achievements",                 Component: Achievements      },
-  { path: "/wine/:id",                     Component: WineDetail        },
-  { path: "/collection/:id",               Component: CollectionDetail  },
-  { path: "/brotherhoods",                 Component: Brotherhoods      },
-  { path: "/brotherhoods/:id",             Component: BrotherhoodDetail },
-  { path: "/brotherhoods/catalog/:id",     Component: BrotherhoodDetail },
-
-  // ── Admin ──────────────────────────────────────────────────
+  // ── Admin ─────────────────────────────────────────────────
   {
     path: "/admin",
     element: (
@@ -67,19 +57,26 @@ export const router = createBrowserRouter([
     ],
   },
 
-  // ── App shell (Root layout with BottomNav) ─────────────────
+  // ── App shell (Root = top navbar desktop + bottom nav mobile) ─
   {
     path: "/",
     Component: Root,
     children: [
-      { index: true,                  Component: Home        },
-      { path: "regions",              Component: RegionsView },
-      { path: "country/:countryId",   Component: CountryDetail },
-      { path: "region/:regionId",     Component: RegionDetail  },
-      { path: "brands",               Component: BrandsView    },
-      { path: "brand/:brandId",       Component: RegionDetail  },
-      { path: "grapes",               Component: GrapesView    },
-      { path: "grape/:grapeId",       Component: RegionDetail  },
+      { index: true,                    Component: Home              },
+      { path: "explore",                Component: Explore           },
+      { path: "achievements",           Component: Achievements      },
+      { path: "brotherhoods",           Component: Brotherhoods      },
+      { path: "brotherhoods/:id",       Component: BrotherhoodDetail },
+      { path: "brotherhoods/catalog/:id", Component: BrotherhoodDetail },
+      { path: "wine/:id",               Component: WineDetail        },
+      { path: "collection/:id",         Component: CollectionDetail  },
+      { path: "regions",                Component: RegionsView       },
+      { path: "country/:countryId",     Component: CountryDetail     },
+      { path: "region/:regionId",       Component: RegionDetail      },
+      { path: "brands",                 Component: BrandsView        },
+      { path: "brand/:brandId",         Component: RegionDetail      },
+      { path: "grapes",                 Component: GrapesView        },
+      { path: "grape/:grapeId",         Component: RegionDetail      },
       {
         path: "profile",
         element: (

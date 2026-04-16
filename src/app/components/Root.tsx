@@ -1,32 +1,21 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router';
-import { Home, MapPin, Building2, Leaf, User } from 'lucide-react';
+import { Home, Compass, Users, Trophy, User } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 
-const BG   = '#E9E3D9';
-const CARD = '#FFFFFF';
-const WINE = '#690037';
-const TEXT1 = '#1C1B1F';
-const TEXT2 = '#5C5C5C';
-const MUTED = '#9B9B9B';
-const BORDER = 'rgba(0,0,0,0.08)';
-
-const TABS = [
-  { value: '/',        label: 'Início',    Icon: Home },
-  { value: '/regions', label: 'Regiões',   Icon: MapPin },
-  { value: '/brands',  label: 'Vinícolas', Icon: Building2 },
-  { value: '/grapes',  label: 'Uvas',      Icon: Leaf },
-  { value: '/profile', label: 'Perfil',    Icon: User },
+const NAV_LINKS = [
+  { path: '/',              label: 'Início',     Icon: Home    },
+  { path: '/explore',       label: 'Explorar',   Icon: Compass },
+  { path: '/brotherhoods',  label: 'Confrarias', Icon: Users   },
+  { path: '/achievements',  label: 'Conquistas', Icon: Trophy  },
 ];
 
-function getActive(pathname: string): string {
-  if (pathname === '/') return '/';
-  if (pathname.startsWith('/region') || pathname.startsWith('/country')) return '/regions';
-  if (pathname.startsWith('/brand')) return '/brands';
-  if (pathname.startsWith('/grape')) return '/grapes';
-  if (pathname.startsWith('/profile')) return '/profile';
-  return '/';
-}
+const MOBILE_NAV = [
+  { path: '/',              label: 'Início',     Icon: Home    },
+  { path: '/explore',       label: 'Explorar',   Icon: Compass },
+  { path: '/brotherhoods',  label: 'Confrarias', Icon: Users   },
+  { path: '/profile',       label: 'Perfil',     Icon: User    },
+];
 
-/** Arch window icon — fiel ao logo oficial */
 function WineArchIcon({ size = 28, color = '#1C1B1F' }: { size?: number; color?: string }) {
   const h = Math.round((size * 76) / 54);
   return (
@@ -60,144 +49,134 @@ function WineArchIcon({ size = 28, color = '#1C1B1F' }: { size?: number; color?:
   );
 }
 
-export default function Root() {
+function useActive() {
   const { pathname } = useLocation();
+  return (path: string) => {
+    if (path === '/') return pathname === '/';
+    return pathname.startsWith(path);
+  };
+}
+
+export default function Root() {
+  const { user } = useAuth();
   const navigate = useNavigate();
-  const active = getActive(pathname);
+  const isActive = useActive();
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: BG, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+    <div className="min-h-screen bg-gradient-to-b from-purple-50 via-white to-pink-50">
 
-      {/* ════════════════════════════════════════════════════════
-          MOBILE layout (< lg)
-          ════════════════════════════════════════════════════════ */}
+      {/* ═══════════════════════════════════════════════════════
+          DESKTOP top navbar (lg+)
+          ═══════════════════════════════════════════════════════ */}
+      <header className="hidden lg:block sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm">
+        <div className="max-w-screen-xl mx-auto px-6 h-16 flex items-center justify-between gap-8">
 
-      {/* Mobile header */}
-      <header className="lg:hidden sticky top-0 z-30" style={{ backgroundColor: BG, borderBottom: `1px solid ${BORDER}` }}>
+          {/* Logo */}
+          <Link to="/" className="flex items-center gap-2.5 flex-shrink-0 no-underline">
+            <WineArchIcon size={26} color="#7c3aed" />
+            <span className="font-bold text-lg tracking-tight text-gray-900" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
+              wine gallery
+            </span>
+          </Link>
+
+          {/* Nav links */}
+          <nav className="flex items-center gap-1">
+            {NAV_LINKS.map(({ path, label, Icon }) => {
+              const active = isActive(path);
+              return (
+                <Link
+                  key={path}
+                  to={path}
+                  className={`relative flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors no-underline ${
+                    active
+                      ? 'text-purple-700 bg-purple-50'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                  }`}
+                >
+                  <Icon className="w-4 h-4" strokeWidth={active ? 2.5 : 2} />
+                  {label}
+                  {active && (
+                    <span className="absolute bottom-0 left-4 right-4 h-0.5 bg-purple-600 rounded-full" />
+                  )}
+                </Link>
+              );
+            })}
+          </nav>
+
+          {/* Right: user avatar */}
+          <div className="flex items-center gap-3 flex-shrink-0">
+            <button
+              onClick={() => navigate('/profile')}
+              className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors ${
+                isActive('/profile')
+                  ? 'bg-purple-100 text-purple-700'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              {user?.user_metadata?.avatar_url ? (
+                <img
+                  src={user.user_metadata.avatar_url}
+                  alt="avatar"
+                  className="w-9 h-9 rounded-full object-cover"
+                />
+              ) : (
+                <User className="w-5 h-5" strokeWidth={isActive('/profile') ? 2.5 : 2} />
+              )}
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* ═══════════════════════════════════════════════════════
+          MOBILE top header (< lg)
+          ═══════════════════════════════════════════════════════ */}
+      <header className="lg:hidden sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-gray-200">
         <div className="flex items-center justify-center h-14 px-5">
-          <Link to="/" className="flex items-center gap-2.5" style={{ textDecoration: 'none' }}>
-            <WineArchIcon size={26} color={TEXT1} />
-            <span style={{ fontFamily: "'Fraunces', Georgia, serif", fontWeight: 700, fontSize: '20px', lineHeight: 1, color: TEXT1, letterSpacing: '-0.01em' }}>
+          <Link to="/" className="flex items-center gap-2.5 no-underline">
+            <WineArchIcon size={24} color="#7c3aed" />
+            <span className="font-bold text-lg tracking-tight text-gray-900" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
               wine gallery
             </span>
           </Link>
         </div>
       </header>
 
-      {/* Mobile main content */}
-      <main className="lg:hidden pb-20">
-        <Outlet />
+      {/* ═══════════════════════════════════════════════════════
+          Content
+          ═══════════════════════════════════════════════════════ */}
+      <main className="lg:pb-0 pb-20">
+        {/* Desktop: full-width container */}
+        <div className="hidden lg:block">
+          <Outlet />
+        </div>
+        {/* Mobile: keep as-is */}
+        <div className="lg:hidden">
+          <Outlet />
+        </div>
       </main>
 
-      {/* Mobile bottom tab bar */}
-      <nav role="tablist" className="lg:hidden fixed bottom-0 left-0 right-0 z-30"
-        style={{ backgroundColor: CARD, borderTop: `1px solid ${BORDER}` }}>
-        <div className="flex h-16">
-          {TABS.map(({ value, label, Icon }) => {
-            const isActive = active === value;
+      {/* ═══════════════════════════════════════════════════════
+          MOBILE bottom nav (< lg)
+          ═══════════════════════════════════════════════════════ */}
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200">
+        <div className="flex justify-around items-center h-16">
+          {MOBILE_NAV.map(({ path, label, Icon }) => {
+            const active = isActive(path);
             return (
-              <button
-                key={value}
-                role="tab"
-                aria-selected={isActive}
-                onClick={() => navigate(value)}
-                className="flex flex-col items-center justify-center gap-[3px] flex-1 transition-colors"
-                style={{ border: 'none', background: 'none', cursor: 'pointer' }}
+              <Link
+                key={path}
+                to={path}
+                className={`flex flex-col items-center justify-center flex-1 h-full transition-colors no-underline ${
+                  active ? 'text-purple-600' : 'text-gray-400'
+                }`}
               >
-                <Icon size={22} strokeWidth={isActive ? 2.5 : 1.75} color={isActive ? WINE : MUTED} />
-                <span style={{ fontFamily: "'DM Sans'", fontSize: '10px', fontWeight: isActive ? 600 : 400, color: isActive ? WINE : MUTED }}>
-                  {label}
-                </span>
-              </button>
+                <Icon className="w-6 h-6 mb-0.5" strokeWidth={active ? 2.5 : 2} />
+                <span className="text-[10px] font-medium">{label}</span>
+              </Link>
             );
           })}
         </div>
       </nav>
-
-      {/* ════════════════════════════════════════════════════════
-          DESKTOP layout (lg+) — 3-column Instagram-style
-          ════════════════════════════════════════════════════════ */}
-      <div className="hidden lg:flex min-h-screen">
-
-        {/* ── Left sidebar nav ──────────────────────────────── */}
-        <aside
-          className="sticky top-0 h-screen flex-shrink-0"
-          style={{
-            width: 240,
-            backgroundColor: BG,
-            borderRight: `1px solid ${BORDER}`,
-            display: 'flex',
-            flexDirection: 'column',
-          }}
-        >
-          {/* Logo */}
-          <div style={{ padding: '24px 20px 20px', borderBottom: `1px solid ${BORDER}` }}>
-            <Link to="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 10 }}>
-              <WineArchIcon size={30} color={TEXT1} />
-              <span style={{ fontFamily: "'Fraunces', Georgia, serif", fontWeight: 700, fontSize: '21px', lineHeight: 1, color: TEXT1, letterSpacing: '-0.01em' }}>
-                wine gallery
-              </span>
-            </Link>
-          </div>
-
-          {/* Nav links */}
-          <nav style={{ flex: 1, padding: '12px 12px', display: 'flex', flexDirection: 'column', gap: 2 }}>
-            {TABS.map(({ value, label, Icon }) => {
-              const isActive = active === value;
-              return (
-                <button
-                  key={value}
-                  onClick={() => navigate(value)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 12,
-                    width: '100%',
-                    padding: '10px 12px',
-                    borderRadius: 10,
-                    border: 'none',
-                    cursor: 'pointer',
-                    backgroundColor: isActive ? 'rgba(105,0,55,0.08)' : 'transparent',
-                    transition: 'background-color 0.15s ease',
-                    textAlign: 'left',
-                  }}
-                  onMouseEnter={e => {
-                    if (!isActive) (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'rgba(0,0,0,0.05)';
-                  }}
-                  onMouseLeave={e => {
-                    if (!isActive) (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'transparent';
-                  }}
-                >
-                  <Icon size={20} strokeWidth={isActive ? 2.5 : 1.75} color={isActive ? WINE : TEXT2} />
-                  <span style={{
-                    fontFamily: "'DM Sans'",
-                    fontSize: '0.9rem',
-                    fontWeight: isActive ? 600 : 400,
-                    color: isActive ? WINE : TEXT2,
-                    letterSpacing: '-0.01em',
-                  }}>
-                    {label}
-                  </span>
-                </button>
-              );
-            })}
-          </nav>
-
-          {/* Footer hint */}
-          <div style={{ padding: '12px 20px 20px', borderTop: `1px solid ${BORDER}` }}>
-            <span style={{ fontFamily: "'DM Sans'", fontSize: '0.65rem', color: MUTED, letterSpacing: '0.04em' }}>
-              Beba com moderação
-            </span>
-          </div>
-        </aside>
-
-        {/* ── Center content column — centered in remaining space ── */}
-        <main style={{ flex: 1, minWidth: 0, display: 'flex', justifyContent: 'center' }}>
-          <div style={{ width: '100%', maxWidth: 430, minHeight: '100vh', borderLeft: `1px solid ${BORDER}`, borderRight: `1px solid ${BORDER}` }}>
-            <Outlet />
-          </div>
-        </main>
-      </div>
     </div>
   );
 }
