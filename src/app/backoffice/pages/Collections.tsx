@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../../lib/supabase';
 import { Plus, Pencil, Trash2, ChevronDown, MapPin, Building2, Grape, Wine, Star } from 'lucide-react';
-import type { WineLevel } from '../../../../lib/database.types';
 import FormModal, { Field, FieldRow, inp, ta, btn } from '../components/FormModal';
 import ImageUpload from '../components/ImageUpload';
 import {
@@ -10,77 +9,47 @@ import {
 } from '../../components/ui/alert-dialog';
 
 type Collection = {
-  id: string; title: string; description: string; level: WineLevel;
-  cover_image: string; background_image: string | null;
-  total_points: number; content_type: string;
+  id: string; title: string; tagline: string; photo: string;
+  category: string; content_type: string;
+  country_id: string | null; region_id: string | null; sub_region_id: string | null; is_mixed: boolean;
 };
 type ChipOption = { id: string; label: string; sub?: string };
 
+const CATEGORIES = ['Essencial', 'Fugir do óbvio', 'Ícones'];
 const CONTENT_TYPES = [
-  { value: 'mix', label: 'Mix (vários tipos)' },
-  { value: 'wines', label: 'Vinhos' },
-  { value: 'wineries', label: 'Vinícolas' },
-  { value: 'experiences', label: 'Experiências' },
-  { value: 'grapes', label: 'Uvas' },
+  { value: 'Vinhos', label: 'Vinhos' },
+  { value: 'Vinícolas', label: 'Vinícolas' },
+  { value: 'Experiências', label: 'Experiências' },
+  { value: 'Regiões', label: 'Regiões' },
+  { value: 'Uvas', label: 'Uvas' },
+  { value: 'Confrarias', label: 'Confrarias' },
 ];
+const ITEM_TYPES: Record<string, string> = {
+  Vinhos: 'wine', Vinícolas: 'winery', Experiências: 'experience',
+  Regiões: 'region', Uvas: 'grape', Confrarias: 'brotherhood',
+};
 
 const empty = (): Omit<Collection, 'id'> => ({
-  title: '', description: '', level: 'essential', cover_image: '',
-  background_image: null, total_points: 0, content_type: 'mix',
+  title: '', tagline: '', photo: '', category: 'Essencial',
+  content_type: 'Vinhos', country_id: null, region_id: null, sub_region_id: null, is_mixed: false,
 });
 
-const levelLabel: Record<WineLevel, string> = {
-  essential: 'Essencial',
-  escape: 'Fuja do óbvio',
-  icon: 'Ícone',
-};
-
-const levelColor: Record<WineLevel, string> = {
-  essential: 'bg-green-100 text-green-700',
-  escape: 'bg-blue-100 text-blue-700',
-  icon: 'bg-yellow-100 text-yellow-700',
-};
-
-// ─── Multi-select chip component ────────────────────────────────────────────
-function MultiChipSelect({
-  label,
-  icon,
-  options,
-  selected,
-  onToggle,
-}: {
-  label: string;
-  icon: React.ReactNode;
-  options: ChipOption[];
-  selected: string[];
-  onToggle: (id: string) => void;
+function MultiChipSelect({ label, icon, options, selected, onToggle }: {
+  label: string; icon: React.ReactNode; options: ChipOption[]; selected: string[]; onToggle: (id: string) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
-
   return (
     <div className="border border-neutral-200 rounded-lg overflow-hidden">
-      <button
-        type="button"
-        onClick={() => setExpanded(v => !v)}
-        className="w-full flex items-center justify-between px-3 py-2.5 bg-neutral-50 hover:bg-neutral-100 transition-colors"
-      >
+      <button type="button" onClick={() => setExpanded(v => !v)} className="w-full flex items-center justify-between px-3 py-2.5 bg-neutral-50 hover:bg-neutral-100 transition-colors">
         <div className="flex items-center gap-2 text-neutral-700">
           <span className="text-neutral-400">{icon}</span>
           <span className="text-sm font-medium">{label}</span>
         </div>
         <div className="flex items-center gap-2">
-          {selected.length > 0 && (
-            <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-semibold">
-              {selected.length}
-            </span>
-          )}
-          <ChevronDown
-            size={14}
-            className={`text-neutral-400 transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`}
-          />
+          {selected.length > 0 && <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-semibold">{selected.length}</span>}
+          <ChevronDown size={14} className={`text-neutral-400 transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`} />
         </div>
       </button>
-
       {expanded && (
         <div className="p-2.5 border-t border-neutral-100">
           {options.length === 0 ? (
@@ -90,20 +59,10 @@ function MultiChipSelect({
               {options.map(opt => {
                 const active = selected.includes(opt.id);
                 return (
-                  <button
-                    key={opt.id}
-                    type="button"
-                    onClick={() => onToggle(opt.id)}
-                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-all border ${
-                      active
-                        ? 'bg-red-900 text-white border-red-900 shadow-sm'
-                        : 'bg-white text-neutral-600 border-neutral-200 hover:border-red-300 hover:text-red-800'
-                    }`}
-                  >
+                  <button key={opt.id} type="button" onClick={() => onToggle(opt.id)}
+                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-all border ${active ? 'bg-red-900 text-white border-red-900' : 'bg-white text-neutral-600 border-neutral-200 hover:border-red-300 hover:text-red-800'}`}>
                     {opt.label}
-                    {opt.sub && (
-                      <span className={active ? 'opacity-60' : 'opacity-40'}>{opt.sub}</span>
-                    )}
+                    {opt.sub && <span className={active ? 'opacity-60' : 'opacity-40'}>{opt.sub}</span>}
                   </button>
                 );
               })}
@@ -115,7 +74,6 @@ function MultiChipSelect({
   );
 }
 
-// ─── Main component ──────────────────────────────────────────────────────────
 export default function Collections() {
   const [rows, setRows] = useState<Collection[]>([]);
   const [loading, setLoading] = useState(true);
@@ -126,19 +84,15 @@ export default function Collections() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
-  // Relation options
   const [regionOptions, setRegionOptions] = useState<ChipOption[]>([]);
-  const [brandOptions, setBrandOptions] = useState<ChipOption[]>([]);
+  const [wineryOptions, setWineryOptions] = useState<ChipOption[]>([]);
   const [grapeOptions, setGrapeOptions] = useState<ChipOption[]>([]);
   const [wineOptions, setWineOptions] = useState<ChipOption[]>([]);
   const [experienceOptions, setExperienceOptions] = useState<ChipOption[]>([]);
+  const [countryOptions, setCountryOptions] = useState<{ id: string; name: string }[]>([]);
+  const [allRegions, setAllRegions] = useState<{ id: string; name: string; level: string }[]>([]);
 
-  // Selected relations
-  const [selRegions, setSelRegions] = useState<string[]>([]);
-  const [selBrands, setSelBrands] = useState<string[]>([]);
-  const [selGrapes, setSelGrapes] = useState<string[]>([]);
-  const [selWines, setSelWines] = useState<string[]>([]);
-  const [selExperiences, setSelExperiences] = useState<string[]>([]);
+  const [selItems, setSelItems] = useState<string[]>([]);
 
   const load = async () => {
     const { data } = await supabase.from('collections').select('*').order('title');
@@ -146,159 +100,93 @@ export default function Collections() {
     setLoading(false);
   };
 
-  // Load all selectable options once
   useEffect(() => {
     load();
     const loadOptions = async () => {
-      const [countriesRes, regionsRes, brandsRes, grapesRes, winesRes, expRes] = await Promise.all([
-        supabase.from('countries').select('id, name').order('name'),
-        supabase.from('regions').select('id, name, country_id').order('name'),
-        supabase.from('brands').select('id, name').order('name'),
+      const [regsRes, wineriesRes, grapesRes, winesRes, expRes] = await Promise.all([
+        supabase.from('regions').select('id, name, level').order('name'),
+        supabase.from('wineries').select('id, name, category').order('name'),
         supabase.from('grapes').select('id, name, type').order('name'),
-        supabase.from('wine_items').select('id, name, level').order('name'),
+        supabase.from('wines').select('id, name, type').order('name'),
         supabase.from('experiences').select('id, name, category').order('name'),
       ]);
 
-      const countryMap = Object.fromEntries(
-        (countriesRes.data ?? []).map(c => [c.id, c.name])
-      );
-
-      setRegionOptions(
-        (regionsRes.data ?? []).map(r => ({
-          id: r.id,
-          label: r.name,
-          sub: countryMap[r.country_id] ? ` · ${countryMap[r.country_id]}` : undefined,
-        }))
-      );
-      setBrandOptions((brandsRes.data ?? []).map(b => ({ id: b.id, label: b.name })));
-      setGrapeOptions(
-        (grapesRes.data ?? []).map(g => ({
-          id: g.id,
-          label: g.name,
-          sub: g.type === 'red' ? ' · Tinta' : ' · Branca',
-        }))
-      );
-      setWineOptions(
-        (winesRes.data ?? []).map(w => ({
-          id: w.id,
-          label: w.name,
-          sub: ` · ${levelLabel[w.level]}`,
-        }))
-      );
-      setExperienceOptions(
-        (expRes.data ?? []).map(ex => ({
-          id: ex.id,
-          label: ex.name,
-          sub: ` · ${ex.category}`,
-        }))
-      );
+      const regs = regsRes.data ?? [];
+      setAllRegions(regs);
+      setCountryOptions(regs.filter(r => r.level === 'country'));
+      setRegionOptions(regs.filter(r => r.level !== 'country').map(r => ({ id: r.id, label: r.name })));
+      setWineryOptions((wineriesRes.data ?? []).map(w => ({ id: w.id, label: w.name, sub: ` · ${w.category}` })));
+      setGrapeOptions((grapesRes.data ?? []).map(g => ({ id: g.id, label: g.name, sub: ` · ${g.type}` })));
+      setWineOptions((winesRes.data ?? []).map(w => ({ id: w.id, label: w.name, sub: ` · ${w.type}` })));
+      setExperienceOptions((expRes.data ?? []).map(ex => ({ id: ex.id, label: ex.name, sub: ` · ${ex.category}` })));
     };
     loadOptions();
   }, []);
 
+  const getOptionsForContentType = () => {
+    switch (form.content_type) {
+      case 'Vinhos': return { opts: wineOptions, icon: <Wine size={14} />, label: 'Vinhos' };
+      case 'Vinícolas': return { opts: wineryOptions, icon: <Building2 size={14} />, label: 'Vinícolas' };
+      case 'Experiências': return { opts: experienceOptions, icon: <Star size={14} />, label: 'Experiências' };
+      case 'Regiões': return { opts: regionOptions, icon: <MapPin size={14} />, label: 'Regiões' };
+      case 'Uvas': return { opts: grapeOptions, icon: <Grape size={14} />, label: 'Uvas' };
+      default: return null;
+    }
+  };
+
   const openCreate = () => {
-    setEditing(null);
-    setForm(empty());
-    setSelRegions([]);
-    setSelBrands([]);
-    setSelGrapes([]);
-    setSelWines([]);
-    setSelExperiences([]);
-    setError('');
-    setSheetOpen(true);
+    setEditing(null); setForm(empty()); setSelItems([]); setError(''); setSheetOpen(true);
   };
 
   const openEdit = async (r: Collection) => {
     setEditing(r);
-    setForm({ title: r.title, description: r.description, level: r.level, cover_image: r.cover_image,
-      background_image: r.background_image, total_points: r.total_points, content_type: r.content_type });
+    setForm({ title: r.title, tagline: r.tagline, photo: r.photo, category: r.category, content_type: r.content_type, country_id: r.country_id, region_id: r.region_id, sub_region_id: r.sub_region_id, is_mixed: r.is_mixed });
     setError('');
-
-    // Load existing relations
-    const [regRes, brRes, grRes, wineRes, expRes] = await Promise.all([
-      supabase.from('region_collections').select('region_id').eq('collection_id', r.id),
-      supabase.from('brand_collections').select('brand_id').eq('collection_id', r.id),
-      supabase.from('grape_collections').select('grape_id').eq('collection_id', r.id),
-      supabase.from('collection_items').select('item_id').eq('collection_id', r.id),
-      supabase.from('collection_experiences').select('experience_id').eq('collection_id', r.id),
-    ]);
-    setSelRegions((regRes.data ?? []).map(x => x.region_id));
-    setSelBrands((brRes.data ?? []).map(x => x.brand_id));
-    setSelGrapes((grRes.data ?? []).map(x => x.grape_id));
-    setSelWines((wineRes.data ?? []).map(x => x.item_id));
-    setSelExperiences((expRes.data ?? []).map(x => x.experience_id));
-
+    const { data: items } = await supabase.from('collection_items').select('item_id').eq('collection_id', r.id);
+    setSelItems((items ?? []).map(x => x.item_id));
     setSheetOpen(true);
   };
 
-  const toggle = (setter: React.Dispatch<React.SetStateAction<string[]>>) => (id: string) => {
-    setter(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
-  };
+  const toggle = (id: string) => setSelItems(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.cover_image) { setError('Selecione uma imagem de capa para continuar.'); return; }
-    setSaving(true);
-    setError('');
+    if (!form.photo) { setError('Selecione uma imagem de capa.'); return; }
+    setSaving(true); setError('');
 
     let collectionId: string;
+    const payload = { ...form, country_id: form.country_id || null, region_id: form.region_id || null, sub_region_id: form.sub_region_id || null };
 
     if (editing) {
-      const result = await supabase.from('collections').update(form).eq('id', editing.id);
-      if (result.error) { setError(result.error.message); setSaving(false); return; }
+      const { error: err } = await supabase.from('collections').update(payload).eq('id', editing.id);
+      if (err) { setError(err.message); setSaving(false); return; }
       collectionId = editing.id;
     } else {
-      collectionId = crypto.randomUUID();
-      const result = await supabase.from('collections').insert({ id: collectionId, ...form });
-      if (result.error) { setError(result.error.message); setSaving(false); return; }
+      const { data, error: err } = await supabase.from('collections').insert(payload).select('id').single();
+      if (err || !data) { setError(err?.message ?? 'Erro ao criar coleção'); setSaving(false); return; }
+      collectionId = data.id;
     }
 
-    // Sync junction tables: delete all, then re-insert selected
-    await Promise.all([
-      supabase.from('region_collections').delete().eq('collection_id', collectionId),
-      supabase.from('brand_collections').delete().eq('collection_id', collectionId),
-      supabase.from('grape_collections').delete().eq('collection_id', collectionId),
-      supabase.from('collection_items').delete().eq('collection_id', collectionId),
-      supabase.from('collection_experiences').delete().eq('collection_id', collectionId),
-    ]);
+    // Sync collection_items
+    await supabase.from('collection_items').delete().eq('collection_id', collectionId);
+    if (selItems.length > 0) {
+      const itemType = ITEM_TYPES[form.content_type] ?? 'wine';
+      await supabase.from('collection_items').insert(
+        selItems.map((itemId, pos) => ({ collection_id: collectionId, item_id: itemId, item_type: itemType, position: pos }))
+      );
+    }
 
-    const inserts: Promise<unknown>[] = [];
-    if (selRegions.length > 0)
-      inserts.push(supabase.from('region_collections').insert(
-        selRegions.map(rid => ({ region_id: rid, collection_id: collectionId }))
-      ));
-    if (selBrands.length > 0)
-      inserts.push(supabase.from('brand_collections').insert(
-        selBrands.map(bid => ({ brand_id: bid, collection_id: collectionId }))
-      ));
-    if (selGrapes.length > 0)
-      inserts.push(supabase.from('grape_collections').insert(
-        selGrapes.map(gid => ({ grape_id: gid, collection_id: collectionId }))
-      ));
-    if (selWines.length > 0)
-      inserts.push(supabase.from('collection_items').insert(
-        selWines.map(wid => ({ collection_id: collectionId, item_id: wid }))
-      ));
-    if (selExperiences.length > 0)
-      inserts.push(supabase.from('collection_experiences').insert(
-        selExperiences.map(eid => ({ collection_id: collectionId, experience_id: eid }))
-      ));
-
-    await Promise.all(inserts);
-
-    setSheetOpen(false);
-    load();
-    setSaving(false);
+    setSheetOpen(false); load(); setSaving(false);
   };
 
   const handleDelete = async () => {
     if (!deleteId) return;
     await supabase.from('collections').delete().eq('id', deleteId);
-    setDeleteId(null);
-    load();
+    setDeleteId(null); load();
   };
 
-  const totalRelations = selRegions.length + selBrands.length + selGrapes.length + selWines.length + selExperiences.length;
+  const itemOptions = getOptionsForContentType();
+  const subRegions = allRegions.filter(r => r.level === 'sub-region');
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
@@ -322,29 +210,25 @@ export default function Collections() {
             <thead>
               <tr className="bg-neutral-50 border-b border-neutral-200 text-left">
                 <th className="px-4 py-3 text-xs font-semibold text-neutral-500 uppercase tracking-wide">Título</th>
-                <th className="px-4 py-3 text-xs font-semibold text-neutral-500 uppercase tracking-wide">Nível</th>
-                <th className="px-4 py-3 text-xs font-semibold text-neutral-500 uppercase tracking-wide hidden md:table-cell">Pontos</th>
+                <th className="px-4 py-3 text-xs font-semibold text-neutral-500 uppercase tracking-wide hidden sm:table-cell">Tipo</th>
+                <th className="px-4 py-3 text-xs font-semibold text-neutral-500 uppercase tracking-wide hidden md:table-cell">Categoria</th>
                 <th className="px-4 py-3 w-20"></th>
               </tr>
             </thead>
             <tbody>
               {rows.map((r, i) => (
-                <tr key={r.id} className={`border-b border-neutral-100 last:border-0 ${i % 2 === 0 ? '' : 'bg-neutral-50/50'}`}>
+                <tr key={r.id} className={`border-b border-neutral-100 last:border-0 ${i % 2 ? 'bg-neutral-50/50' : ''}`}>
                   <td className="px-4 py-3 font-medium text-neutral-900">{r.title}</td>
-                  <td className="px-4 py-3">
-                    <span className={`inline-block text-xs font-medium px-2 py-0.5 rounded-full ${levelColor[r.level]}`}>
-                      {levelLabel[r.level]}
-                    </span>
+                  <td className="px-4 py-3 hidden sm:table-cell">
+                    <span className="bg-blue-100 text-blue-700 text-xs font-medium px-2 py-0.5 rounded-full">{r.content_type}</span>
                   </td>
-                  <td className="px-4 py-3 text-neutral-500 hidden md:table-cell">{r.total_points} pts</td>
+                  <td className="px-4 py-3 hidden md:table-cell">
+                    <span className="bg-amber-100 text-amber-700 text-xs font-medium px-2 py-0.5 rounded-full">{r.category}</span>
+                  </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-1">
-                      <button onClick={() => openEdit(r)} className="p-1.5 text-neutral-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors">
-                        <Pencil size={14} />
-                      </button>
-                      <button onClick={() => setDeleteId(r.id)} className="p-1.5 text-neutral-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors">
-                        <Trash2 size={14} />
-                      </button>
+                      <button onClick={() => openEdit(r)} className="p-1.5 text-neutral-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"><Pencil size={14} /></button>
+                      <button onClick={() => setDeleteId(r.id)} className="p-1.5 text-neutral-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"><Trash2 size={14} /></button>
                     </div>
                   </td>
                 </tr>
@@ -360,51 +244,58 @@ export default function Collections() {
           <Field label="Título *">
             <input required value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="Grandes Clássicos de Bordeaux" className={inp} />
           </Field>
+          <Field label="Tagline">
+            <input value={form.tagline} onChange={e => setForm(f => ({ ...f, tagline: e.target.value }))} placeholder="Subtítulo curto da coleção" className={inp} />
+          </Field>
           <FieldRow>
-            <Field label="Nível *">
-              <select required value={form.level} onChange={e => setForm(f => ({ ...f, level: e.target.value as WineLevel }))} className={inp}>
-                <option value="essential">Essencial</option>
-                <option value="escape">Fuja do óbvio</option>
-                <option value="icon">Ícone</option>
+            <Field label="Categoria *">
+              <select required value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} className={inp}>
+                {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
             </Field>
-            <Field label="Total de pontos">
-              <input type="number" min={0} value={form.total_points} onChange={e => setForm(f => ({ ...f, total_points: Number(e.target.value) }))} className={inp} />
-            </Field>
-          </FieldRow>
-          <FieldRow>
             <Field label="Tipo de conteúdo *">
               <select required value={form.content_type} onChange={e => setForm(f => ({ ...f, content_type: e.target.value }))} className={inp}>
                 {CONTENT_TYPES.map(ct => <option key={ct.value} value={ct.value}>{ct.label}</option>)}
               </select>
             </Field>
           </FieldRow>
+          <FieldRow>
+            <Field label="País (opcional)">
+              <select value={form.country_id ?? ''} onChange={e => setForm(f => ({ ...f, country_id: e.target.value || null }))} className={inp}>
+                <option value="">Todos</option>
+                {countryOptions.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </Field>
+            <Field label="Região (opcional)">
+              <select value={form.region_id ?? ''} onChange={e => setForm(f => ({ ...f, region_id: e.target.value || null }))} className={inp}>
+                <option value="">Todas</option>
+                {regionOptions.map(r => <option key={r.id} value={r.id}>{r.label}</option>)}
+              </select>
+            </Field>
+          </FieldRow>
+          {subRegions.length > 0 && (
+            <Field label="Sub-região (opcional)">
+              <select value={form.sub_region_id ?? ''} onChange={e => setForm(f => ({ ...f, sub_region_id: e.target.value || null }))} className={inp}>
+                <option value="">Nenhuma</option>
+                {subRegions.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+              </select>
+            </Field>
+          )}
           <Field label="Imagem de capa *">
-            <ImageUpload value={form.cover_image} onChange={url => setForm(f => ({ ...f, cover_image: url }))} />
+            <ImageUpload value={form.photo} onChange={url => setForm(f => ({ ...f, photo: url }))} />
           </Field>
-          <Field label="Imagem de background (opcional)">
-            <ImageUpload value={form.background_image ?? ''} onChange={url => setForm(f => ({ ...f, background_image: url || null }))} />
-          </Field>
-          <Field label="Descrição *">
-            <textarea required value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={3} placeholder="Descrição da coleção..." className={ta} />
+          <Field label="Descrição longa (opcional)">
+            <textarea value={form.tagline} onChange={e => setForm(f => ({ ...f, tagline: e.target.value }))} rows={3} placeholder="Descrição da coleção..." className={ta} />
           </Field>
 
-          {/* ── Relations ─────────────────────────────────── */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="block text-sm font-medium text-neutral-700">Relações</label>
-              {totalRelations > 0 && (
-                <span className="text-xs text-neutral-400">{totalRelations} selecionada{totalRelations !== 1 ? 's' : ''}</span>
-              )}
+          {itemOptions && (
+            <div>
+              <label className="block text-sm font-medium text-neutral-700 mb-2">
+                Itens da coleção <span className="text-neutral-400 font-normal">({selItems.length} selecionados)</span>
+              </label>
+              <MultiChipSelect label={itemOptions.label} icon={itemOptions.icon} options={itemOptions.opts} selected={selItems} onToggle={toggle} />
             </div>
-            <div className="space-y-2">
-              <MultiChipSelect label="Regiões" icon={<MapPin size={14} />} options={regionOptions} selected={selRegions} onToggle={toggle(setSelRegions)} />
-              <MultiChipSelect label="Vinícolas" icon={<Building2 size={14} />} options={brandOptions} selected={selBrands} onToggle={toggle(setSelBrands)} />
-              <MultiChipSelect label="Uvas" icon={<Grape size={14} />} options={grapeOptions} selected={selGrapes} onToggle={toggle(setSelGrapes)} />
-              <MultiChipSelect label="Vinhos" icon={<Wine size={14} />} options={wineOptions} selected={selWines} onToggle={toggle(setSelWines)} />
-              <MultiChipSelect label="Experiências" icon={<Star size={14} />} options={experienceOptions} selected={selExperiences} onToggle={toggle(setSelExperiences)} />
-            </div>
-          </div>
+          )}
 
           <button type="submit" disabled={saving} className={btn}>
             {saving ? 'Salvando...' : editing ? 'Salvar alterações' : 'Criar Coleção'}
@@ -416,7 +307,7 @@ export default function Collections() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir coleção?</AlertDialogTitle>
-            <AlertDialogDescription>Esta ação não pode ser desfeita. As relações com regiões, vinícolas, uvas e vinhos também serão removidas.</AlertDialogDescription>
+            <AlertDialogDescription>Esta ação não pode ser desfeita.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
@@ -427,4 +318,3 @@ export default function Collections() {
     </div>
   );
 }
-

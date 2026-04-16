@@ -8,55 +8,67 @@ import {
   AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '../../components/ui/alert-dialog';
 
-type Brand = { id: string; name: string; description: string; image_url: string; country: string; region: string | null };
-type CollectionCounts = Record<string, number>;
-const empty = (): Omit<Brand, 'id'> => ({ name: '', description: '', image_url: '', country: '', region: null });
+type Winery = {
+  id: string; name: string; photo: string; region_id: string;
+  sub_region_id: string | null; category: string; highlight: string; buy_link: string | null;
+};
+type Region = { id: string; name: string; level: string };
+
+const CATEGORIES = ['Essencial', 'Fugir do óbvio', 'Ícones'];
+const empty = (): Omit<Winery, 'id'> => ({ name: '', photo: '', region_id: '', sub_region_id: null, category: 'Essencial', highlight: '', buy_link: null });
 
 export default function Brands() {
-  const [rows, setRows] = useState<Brand[]>([]);
-  const [colCounts, setColCounts] = useState<CollectionCounts>({});
+  const [rows, setRows] = useState<Winery[]>([]);
+  const [regions, setRegions] = useState<Region[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [editing, setEditing] = useState<Brand | null>(null);
+  const [editing, setEditing] = useState<Winery | null>(null);
   const [form, setForm] = useState(empty());
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
   const load = async () => {
-    const [{ data }, { data: bc }] = await Promise.all([
-      supabase.from('brands').select('*').order('name'),
-      supabase.from('brand_collections').select('brand_id'),
+    const [{ data: w }, { data: r }] = await Promise.all([
+      supabase.from('wineries').select('*').order('name'),
+      supabase.from('regions').select('id, name, level').in('level', ['country', 'region', 'sub-region']).order('name'),
     ]);
-    setRows(data ?? []);
-    const cnt: CollectionCounts = {};
-    for (const { brand_id } of bc ?? []) cnt[brand_id] = (cnt[brand_id] ?? 0) + 1;
-    setColCounts(cnt);
+    setRows(w ?? []);
+    setRegions(r ?? []);
     setLoading(false);
   };
   useEffect(() => { load(); }, []);
 
   const openCreate = () => { setEditing(null); setForm(empty()); setError(''); setModalOpen(true); };
-  const openEdit = (r: Brand) => {
-    setEditing(r); setForm({ name: r.name, description: r.description, image_url: r.image_url, country: r.country, region: r.region }); setError(''); setModalOpen(true);
+  const openEdit = (r: Winery) => {
+    setEditing(r);
+    setForm({ name: r.name, photo: r.photo, region_id: r.region_id, sub_region_id: r.sub_region_id, category: r.category, highlight: r.highlight, buy_link: r.buy_link });
+    setError(''); setModalOpen(true);
   };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.image_url) { setError('Selecione uma imagem para continuar.'); return; }
+    if (!form.photo) { setError('Selecione uma imagem para continuar.'); return; }
+    if (!form.region_id) { setError('Selecione uma região.'); return; }
     setSaving(true); setError('');
+    const payload = { ...form, sub_region_id: form.sub_region_id || null, buy_link: form.buy_link || null };
     const result = editing
-      ? await supabase.from('brands').update(form).eq('id', editing.id)
-      : await supabase.from('brands').insert({ id: crypto.randomUUID(), ...form });
+      ? await supabase.from('wineries').update(payload).eq('id', editing.id)
+      : await supabase.from('wineries').insert(payload);
     if (result.error) { setError(result.error.message); } else { setModalOpen(false); load(); }
     setSaving(false);
   };
 
   const handleDelete = async () => {
     if (!deleteId) return;
-    await supabase.from('brands').delete().eq('id', deleteId);
+    await supabase.from('wineries').delete().eq('id', deleteId);
     setDeleteId(null); load();
   };
+
+  const regionName = (id: string) => regions.find(r => r.id === id)?.name ?? id;
+
+  const countryRegions = regions.filter(r => r.level === 'country' || r.level === 'region');
+  const subRegions = regions.filter(r => r.level === 'sub-region');
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
@@ -73,16 +85,15 @@ export default function Brands() {
       {loading ? (
         <p className="text-center py-16 text-neutral-400 text-sm">Carregando...</p>
       ) : rows.length === 0 ? (
-        <p className="text-center py-16 text-neutral-400 text-sm">Nenhuma marca cadastrada.</p>
+        <p className="text-center py-16 text-neutral-400 text-sm">Nenhuma vinícola cadastrada.</p>
       ) : (
         <div className="bg-white rounded-xl border border-neutral-200 overflow-hidden">
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-neutral-50 border-b border-neutral-200 text-left">
                 <th className="px-4 py-3 text-xs font-semibold text-neutral-500 uppercase tracking-wide">Nome</th>
-                <th className="px-4 py-3 text-xs font-semibold text-neutral-500 uppercase tracking-wide hidden md:table-cell">País</th>
-                <th className="px-4 py-3 text-xs font-semibold text-neutral-500 uppercase tracking-wide hidden lg:table-cell">Região</th>
-                <th className="px-4 py-3 text-xs font-semibold text-neutral-500 uppercase tracking-wide hidden sm:table-cell">Coleções</th>
+                <th className="px-4 py-3 text-xs font-semibold text-neutral-500 uppercase tracking-wide hidden md:table-cell">Região</th>
+                <th className="px-4 py-3 text-xs font-semibold text-neutral-500 uppercase tracking-wide hidden sm:table-cell">Categoria</th>
                 <th className="px-4 py-3 w-20"></th>
               </tr>
             </thead>
@@ -90,16 +101,9 @@ export default function Brands() {
               {rows.map((r, i) => (
                 <tr key={r.id} className={`border-b border-neutral-100 last:border-0 ${i % 2 ? 'bg-neutral-50/50' : ''}`}>
                   <td className="px-4 py-3 font-medium text-neutral-900">{r.name}</td>
-                  <td className="px-4 py-3 text-neutral-500 hidden md:table-cell">{r.country}</td>
-                  <td className="px-4 py-3 text-neutral-500 hidden lg:table-cell">{r.region ?? '—'}</td>
+                  <td className="px-4 py-3 text-neutral-500 hidden md:table-cell">{regionName(r.region_id)}</td>
                   <td className="px-4 py-3 hidden sm:table-cell">
-                    {colCounts[r.id] ? (
-                      <span className="inline-block text-xs font-semibold px-2 py-0.5 rounded-full bg-red-50 text-red-700">
-                        {colCounts[r.id]}
-                      </span>
-                    ) : (
-                      <span className="text-neutral-300 text-xs">—</span>
-                    )}
+                    <span className="bg-amber-100 text-amber-700 text-xs font-medium px-2 py-0.5 rounded-full">{r.category}</span>
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-1">
@@ -121,18 +125,34 @@ export default function Brands() {
             <Field label="Nome *">
               <input required value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Château Margaux" className={inp} />
             </Field>
-            <Field label="País *">
-              <input required value={form.country} onChange={e => setForm(f => ({ ...f, country: e.target.value }))} placeholder="França" className={inp} />
+            <Field label="Categoria *">
+              <select required value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} className={inp}>
+                {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
             </Field>
           </FieldRow>
-          <Field label="Região (opcional)">
-            <input value={form.region ?? ''} onChange={e => setForm(f => ({ ...f, region: e.target.value || null }))} placeholder="Bordeaux" className={inp} />
-          </Field>
+          <FieldRow>
+            <Field label="Região *">
+              <select required value={form.region_id} onChange={e => setForm(f => ({ ...f, region_id: e.target.value }))} className={inp}>
+                <option value="">Selecione...</option>
+                {countryRegions.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+              </select>
+            </Field>
+            <Field label="Sub-região (opcional)">
+              <select value={form.sub_region_id ?? ''} onChange={e => setForm(f => ({ ...f, sub_region_id: e.target.value || null }))} className={inp}>
+                <option value="">Nenhuma</option>
+                {subRegions.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+              </select>
+            </Field>
+          </FieldRow>
           <Field label="Imagem *">
-            <ImageUpload value={form.image_url} onChange={url => setForm(f => ({ ...f, image_url: url }))} />
+            <ImageUpload value={form.photo} onChange={url => setForm(f => ({ ...f, photo: url }))} />
           </Field>
-          <Field label="Descrição *">
-            <textarea required value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={3} placeholder="Descrição da marca..." className={ta} />
+          <Field label="Destaque *">
+            <textarea required value={form.highlight} onChange={e => setForm(f => ({ ...f, highlight: e.target.value }))} rows={2} placeholder="Por que conhecer esta vinícola..." className={ta} />
+          </Field>
+          <Field label="Link de compra (opcional)">
+            <input type="url" value={form.buy_link ?? ''} onChange={e => setForm(f => ({ ...f, buy_link: e.target.value || null }))} placeholder="https://..." className={inp} />
           </Field>
           <button type="submit" disabled={saving} className={btn}>
             {saving ? 'Salvando...' : editing ? 'Salvar alterações' : 'Criar Vinícola'}
@@ -143,7 +163,7 @@ export default function Brands() {
       <AlertDialog open={!!deleteId} onOpenChange={open => !open && setDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Excluir marca?</AlertDialogTitle>
+            <AlertDialogTitle>Excluir vinícola?</AlertDialogTitle>
             <AlertDialogDescription>Esta ação não pode ser desfeita.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

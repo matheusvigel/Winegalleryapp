@@ -8,8 +8,8 @@ import {
   AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '../../components/ui/alert-dialog';
 
-type Country = { id: string; name: string; image_url: string; description: string };
-const empty = (): Omit<Country, 'id'> => ({ name: '', image_url: '', description: '' });
+type Country = { id: string; name: string; photo: string; description: string | null };
+const empty = (): Omit<Country, 'id'> => ({ name: '', photo: '', description: '' });
 
 export default function Countries() {
   const [rows, setRows] = useState<Country[]>([]);
@@ -22,29 +22,30 @@ export default function Countries() {
   const [error, setError] = useState('');
 
   const load = async () => {
-    const { data } = await supabase.from('countries').select('*').order('name');
+    const { data } = await supabase.from('regions').select('id, name, photo, description').eq('level', 'country').order('name');
     setRows(data ?? []);
     setLoading(false);
   };
   useEffect(() => { load(); }, []);
 
   const openCreate = () => { setEditing(null); setForm(empty()); setError(''); setModalOpen(true); };
-  const openEdit = (r: Country) => { setEditing(r); setForm({ name: r.name, image_url: r.image_url, description: r.description }); setError(''); setModalOpen(true); };
+  const openEdit = (r: Country) => { setEditing(r); setForm({ name: r.name, photo: r.photo, description: r.description }); setError(''); setModalOpen(true); };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.image_url) { setError('Selecione uma imagem para continuar.'); return; }
+    if (!form.photo) { setError('Selecione uma imagem para continuar.'); return; }
     setSaving(true); setError('');
+    const payload = { name: form.name, photo: form.photo, description: form.description, level: 'country' };
     const result = editing
-      ? await supabase.from('countries').update(form).eq('id', editing.id)
-      : await supabase.from('countries').insert({ id: crypto.randomUUID(), ...form });
+      ? await supabase.from('regions').update(payload).eq('id', editing.id)
+      : await supabase.from('regions').insert(payload);
     if (result.error) { setError(result.error.message); } else { setModalOpen(false); load(); }
     setSaving(false);
   };
 
   const handleDelete = async () => {
     if (!deleteId) return;
-    await supabase.from('countries').delete().eq('id', deleteId);
+    await supabase.from('regions').delete().eq('id', deleteId);
     setDeleteId(null); load();
   };
 
@@ -78,7 +79,7 @@ export default function Countries() {
               {rows.map((r, i) => (
                 <tr key={r.id} className={`border-b border-neutral-100 last:border-0 ${i % 2 ? 'bg-neutral-50/50' : ''}`}>
                   <td className="px-4 py-3 font-medium text-neutral-900">{r.name}</td>
-                  <td className="px-4 py-3 text-neutral-500 hidden md:table-cell max-w-xs truncate">{r.description}</td>
+                  <td className="px-4 py-3 text-neutral-500 hidden md:table-cell max-w-xs truncate">{r.description ?? '—'}</td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-1">
                       <button onClick={() => openEdit(r)} className="p-1.5 text-neutral-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"><Pencil size={14} /></button>
@@ -99,10 +100,10 @@ export default function Countries() {
             <input required value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="França" className={inp} />
           </Field>
           <Field label="Imagem de capa *">
-            <ImageUpload value={form.image_url} onChange={url => setForm(f => ({ ...f, image_url: url }))} />
+            <ImageUpload value={form.photo} onChange={url => setForm(f => ({ ...f, photo: url }))} />
           </Field>
-          <Field label="Descrição *">
-            <textarea required value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={3} placeholder="Descrição do país..." className={ta} />
+          <Field label="Descrição">
+            <textarea value={form.description ?? ''} onChange={e => setForm(f => ({ ...f, description: e.target.value || null }))} rows={3} placeholder="Descrição do país..." className={ta} />
           </Field>
           <button type="submit" disabled={saving} className={btn}>
             {saving ? 'Salvando...' : editing ? 'Salvar alterações' : 'Criar País'}
@@ -114,7 +115,7 @@ export default function Countries() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir país?</AlertDialogTitle>
-            <AlertDialogDescription>Esta ação não pode ser desfeita. Regiões vinculadas também serão afetadas.</AlertDialogDescription>
+            <AlertDialogDescription>Esta ação não pode ser desfeita. Regiões vinculadas perderão o vínculo.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>

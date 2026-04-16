@@ -7,7 +7,7 @@ import {
   AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '../../components/ui/alert-dialog';
 
-type HighlightType = 'collection' | 'country' | 'region' | 'brand';
+type HighlightType = 'collection' | 'region' | 'winery' | 'wine';
 type Highlight = {
   id: string; type: HighlightType; entity_id: string; label: string | null;
   position: number; active: boolean;
@@ -15,11 +15,11 @@ type Highlight = {
 type EntityOption = { id: string; name: string; hasImage: boolean };
 
 const TYPE_LABELS: Record<HighlightType, string> = {
-  collection: 'Coleção', country: 'País', region: 'Região', brand: 'Vinícola',
+  collection: 'Coleção', region: 'Região', winery: 'Vinícola', wine: 'Vinho',
 };
 
 const empty = (): Omit<Highlight, 'id'> => ({
-  type: 'collection', entity_id: '', label: '', position: 0, active: true,
+  type: 'collection' as HighlightType, entity_id: '', label: '', position: 0, active: true,
 });
 
 export default function Highlights() {
@@ -43,13 +43,14 @@ export default function Highlights() {
 
   const loadEntityOptions = async (type: HighlightType) => {
     const tableMap: Record<HighlightType, string> = {
-      collection: 'collections', country: 'countries', region: 'regions', brand: 'brands',
+      collection: 'collections', region: 'regions', winery: 'wineries', wine: 'wines',
     };
     const nameCol = type === 'collection' ? 'title' : 'name';
-    const imageCol = type === 'collection' ? 'cover_image' : 'image_url';
-    const { data } = await supabase.from(tableMap[type] as never).select(`id, ${nameCol}, ${imageCol}`).order(nameCol);
+    let query = supabase.from(tableMap[type] as never).select(`id, ${nameCol}, photo`).order(nameCol);
+    if (type === 'region') query = (query as ReturnType<typeof supabase.from>).neq('level', 'sub-region') as typeof query;
+    const { data } = await query;
     setEntityOptions((data ?? []).map((d: Record<string, string>) => ({
-      id: d.id, name: d[nameCol], hasImage: !!(d[imageCol]),
+      id: d.id, name: d[nameCol], hasImage: !!(d['photo']),
     })));
   };
 
@@ -174,9 +175,9 @@ export default function Highlights() {
             <Field label="Tipo *">
               <select required value={form.type} onChange={e => handleTypeChange(e.target.value as HighlightType)} className={inp}>
                 <option value="collection">Coleção</option>
-                <option value="country">País</option>
                 <option value="region">Região</option>
-                <option value="brand">Vinícola</option>
+                <option value="winery">Vinícola</option>
+                <option value="wine">Vinho</option>
               </select>
             </Field>
             <Field label="Posição">

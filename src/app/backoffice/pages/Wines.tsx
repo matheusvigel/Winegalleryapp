@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../../lib/supabase';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
-import type { WineLevel, ItemType } from '../../../../lib/database.types';
 import FormModal, { Field, FieldRow, inp, ta, btn } from '../components/FormModal';
 import ImageUpload from '../components/ImageUpload';
 import {
@@ -9,86 +8,102 @@ import {
   AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '../../components/ui/alert-dialog';
 
-type Brand = { id: string; name: string };
-type WineItem = { id: string; name: string; description: string; type: ItemType; image_url: string; points: number; level: WineLevel; brand_id: string | null; wine_type: string | null; elaboration_method: string | null };
+type Wine = {
+  id: string; name: string; photo: string; winery_id: string | null;
+  category: string; type: string; method: string | null;
+  highlight: string; pairing: string | null; tasting_note: string | null;
+  average_price: number | null; buy_link: string | null;
+};
+type Winery = { id: string; name: string };
 
-const empty = (): Omit<WineItem, 'id'> => ({ name: '', description: '', type: 'wine', image_url: '', points: 10, level: 'essential', brand_id: null, wine_type: null, elaboration_method: null });
+const CATEGORIES = ['Essencial', 'Fugir do óbvio', 'Ícones'];
+const TYPES = ['Tinto', 'Branco', 'Rosé', 'Espumante', 'Fortificado', 'Laranja', 'Sobremesa'];
 
-const levelLabel: Record<WineLevel, string> = { essential: 'Essencial', escape: 'Fuja do óbvio', icon: 'Ícone' };
-const levelColor: Record<WineLevel, string> = { essential: 'bg-green-100 text-green-700', escape: 'bg-blue-100 text-blue-700', icon: 'bg-yellow-100 text-yellow-700' };
+const empty = (): Omit<Wine, 'id'> => ({
+  name: '', photo: '', winery_id: null, category: 'Essencial', type: 'Tinto',
+  method: null, highlight: '', pairing: null, tasting_note: null, average_price: null, buy_link: null,
+});
 
 export default function Wines() {
-  const [rows, setRows] = useState<WineItem[]>([]);
-  const [brands, setBrands] = useState<Brand[]>([]);
+  const [rows, setRows] = useState<Wine[]>([]);
+  const [wineries, setWineries] = useState<Winery[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [editing, setEditing] = useState<WineItem | null>(null);
+  const [editing, setEditing] = useState<Wine | null>(null);
   const [form, setForm] = useState(empty());
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
   const load = async () => {
-    const [{ data: wines }, { data: brs }] = await Promise.all([
-      supabase.from('wine_items').select('*').order('name'),
-      supabase.from('brands').select('id, name').order('name'),
+    const [{ data: wines }, { data: w }] = await Promise.all([
+      supabase.from('wines').select('*').order('name'),
+      supabase.from('wineries').select('id, name').order('name'),
     ]);
-    setRows(wines ?? []); setBrands(brs ?? []); setLoading(false);
+    setRows(wines ?? []); setWineries(w ?? []); setLoading(false);
   };
   useEffect(() => { load(); }, []);
 
   const openCreate = () => { setEditing(null); setForm(empty()); setError(''); setModalOpen(true); };
-  const openEdit = (r: WineItem) => {
+  const openEdit = (r: Wine) => {
     setEditing(r);
-    setForm({ name: r.name, description: r.description, type: r.type, image_url: r.image_url, points: r.points, level: r.level, brand_id: r.brand_id, wine_type: r.wine_type, elaboration_method: r.elaboration_method });
+    setForm({ name: r.name, photo: r.photo, winery_id: r.winery_id, category: r.category, type: r.type, method: r.method, highlight: r.highlight, pairing: r.pairing, tasting_note: r.tasting_note, average_price: r.average_price, buy_link: r.buy_link });
     setError(''); setModalOpen(true);
   };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.image_url) { setError('Selecione uma imagem para continuar.'); return; }
+    if (!form.photo) { setError('Selecione uma imagem para continuar.'); return; }
     setSaving(true); setError('');
+    const payload = {
+      ...form,
+      winery_id: form.winery_id || null,
+      method: form.method || null,
+      pairing: form.pairing || null,
+      tasting_note: form.tasting_note || null,
+      average_price: form.average_price || null,
+      buy_link: form.buy_link || null,
+    };
     const result = editing
-      ? await supabase.from('wine_items').update(form).eq('id', editing.id)
-      : await supabase.from('wine_items').insert({ id: crypto.randomUUID(), ...form });
+      ? await supabase.from('wines').update(payload).eq('id', editing.id)
+      : await supabase.from('wines').insert(payload);
     if (result.error) { setError(result.error.message); } else { setModalOpen(false); load(); }
     setSaving(false);
   };
 
   const handleDelete = async () => {
     if (!deleteId) return;
-    await supabase.from('wine_items').delete().eq('id', deleteId);
+    await supabase.from('wines').delete().eq('id', deleteId);
     setDeleteId(null); load();
   };
 
-  const brandName = (id: string | null) => id ? (brands.find(b => b.id === id)?.name ?? id) : '—';
+  const wineryName = (id: string | null) => id ? (wineries.find(w => w.id === id)?.name ?? id) : '—';
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-neutral-900">Vinhos & Vinícolas</h1>
+          <h1 className="text-2xl font-bold text-neutral-900">Vinhos</h1>
           <p className="text-sm text-neutral-500 mt-1">{rows.length} registros</p>
         </div>
         <button onClick={openCreate} className="flex items-center gap-2 bg-red-900 text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-red-800 transition-colors">
-          <Plus size={16} /> Novo Item
+          <Plus size={16} /> Novo Vinho
         </button>
       </div>
 
       {loading ? (
         <p className="text-center py-16 text-neutral-400 text-sm">Carregando...</p>
       ) : rows.length === 0 ? (
-        <p className="text-center py-16 text-neutral-400 text-sm">Nenhum item cadastrado.</p>
+        <p className="text-center py-16 text-neutral-400 text-sm">Nenhum vinho cadastrado.</p>
       ) : (
         <div className="bg-white rounded-xl border border-neutral-200 overflow-hidden">
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-neutral-50 border-b border-neutral-200 text-left">
                 <th className="px-4 py-3 text-xs font-semibold text-neutral-500 uppercase tracking-wide">Nome</th>
-                <th className="px-4 py-3 text-xs font-semibold text-neutral-500 uppercase tracking-wide">Nível</th>
-                <th className="px-4 py-3 text-xs font-semibold text-neutral-500 uppercase tracking-wide hidden md:table-cell">Tipo</th>
-                <th className="px-4 py-3 text-xs font-semibold text-neutral-500 uppercase tracking-wide hidden lg:table-cell">Marca</th>
-                <th className="px-4 py-3 text-xs font-semibold text-neutral-500 uppercase tracking-wide hidden md:table-cell">Pts</th>
+                <th className="px-4 py-3 text-xs font-semibold text-neutral-500 uppercase tracking-wide hidden sm:table-cell">Tipo</th>
+                <th className="px-4 py-3 text-xs font-semibold text-neutral-500 uppercase tracking-wide hidden md:table-cell">Categoria</th>
+                <th className="px-4 py-3 text-xs font-semibold text-neutral-500 uppercase tracking-wide hidden lg:table-cell">Vinícola</th>
                 <th className="px-4 py-3 w-20"></th>
               </tr>
             </thead>
@@ -96,12 +111,13 @@ export default function Wines() {
               {rows.map((r, i) => (
                 <tr key={r.id} className={`border-b border-neutral-100 last:border-0 ${i % 2 ? 'bg-neutral-50/50' : ''}`}>
                   <td className="px-4 py-3 font-medium text-neutral-900">{r.name}</td>
-                  <td className="px-4 py-3">
-                    <span className={`inline-block text-xs font-medium px-2 py-0.5 rounded-full ${levelColor[r.level]}`}>{levelLabel[r.level]}</span>
+                  <td className="px-4 py-3 hidden sm:table-cell">
+                    <span className="bg-purple-100 text-purple-700 text-xs font-medium px-2 py-0.5 rounded-full">{r.type}</span>
                   </td>
-                  <td className="px-4 py-3 text-neutral-500 hidden md:table-cell">{r.type === 'wine' ? 'Vinho' : 'Vinícola'}</td>
-                  <td className="px-4 py-3 text-neutral-500 hidden lg:table-cell">{brandName(r.brand_id)}</td>
-                  <td className="px-4 py-3 text-neutral-500 hidden md:table-cell">{r.points}</td>
+                  <td className="px-4 py-3 hidden md:table-cell">
+                    <span className="bg-amber-100 text-amber-700 text-xs font-medium px-2 py-0.5 rounded-full">{r.category}</span>
+                  </td>
+                  <td className="px-4 py-3 text-neutral-500 hidden lg:table-cell">{wineryName(r.winery_id)}</td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-1">
                       <button onClick={() => openEdit(r)} className="p-1.5 text-neutral-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"><Pencil size={14} /></button>
@@ -115,7 +131,7 @@ export default function Wines() {
         </div>
       )}
 
-      <FormModal open={modalOpen} onClose={() => setModalOpen(false)} title={editing ? 'Editar Item' : 'Novo Item'}>
+      <FormModal open={modalOpen} onClose={() => setModalOpen(false)} title={editing ? 'Editar Vinho' : 'Novo Vinho'}>
         <form onSubmit={handleSave} className="space-y-5">
           {error && <p className="text-sm text-red-600 bg-red-50 border border-red-200 px-3 py-2 rounded-lg">{error}</p>}
           <Field label="Nome *">
@@ -123,46 +139,47 @@ export default function Wines() {
           </Field>
           <FieldRow>
             <Field label="Tipo *">
-              <select required value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value as ItemType }))} className={inp}>
-                <option value="wine">Vinho</option>
-                <option value="winery">Vinícola</option>
+              <select required value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))} className={inp}>
+                {TYPES.map(t => <option key={t} value={t}>{t}</option>)}
               </select>
             </Field>
-            <Field label="Nível *">
-              <select required value={form.level} onChange={e => setForm(f => ({ ...f, level: e.target.value as WineLevel }))} className={inp}>
-                <option value="essential">Essencial</option>
-                <option value="escape">Fuja do óbvio</option>
-                <option value="icon">Ícone</option>
+            <Field label="Categoria *">
+              <select required value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} className={inp}>
+                {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
             </Field>
           </FieldRow>
           <FieldRow>
-            <Field label="Pontos">
-              <input type="number" min={0} value={form.points} onChange={e => setForm(f => ({ ...f, points: Number(e.target.value) }))} className={inp} />
-            </Field>
-            <Field label="Marca (opcional)">
-              <select value={form.brand_id ?? ''} onChange={e => setForm(f => ({ ...f, brand_id: e.target.value || null }))} className={inp}>
-                <option value="">Sem marca</option>
-                {brands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+            <Field label="Vinícola (opcional)">
+              <select value={form.winery_id ?? ''} onChange={e => setForm(f => ({ ...f, winery_id: e.target.value || null }))} className={inp}>
+                <option value="">Sem vinícola</option>
+                {wineries.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
               </select>
             </Field>
-          </FieldRow>
-          <FieldRow>
-            <Field label="Tipo de vinho (opcional)">
-              <input value={form.wine_type ?? ''} onChange={e => setForm(f => ({ ...f, wine_type: e.target.value || null }))} placeholder="Tinto seco, Espumante..." className={inp} />
-            </Field>
-            <Field label="Método de elaboração (opcional)">
-              <input value={form.elaboration_method ?? ''} onChange={e => setForm(f => ({ ...f, elaboration_method: e.target.value || null }))} placeholder="Champenoise, Charmat..." className={inp} />
+            <Field label="Preço médio (R$)">
+              <input type="number" min={0} step="0.01" value={form.average_price ?? ''} onChange={e => setForm(f => ({ ...f, average_price: e.target.value ? Number(e.target.value) : null }))} placeholder="250.00" className={inp} />
             </Field>
           </FieldRow>
-          <Field label="Imagem *">
-            <ImageUpload value={form.image_url} onChange={url => setForm(f => ({ ...f, image_url: url }))} />
+          <Field label="Método de elaboração (opcional)">
+            <input value={form.method ?? ''} onChange={e => setForm(f => ({ ...f, method: e.target.value || null }))} placeholder="Champenoise, Charmat..." className={inp} />
           </Field>
-          <Field label="Descrição *">
-            <textarea required value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={3} placeholder="Descrição do vinho ou vinícola..." className={ta} />
+          <Field label="Imagem *">
+            <ImageUpload value={form.photo} onChange={url => setForm(f => ({ ...f, photo: url }))} />
+          </Field>
+          <Field label="Destaque *">
+            <textarea required value={form.highlight} onChange={e => setForm(f => ({ ...f, highlight: e.target.value }))} rows={2} placeholder="Por que provar este vinho..." className={ta} />
+          </Field>
+          <Field label="Harmonização (opcional)">
+            <input value={form.pairing ?? ''} onChange={e => setForm(f => ({ ...f, pairing: e.target.value || null }))} placeholder="Carnes vermelhas, queijos curados..." className={inp} />
+          </Field>
+          <Field label="Notas de degustação (opcional)">
+            <textarea value={form.tasting_note ?? ''} onChange={e => setForm(f => ({ ...f, tasting_note: e.target.value || null }))} rows={2} placeholder="Taninos presentes, notas de frutas negras..." className={ta} />
+          </Field>
+          <Field label="Link de compra (opcional)">
+            <input type="url" value={form.buy_link ?? ''} onChange={e => setForm(f => ({ ...f, buy_link: e.target.value || null }))} placeholder="https://..." className={inp} />
           </Field>
           <button type="submit" disabled={saving} className={btn}>
-            {saving ? 'Salvando...' : editing ? 'Salvar alterações' : 'Criar Item'}
+            {saving ? 'Salvando...' : editing ? 'Salvar alterações' : 'Criar Vinho'}
           </button>
         </form>
       </FormModal>
@@ -170,7 +187,7 @@ export default function Wines() {
       <AlertDialog open={!!deleteId} onOpenChange={open => !open && setDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Excluir item?</AlertDialogTitle>
+            <AlertDialogTitle>Excluir vinho?</AlertDialogTitle>
             <AlertDialogDescription>Esta ação não pode ser desfeita.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

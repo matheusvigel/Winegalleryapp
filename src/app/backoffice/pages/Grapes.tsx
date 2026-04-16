@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../../lib/supabase';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
-import type { GrapeType } from '../../../../lib/database.types';
 import FormModal, { Field, FieldRow, inp, ta, btn } from '../components/FormModal';
 import ImageUpload from '../components/ImageUpload';
 import {
@@ -9,8 +8,20 @@ import {
   AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '../../components/ui/alert-dialog';
 
-type Grape = { id: string; name: string; description: string; image_url: string; type: GrapeType; characteristics: string };
-const empty = (): Omit<Grape, 'id'> => ({ name: '', description: '', image_url: '', type: 'red', characteristics: '' });
+type Grape = { id: string; name: string; type: string; description: string | null; photo: string | null };
+
+const TYPES = ['Tinto', 'Branco', 'Rosé', 'Espumante', 'Fortificado', 'Laranja', 'Sobremesa'];
+const TYPE_COLORS: Record<string, string> = {
+  Tinto: 'bg-red-100 text-red-700',
+  Branco: 'bg-yellow-100 text-yellow-700',
+  Rosé: 'bg-pink-100 text-pink-700',
+  Espumante: 'bg-blue-100 text-blue-700',
+  Fortificado: 'bg-amber-100 text-amber-700',
+  Laranja: 'bg-orange-100 text-orange-700',
+  Sobremesa: 'bg-purple-100 text-purple-700',
+};
+
+const empty = (): Omit<Grape, 'id'> => ({ name: '', type: 'Tinto', description: null, photo: null });
 
 export default function Grapes() {
   const [rows, setRows] = useState<Grape[]>([]);
@@ -23,23 +34,23 @@ export default function Grapes() {
   const [error, setError] = useState('');
 
   const load = async () => {
-    const { data } = await supabase.from('grapes').select('*').order('name');
+    const { data } = await supabase.from('grapes').select('id, name, type, description, photo').order('name');
     setRows(data ?? []); setLoading(false);
   };
   useEffect(() => { load(); }, []);
 
   const openCreate = () => { setEditing(null); setForm(empty()); setError(''); setModalOpen(true); };
   const openEdit = (r: Grape) => {
-    setEditing(r); setForm({ name: r.name, description: r.description, image_url: r.image_url, type: r.type, characteristics: r.characteristics }); setError(''); setModalOpen(true);
+    setEditing(r); setForm({ name: r.name, type: r.type, description: r.description, photo: r.photo }); setError(''); setModalOpen(true);
   };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.image_url) { setError('Selecione uma imagem para continuar.'); return; }
     setSaving(true); setError('');
+    const payload = { name: form.name, type: form.type, description: form.description || null, photo: form.photo || null };
     const result = editing
-      ? await supabase.from('grapes').update(form).eq('id', editing.id)
-      : await supabase.from('grapes').insert({ id: crypto.randomUUID(), ...form });
+      ? await supabase.from('grapes').update(payload).eq('id', editing.id)
+      : await supabase.from('grapes').insert(payload);
     if (result.error) { setError(result.error.message); } else { setModalOpen(false); load(); }
     setSaving(false);
   };
@@ -73,7 +84,7 @@ export default function Grapes() {
               <tr className="bg-neutral-50 border-b border-neutral-200 text-left">
                 <th className="px-4 py-3 text-xs font-semibold text-neutral-500 uppercase tracking-wide">Nome</th>
                 <th className="px-4 py-3 text-xs font-semibold text-neutral-500 uppercase tracking-wide">Tipo</th>
-                <th className="px-4 py-3 text-xs font-semibold text-neutral-500 uppercase tracking-wide hidden md:table-cell">Características</th>
+                <th className="px-4 py-3 text-xs font-semibold text-neutral-500 uppercase tracking-wide hidden md:table-cell">Descrição</th>
                 <th className="px-4 py-3 w-20"></th>
               </tr>
             </thead>
@@ -82,11 +93,11 @@ export default function Grapes() {
                 <tr key={r.id} className={`border-b border-neutral-100 last:border-0 ${i % 2 ? 'bg-neutral-50/50' : ''}`}>
                   <td className="px-4 py-3 font-medium text-neutral-900">{r.name}</td>
                   <td className="px-4 py-3">
-                    <span className={`inline-block text-xs font-medium px-2 py-0.5 rounded-full ${r.type === 'red' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                      {r.type === 'red' ? 'Tinta' : 'Branca'}
+                    <span className={`inline-block text-xs font-medium px-2 py-0.5 rounded-full ${TYPE_COLORS[r.type] ?? 'bg-gray-100 text-gray-700'}`}>
+                      {r.type}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-neutral-500 hidden md:table-cell max-w-xs truncate">{r.characteristics}</td>
+                  <td className="px-4 py-3 text-neutral-500 hidden md:table-cell max-w-xs truncate">{r.description ?? '—'}</td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-1">
                       <button onClick={() => openEdit(r)} className="p-1.5 text-neutral-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"><Pencil size={14} /></button>
@@ -108,20 +119,16 @@ export default function Grapes() {
               <input required value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Cabernet Sauvignon" className={inp} />
             </Field>
             <Field label="Tipo *">
-              <select required value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value as GrapeType }))} className={inp}>
-                <option value="red">Tinta</option>
-                <option value="white">Branca</option>
+              <select required value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))} className={inp}>
+                {TYPES.map(t => <option key={t} value={t}>{t}</option>)}
               </select>
             </Field>
           </FieldRow>
-          <Field label="Características *">
-            <input required value={form.characteristics} onChange={e => setForm(f => ({ ...f, characteristics: e.target.value }))} placeholder="Encorpado, taninos firmes, notas de cassis" className={inp} />
+          <Field label="Imagem (opcional)">
+            <ImageUpload value={form.photo ?? ''} onChange={url => setForm(f => ({ ...f, photo: url || null }))} />
           </Field>
-          <Field label="Imagem *">
-            <ImageUpload value={form.image_url} onChange={url => setForm(f => ({ ...f, image_url: url }))} />
-          </Field>
-          <Field label="Descrição *">
-            <textarea required value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={3} placeholder="Descrição da uva..." className={ta} />
+          <Field label="Descrição (opcional)">
+            <textarea value={form.description ?? ''} onChange={e => setForm(f => ({ ...f, description: e.target.value || null }))} rows={3} placeholder="Encorpado, taninos firmes, notas de cassis..." className={ta} />
           </Field>
           <button type="submit" disabled={saving} className={btn}>
             {saving ? 'Salvando...' : editing ? 'Salvar alterações' : 'Criar Uva'}
