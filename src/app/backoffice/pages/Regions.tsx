@@ -8,47 +8,45 @@ import {
   AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '../../components/ui/alert-dialog';
 
-type Country = { id: string; name: string };
-type Region = { id: string; name: string; country_id: string; parent_id: string | null; image_url: string; description: string };
+type Region = { id: string; name: string; parent_id: string | null; level: string; photo: string | null; description: string | null };
 type RegionRow = Region & { depth: number };
-type CollectionCounts = Record<string, number>;
 
-const empty = (): Omit<Region, 'id'> => ({ name: '', country_id: '', parent_id: null, image_url: '', description: '' });
+const LEVELS = [
+  { value: 'region', label: 'Região' },
+  { value: 'sub-region', label: 'Sub-região' },
+];
 
-function buildTree(regions: Region[], countries: Country[]): RegionRow[] {
+const empty = (): Omit<Region, 'id'> => ({ name: '', parent_id: null, level: 'region', photo: null, description: null });
+
+function buildTree(countries: Region[], regions: Region[]): RegionRow[] {
   const result: RegionRow[] = [];
   for (const country of countries) {
-    const countryRegions = regions.filter(r => r.country_id === country.id);
-    if (countryRegions.length === 0) continue;
-    result.push({ id: `__header__${country.id}`, name: country.name, country_id: country.id, parent_id: null, image_url: '', description: '', depth: -1 });
-    const byParent = new Map<string | null, Region[]>();
-    for (const r of countryRegions) {
-      const key = r.parent_id ?? null;
-      if (!byParent.has(key)) byParent.set(key, []);
-      byParent.get(key)!.push(r);
-    }
-    const walk = (parentId: string | null, depth: number) => {
-      const children = (byParent.get(parentId) ?? []).sort((a, b) => a.name.localeCompare(b.name));
-      for (const r of children) { result.push({ ...r, depth }); walk(r.id, depth + 1); }
+    const children = regions.filter(r => r.parent_id === country.id || regions.some(r2 => r2.parent_id === country.id && r.parent_id === r2.id));
+    const directChildren = regions.filter(r => r.parent_id === country.id);
+    if (directChildren.length === 0 && !regions.some(r => r.parent_id === country.id)) continue;
+    const allUnder = regions.filter(r => {
+      let cur: Region | undefined = r;
+      while (cur?.parent_id) {
+        if (cur.parent_id === country.id) return true;
+        cur = regions.find(x => x.id === cur!.parent_id);
+      }
+      return false;
+    });
+    if (allUnder.length === 0 && directChildren.length === 0) continue;
+    result.push({ ...country, depth: -1 });
+    const walk = (parentId: string, depth: number) => {
+      const kids = regions.filter(r => r.parent_id === parentId).sort((a, b) => a.name.localeCompare(b.name));
+      for (const r of kids) { result.push({ ...r, depth }); walk(r.id, depth + 1); }
     };
-    walk(null, 0);
+    walk(country.id, 0);
+    void children;
   }
   return result;
 }
 
-function getDescendantIds(regionId: string, regions: Region[]): Set<string> {
-  const ids = new Set<string>();
-  const walk = (id: string) => {
-    for (const r of regions.filter(r => r.parent_id === id)) { ids.add(r.id); walk(r.id); }
-  };
-  walk(regionId);
-  return ids;
-}
-
 export default function Regions() {
   const [rows, setRows] = useState<Region[]>([]);
-  const [countries, setCountries] = useState<Country[]>([]);
-  const [colCounts, setColCounts] = useState<CollectionCounts>({});
+  const [countries, setCountries] = useState<Region[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -58,16 +56,10 @@ export default function Regions() {
   const [error, setError] = useState('');
 
   const load = async () => {
-    const [{ data: regions }, { data: cts }, { data: rc }] = await Promise.all([
-      supabase.from('regions').select('*').order('name'),
-      supabase.from('countries').select('id, name').order('name'),
-      supabase.from('region_collections').select('region_id'),
-    ]);
-    setRows(regions ?? []);
-    setCountries(cts ?? []);
-    const cnt: CollectionCounts = {};
-    for (const { region_id } of rc ?? []) cnt[region_id] = (cnt[region_id] ?? 0) + 1;
-    setColCounts(cnt);
+    const { data } = await supabase.from('regions').select('id, name, parent_id, level, photo, description').order('name');
+    const all = (data ?? []) as Region[];
+    setCountries(all.filter(r => r.level === 'country'));
+    setRows(all.filter(r => r.level !== 'country'));
     setLoading(false);
   };
   useEffect(() => { load(); }, []);
@@ -76,22 +68,16 @@ export default function Regions() {
     setEditing(null); setForm({ ...empty(), ...prefill }); setError(''); setModalOpen(true);
   };
   const openEdit = (r: Region) => {
-    setEditing(r); setForm({ name: r.name, country_id: r.country_id, parent_id: r.parent_id, image_url: r.image_url, description: r.description }); setError(''); setModalOpen(true);
+    setEditing(r); setForm({ name: r.name, parent_id: r.parent_id, level: r.level, photo: r.photo, description: r.description }); setError(''); setModalOpen(true);
   };
-
-  const handleParentChange = (parentId: string) => {
-    const parent = rows.find(r => r.id === parentId);
-    setForm(f => ({ ...f, parent_id: parentId || null, country_id: parent ? parent.country_id : f.country_id }));
-  };
-  const handleCountryChange = (countryId: string) => { setForm(f => ({ ...f, country_id: countryId, parent_id: null })); };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.image_url) { setError('Selecione uma imagem para continuar.'); return; }
     setSaving(true); setError('');
+    const payload = { name: form.name, parent_id: form.parent_id || null, level: form.level, photo: form.photo || null, description: form.description || null };
     const result = editing
-      ? await supabase.from('regions').update(form).eq('id', editing.id)
-      : await supabase.from('regions').insert({ id: crypto.randomUUID(), ...form });
+      ? await supabase.from('regions').update(payload).eq('id', editing.id)
+      : await supabase.from('regions').insert(payload);
     if (result.error) { setError(result.error.message); } else { setModalOpen(false); load(); }
     setSaving(false);
   };
@@ -102,9 +88,9 @@ export default function Regions() {
     setDeleteId(null); load();
   };
 
-  const excludedIds = editing ? getDescendantIds(editing.id, rows) : new Set<string>();
-  const parentOptions = rows.filter(r => r.country_id === form.country_id && r.id !== editing?.id && !excludedIds.has(r.id));
-  const tree = buildTree(rows, countries);
+  // Parent options: for a region, parents can be countries or other regions
+  const parentOptions = [...countries, ...rows.filter(r => r.level === 'region' && r.id !== editing?.id)];
+  const tree = buildTree(countries, rows);
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
@@ -128,8 +114,8 @@ export default function Regions() {
             <thead>
               <tr className="bg-neutral-50 border-b border-neutral-200 text-left">
                 <th className="px-4 py-3 text-xs font-semibold text-neutral-500 uppercase tracking-wide">Nome</th>
+                <th className="px-4 py-3 text-xs font-semibold text-neutral-500 uppercase tracking-wide hidden sm:table-cell">Nível</th>
                 <th className="px-4 py-3 text-xs font-semibold text-neutral-500 uppercase tracking-wide hidden md:table-cell">Descrição</th>
-                <th className="px-4 py-3 text-xs font-semibold text-neutral-500 uppercase tracking-wide hidden sm:table-cell">Coleções</th>
                 <th className="px-4 py-3 w-28"></th>
               </tr>
             </thead>
@@ -139,7 +125,7 @@ export default function Regions() {
                   return (
                     <Fragment key={r.id}>
                       <tr className="bg-neutral-100 border-b border-neutral-200">
-                        <td colSpan={3} className="px-4 py-2">
+                        <td colSpan={4} className="px-4 py-2">
                           <span className="text-xs font-bold text-neutral-600 uppercase tracking-wider">{r.name}</span>
                         </td>
                       </tr>
@@ -154,19 +140,15 @@ export default function Regions() {
                         {r.name}
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-neutral-500 hidden md:table-cell max-w-xs truncate">{r.description}</td>
                     <td className="px-4 py-3 hidden sm:table-cell">
-                      {colCounts[r.id] ? (
-                        <span className="inline-block text-xs font-semibold px-2 py-0.5 rounded-full bg-red-50 text-red-700">
-                          {colCounts[r.id]}
-                        </span>
-                      ) : (
-                        <span className="text-neutral-300 text-xs">—</span>
-                      )}
+                      <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+                        {r.level === 'region' ? 'Região' : 'Sub-região'}
+                      </span>
                     </td>
+                    <td className="px-4 py-3 text-neutral-500 hidden md:table-cell max-w-xs truncate">{r.description ?? '—'}</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-1">
-                        <button onClick={() => openCreate({ country_id: r.country_id, parent_id: r.id })} className="p-1.5 text-neutral-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors" title="Adicionar sub-região">
+                        <button onClick={() => openCreate({ parent_id: r.id, level: 'sub-region' })} className="p-1.5 text-neutral-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors" title="Adicionar sub-região">
                           <Plus size={14} />
                         </button>
                         <button onClick={() => openEdit(r)} className="p-1.5 text-neutral-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"><Pencil size={14} /></button>
@@ -188,26 +170,28 @@ export default function Regions() {
             <Field label="Nome *">
               <input required value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Bordeaux" className={inp} />
             </Field>
-            <Field label="País *">
-              <select required value={form.country_id} onChange={e => handleCountryChange(e.target.value)} className={inp}>
-                <option value="">Selecione um país</option>
-                {countries.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            <Field label="Nível *">
+              <select required value={form.level} onChange={e => setForm(f => ({ ...f, level: e.target.value }))} className={inp}>
+                {LEVELS.map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
               </select>
             </Field>
           </FieldRow>
-          {form.country_id && (
-            <Field label="Sub-região de (opcional)">
-              <select value={form.parent_id ?? ''} onChange={e => handleParentChange(e.target.value)} className={inp}>
-                <option value="">Região raiz do país</option>
-                {parentOptions.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-              </select>
-            </Field>
-          )}
-          <Field label="Imagem *">
-            <ImageUpload value={form.image_url} onChange={url => setForm(f => ({ ...f, image_url: url }))} />
+          <Field label="Pertence a (País ou Região pai) *">
+            <select required value={form.parent_id ?? ''} onChange={e => setForm(f => ({ ...f, parent_id: e.target.value || null }))} className={inp}>
+              <option value="">Selecione...</option>
+              <optgroup label="Países">
+                {countries.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </optgroup>
+              <optgroup label="Regiões">
+                {rows.filter(r => r.level === 'region' && r.id !== editing?.id).map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+              </optgroup>
+            </select>
           </Field>
-          <Field label="Descrição *">
-            <textarea required value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={3} placeholder="Descrição da região..." className={ta} />
+          <Field label="Imagem (opcional)">
+            <ImageUpload value={form.photo ?? ''} onChange={url => setForm(f => ({ ...f, photo: url || null }))} />
+          </Field>
+          <Field label="Descrição (opcional)">
+            <textarea value={form.description ?? ''} onChange={e => setForm(f => ({ ...f, description: e.target.value || null }))} rows={3} placeholder="Descrição da região..." className={ta} />
           </Field>
           <button type="submit" disabled={saving} className={btn}>
             {saving ? 'Salvando...' : editing ? 'Salvar alterações' : 'Criar Região'}
@@ -219,7 +203,7 @@ export default function Regions() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir região?</AlertDialogTitle>
-            <AlertDialogDescription>Esta ação não pode ser desfeita. Sub-regiões perderão o vínculo hierárquico mas não serão excluídas.</AlertDialogDescription>
+            <AlertDialogDescription>Esta ação não pode ser desfeita.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
