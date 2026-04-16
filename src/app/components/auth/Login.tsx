@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router';
+import { Link, useNavigate, useSearchParams } from 'react-router';
 import { supabase } from '../../../lib/supabase';
 import { Eye, EyeOff } from 'lucide-react';
 import { motion } from 'motion/react';
@@ -49,6 +49,8 @@ function WineArchIcon({ size = 36 }: { size?: number }) {
 
 export default function Login() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const from = searchParams.get('from') ?? '/profile';
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -69,7 +71,7 @@ export default function Login() {
       setLoading(false);
       return;
     }
-    navigate('/profile');
+    navigate(from, { replace: true });
   };
 
   const inputStyle: React.CSSProperties = {
