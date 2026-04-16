@@ -3,20 +3,21 @@ import { Outlet, NavLink, useNavigate } from 'react-router';
 import { useAuth } from '../contexts/AuthContext';
 import {
   LayoutDashboard, Globe, MapPin, BookOpen,
-  Wine, Building2, Grape, LogOut, Menu, X, Star, Sparkles,
+  Wine, Building2, Grape, LogOut, Menu, X, Star, Sparkles, Users,
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
 const navItems = [
-  { to: '/admin', label: 'Dashboard', icon: LayoutDashboard, end: true, table: null },
-  { to: '/admin/countries', label: 'Países', icon: Globe, end: false, table: 'countries' },
-  { to: '/admin/regions', label: 'Regiões', icon: MapPin, end: false, table: 'regions' },
-  { to: '/admin/collections', label: 'Coleções', icon: BookOpen, end: false, table: 'collections' },
-  { to: '/admin/wines', label: 'Vinhos', icon: Wine, end: false, table: 'wine_items' },
-  { to: '/admin/experiences', label: 'Experiências', icon: Star, end: false, table: 'experiences' },
-  { to: '/admin/brands', label: 'Vinícolas', icon: Building2, end: false, table: 'brands' },
-  { to: '/admin/grapes', label: 'Uvas', icon: Grape, end: false, table: 'grapes' },
-  { to: '/admin/highlights', label: 'Destaques', icon: Sparkles, end: false, table: 'highlights' },
+  { to: '/admin',              label: 'Dashboard',    icon: LayoutDashboard, end: true,  table: null           },
+  { to: '/admin/countries',    label: 'Países',       icon: Globe,           end: false, table: null           },
+  { to: '/admin/regions',      label: 'Regiões',      icon: MapPin,          end: false, table: 'regions'      },
+  { to: '/admin/collections',  label: 'Coleções',     icon: BookOpen,        end: false, table: 'collections'  },
+  { to: '/admin/wines',        label: 'Vinhos',       icon: Wine,            end: false, table: 'wines'        },
+  { to: '/admin/brands',       label: 'Vinícolas',    icon: Building2,       end: false, table: 'wineries'     },
+  { to: '/admin/experiences',  label: 'Experiências', icon: Star,            end: false, table: 'experiences'  },
+  { to: '/admin/grapes',       label: 'Uvas',         icon: Grape,           end: false, table: 'grapes'       },
+  { to: '/admin/brotherhoods', label: 'Confrarias',   icon: Users,           end: false, table: 'brotherhoods' },
+  { to: '/admin/highlights',   label: 'Destaques',    icon: Sparkles,        end: false, table: 'highlights'   },
 ] as const;
 
 type Counts = Partial<Record<string, number>>;

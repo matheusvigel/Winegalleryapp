@@ -1,47 +1,51 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { supabase } from '../../../lib/supabase';
-import { Globe, MapPin, BookOpen, Wine, Building2, Grape, ArrowRight } from 'lucide-react';
+import { Globe, MapPin, BookOpen, Wine, Building2, Grape, ArrowRight, Users } from 'lucide-react';
 
 interface Counts {
   countries: number;
   regions: number;
   collections: number;
   wines: number;
-  brands: number;
+  wineries: number;
   grapes: number;
+  brotherhoods: number;
 }
 
 const cards = [
-  { key: 'countries', label: 'Países', icon: Globe, to: '/admin/countries', color: 'bg-blue-50 text-blue-700' },
-  { key: 'regions', label: 'Regiões', icon: MapPin, to: '/admin/regions', color: 'bg-green-50 text-green-700' },
-  { key: 'collections', label: 'Coleções', icon: BookOpen, to: '/admin/collections', color: 'bg-purple-50 text-purple-700' },
-  { key: 'wines', label: 'Vinhos', icon: Wine, to: '/admin/wines', color: 'bg-purple-50 text-purple-700' },
-  { key: 'brands', label: 'Marcas', icon: Building2, to: '/admin/brands', color: 'bg-orange-50 text-orange-700' },
-  { key: 'grapes', label: 'Uvas', icon: Grape, to: '/admin/grapes', color: 'bg-pink-50 text-pink-700' },
+  { key: 'countries',     label: 'Países',      icon: Globe,       to: '/admin/countries',    color: 'bg-blue-50 text-blue-700'    },
+  { key: 'regions',       label: 'Regiões',     icon: MapPin,      to: '/admin/regions',      color: 'bg-green-50 text-green-700'  },
+  { key: 'collections',   label: 'Coleções',    icon: BookOpen,    to: '/admin/collections',  color: 'bg-indigo-50 text-indigo-700'},
+  { key: 'wines',         label: 'Vinhos',      icon: Wine,        to: '/admin/wines',        color: 'bg-purple-50 text-purple-700'},
+  { key: 'wineries',      label: 'Vinícolas',   icon: Building2,   to: '/admin/brands',       color: 'bg-orange-50 text-orange-700'},
+  { key: 'grapes',        label: 'Uvas',        icon: Grape,       to: '/admin/grapes',       color: 'bg-pink-50 text-pink-700'    },
+  { key: 'brotherhoods',  label: 'Confrarias',  icon: Users,       to: '/admin/brotherhoods', color: 'bg-amber-50 text-amber-700'  },
 ] as const;
 
 export default function Dashboard() {
-  const [counts, setCounts] = useState<Counts>({ countries: 0, regions: 0, collections: 0, wines: 0, brands: 0, grapes: 0 });
+  const [counts, setCounts] = useState<Counts>({ countries: 0, regions: 0, collections: 0, wines: 0, wineries: 0, grapes: 0, brotherhoods: 0 });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const load = async () => {
-      const [c, r, col, w, b, g] = await Promise.all([
-        supabase.from('countries').select('id', { count: 'exact', head: true }),
-        supabase.from('regions').select('id', { count: 'exact', head: true }),
+      const [co, re, col, wi, win, gr, bh] = await Promise.all([
+        supabase.from('regions').select('id', { count: 'exact', head: true }).eq('level', 'country'),
+        supabase.from('regions').select('id', { count: 'exact', head: true }).neq('level', 'country'),
         supabase.from('collections').select('id', { count: 'exact', head: true }),
-        supabase.from('wine_items').select('id', { count: 'exact', head: true }),
-        supabase.from('brands').select('id', { count: 'exact', head: true }),
+        supabase.from('wines').select('id', { count: 'exact', head: true }),
+        supabase.from('wineries').select('id', { count: 'exact', head: true }),
         supabase.from('grapes').select('id', { count: 'exact', head: true }),
+        supabase.from('brotherhoods').select('id', { count: 'exact', head: true }),
       ]);
       setCounts({
-        countries: c.count ?? 0,
-        regions: r.count ?? 0,
-        collections: col.count ?? 0,
-        wines: w.count ?? 0,
-        brands: b.count ?? 0,
-        grapes: g.count ?? 0,
+        countries:    co.count   ?? 0,
+        regions:      re.count   ?? 0,
+        collections:  col.count  ?? 0,
+        wines:        wi.count   ?? 0,
+        wineries:     win.count  ?? 0,
+        grapes:       gr.count   ?? 0,
+        brotherhoods: bh.count   ?? 0,
       });
       setLoading(false);
     };
@@ -55,7 +59,7 @@ export default function Dashboard() {
         <p className="text-sm text-neutral-500 mt-1">Visão geral do conteúdo cadastrado</p>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
         {cards.map(({ key, label, icon: Icon, to, color }) => (
           <Link
             key={key}
