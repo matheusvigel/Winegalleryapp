@@ -46,7 +46,7 @@ function MultiChipSelect({ label, icon, options, selected, onToggle }: {
           <span className="text-sm font-medium">{label}</span>
         </div>
         <div className="flex items-center gap-2">
-          {selected.length > 0 && <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-semibold">{selected.length}</span>}
+          {selected.length > 0 && <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-semibold">{selected.length}</span>}
           <ChevronDown size={14} className={`text-neutral-400 transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`} />
         </div>
       </button>
@@ -60,7 +60,7 @@ function MultiChipSelect({ label, icon, options, selected, onToggle }: {
                 const active = selected.includes(opt.id);
                 return (
                   <button key={opt.id} type="button" onClick={() => onToggle(opt.id)}
-                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-all border ${active ? 'bg-red-900 text-white border-red-900' : 'bg-white text-neutral-600 border-neutral-200 hover:border-red-300 hover:text-red-800'}`}>
+                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-all border ${active ? 'bg-purple-700 text-white border-purple-700' : 'bg-white text-neutral-600 border-neutral-200 hover:border-purple-300 hover:text-purple-700'}`}>
                     {opt.label}
                     {opt.sub && <span className={active ? 'opacity-60' : 'opacity-40'}>{opt.sub}</span>}
                   </button>
@@ -195,7 +195,7 @@ export default function Collections() {
           <h1 className="text-2xl font-bold text-neutral-900">Coleções</h1>
           <p className="text-sm text-neutral-500 mt-1">{rows.length} registros</p>
         </div>
-        <button onClick={openCreate} className="flex items-center gap-2 bg-red-900 text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-red-800 transition-colors">
+        <button onClick={openCreate} className="flex items-center gap-2 bg-purple-700 text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-purple-600 transition-colors">
           <Plus size={16} /> Nova Coleção
         </button>
       </div>

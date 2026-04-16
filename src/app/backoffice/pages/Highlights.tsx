@@ -114,7 +114,7 @@ export default function Highlights() {
           <h1 className="text-2xl font-bold text-neutral-900">Destaques</h1>
           <p className="text-sm text-neutral-500 mt-1">Itens exibidos na seção de destaques da home · {rows.length} registros</p>
         </div>
-        <button onClick={openCreate} className="flex items-center gap-2 bg-red-900 text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-red-800 transition-colors">
+        <button onClick={openCreate} className="flex items-center gap-2 bg-purple-700 text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-purple-600 transition-colors">
           <Plus size={16} /> Novo Destaque
         </button>
       </div>
@@ -204,7 +204,7 @@ export default function Highlights() {
           </Field>
           <Field label="Status">
             <label className="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" checked={form.active} onChange={e => setForm(f => ({ ...f, active: e.target.checked }))} className="w-4 h-4 accent-red-900" />
+              <input type="checkbox" checked={form.active} onChange={e => setForm(f => ({ ...f, active: e.target.checked }))} className="w-4 h-4 accent-purple-700" />
               <span className="text-sm text-neutral-700">Ativo (visível na home)</span>
             </label>
           </Field>

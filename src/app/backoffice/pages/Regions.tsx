@@ -99,7 +99,7 @@ export default function Regions() {
           <h1 className="text-2xl font-bold text-neutral-900">Regiões</h1>
           <p className="text-sm text-neutral-500 mt-1">{rows.length} registros</p>
         </div>
-        <button onClick={() => openCreate()} className="flex items-center gap-2 bg-red-900 text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-red-800 transition-colors">
+        <button onClick={() => openCreate()} className="flex items-center gap-2 bg-purple-700 text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-purple-600 transition-colors">
           <Plus size={16} /> Nova Região
         </button>
       </div>

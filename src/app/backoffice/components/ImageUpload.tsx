@@ -138,7 +138,7 @@ export default function ImageUpload({ value, onChange }: Props) {
           className={`relative w-full rounded-xl border-2 border-dashed transition-colors cursor-pointer overflow-hidden ${
             uploading
               ? 'border-neutral-300 bg-neutral-50 cursor-not-allowed'
-              : 'border-neutral-300 hover:border-red-400 bg-neutral-50'
+              : 'border-neutral-300 hover:border-purple-400 bg-neutral-50'
           }`}
           style={{ minHeight: 120 }}
         >
@@ -150,7 +150,7 @@ export default function ImageUpload({ value, onChange }: Props) {
 
           {uploading && (
             <div className="absolute inset-0 bg-white/80 flex flex-col items-center justify-center gap-2">
-              <Loader2 size={22} className="animate-spin text-red-800" />
+              <Loader2 size={22} className="animate-spin text-purple-600" />
               <p className="text-sm text-neutral-600">{progress}</p>
             </div>
           )}
@@ -167,13 +167,13 @@ export default function ImageUpload({ value, onChange }: Props) {
               onChange={e => { setUrlInput(e.target.value); setUrlPreviewError(false); }}
               onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), applyUrl())}
               placeholder="https://exemplo.com/imagem.jpg"
-              className="flex-1 h-10 px-3 rounded-lg border border-neutral-300 text-sm outline-none focus:border-red-800 focus:ring-2 focus:ring-red-800/20 bg-white"
+              className="flex-1 h-10 px-3 rounded-lg border border-neutral-300 text-sm outline-none focus:border-purple-600 focus:ring-2 focus:ring-purple-600/20 bg-white"
             />
             <button
               type="button"
               onClick={applyUrl}
               disabled={!urlInput.trim()}
-              className="px-4 h-10 bg-red-900 hover:bg-red-800 text-white text-sm font-medium rounded-lg disabled:opacity-40 transition-colors shrink-0"
+              className="px-4 h-10 bg-purple-700 hover:bg-purple-600 text-white text-sm font-medium rounded-lg disabled:opacity-40 transition-colors shrink-0"
             >
               Usar
             </button>

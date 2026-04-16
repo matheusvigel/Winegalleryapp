@@ -82,7 +82,7 @@ export function Field({ label, children, className }: { label: string; children:
   );
 }
 
-export const inp = 'w-full h-10 px-3 rounded-lg border border-neutral-200 text-sm outline-none focus:border-red-800 focus:ring-2 focus:ring-red-800/15 bg-white transition-shadow';
-export const ta = 'w-full px-3 py-2.5 rounded-lg border border-neutral-200 text-sm outline-none focus:border-red-800 focus:ring-2 focus:ring-red-800/15 resize-none bg-white transition-shadow';
-export const btn = 'w-full h-11 bg-red-900 hover:bg-red-800 active:bg-red-950 text-white font-semibold rounded-xl text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-colors mt-2';
+export const inp = 'w-full h-10 px-3 rounded-lg border border-neutral-200 text-sm outline-none focus:border-purple-600 focus:ring-2 focus:ring-purple-600/15 bg-white transition-shadow';
+export const ta = 'w-full px-3 py-2.5 rounded-lg border border-neutral-200 text-sm outline-none focus:border-purple-600 focus:ring-2 focus:ring-purple-600/15 resize-none bg-white transition-shadow';
+export const btn = 'w-full h-11 bg-purple-700 hover:bg-purple-600 active:bg-purple-800 text-white font-semibold rounded-xl text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-colors mt-2';
 export const btnSecondary = 'w-full h-11 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 font-semibold rounded-xl text-sm transition-colors';
