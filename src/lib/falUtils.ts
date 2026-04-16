@@ -17,9 +17,9 @@ export function saveFalKey(key: string) {
 }
 
 // ── Google Gemini model (Nano Banana) ─────────────────────────────────────────
-// gemini-2.5-flash-image = Nano Banana (stable)
-// gemini-3.1-flash-image-preview = Nano Banana 2 (newer preview)
-const GEMINI_MODEL = 'gemini-2.5-flash-image';
+// gemini-3.1-flash-image-preview = Nano Banana 2 — image editing (image-to-image)
+// gemini-2.5-flash-image         = Nano Banana   — text-to-image only
+const GEMINI_MODEL = 'gemini-3.1-flash-image-preview';
 const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
 // ── Watercolor prompt ─────────────────────────────────────────────────────────
@@ -97,7 +97,10 @@ export async function transformToWatercolor(
 
   const apiRes = await fetch(`${GEMINI_ENDPOINT}?key=${encodeURIComponent(geminiKey)}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'x-goog-api-key': geminiKey,
+    },
     body: JSON.stringify(body),
   });
 
@@ -119,13 +122,31 @@ export async function transformToWatercolor(
   const json = await apiRes.json();
 
   // 3. Extract base64 image from response
-  const parts: any[] = json?.candidates?.[0]?.content?.parts ?? [];
-  const imagePart = parts.find((p: any) => p.inline_data?.mime_type?.startsWith('image/'));
+  // Gemini returns parts array that may contain text + image in any order
+  const candidates: any[] = json?.candidates ?? [];
+  if (!candidates.length) {
+    const blocked = json?.promptFeedback?.blockReason;
+    throw new Error(blocked ? `Geração bloqueada: ${blocked}` : 'Nenhum resultado retornado pela API.');
+  }
+
+  const parts: any[] = candidates[0]?.content?.parts ?? [];
+
+  // Look for any part that has inline_data with an image mime type
+  const imagePart = parts.find((p: any) =>
+    p.inline_data &&
+    (p.inline_data.mime_type?.startsWith('image/') || p.inline_data.data)
+  );
 
   if (!imagePart) {
-    // Sometimes the model returns only text (safety block, etc.)
+    // Model returned only text — likely a safety refusal or wrong model config
     const textPart = parts.find((p: any) => p.text);
-    throw new Error(textPart?.text ?? 'Nenhuma imagem foi gerada. Tente novamente.');
+    const reason = textPart?.text ?? '';
+    console.error('[Gemini] Response parts:', JSON.stringify(parts, null, 2));
+    throw new Error(
+      reason.length > 0
+        ? `O modelo retornou texto em vez de imagem: "${reason.slice(0, 120)}…" — verifique se a chave tem acesso ao modelo ${GEMINI_MODEL}.`
+        : 'Nenhuma imagem retornada. Verifique se sua chave tem acesso ao modelo gemini-3.1-flash-image-preview.'
+    );
   }
 
   const resultBase64: string = imagePart.inline_data.data;
