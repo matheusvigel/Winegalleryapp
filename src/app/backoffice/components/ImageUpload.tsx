@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { processAndUpload } from '../../../lib/imageUtils';
-import { ImagePlus, X, Loader2, Link, Upload } from 'lucide-react';
+import { getFalKey, saveFalKey, transformToWatercolor } from '../../../lib/falUtils';
+import { ImagePlus, X, Loader2, Link, Upload, Palette, ChevronRight, Key } from 'lucide-react';
 
 interface Props {
   value: string;
@@ -11,14 +12,26 @@ type Mode = 'file' | 'url';
 
 export default function ImageUpload({ value, onChange }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // ── Upload state ────────────────────────────────────────────────────────────
   const [uploading, setUploading] = useState(false);
-  const [error, setError] = useState('');
-  const [progress, setProgress] = useState('');
-  const [mode, setMode] = useState<Mode>('file');
-  const [urlInput, setUrlInput] = useState('');
+  const [error, setError]         = useState('');
+  const [progress, setProgress]   = useState('');
+  const [mode, setMode]           = useState<Mode>('file');
+  const [urlInput, setUrlInput]   = useState('');
   const [urlPreviewError, setUrlPreviewError] = useState(false);
 
-  // ── File upload ────────────────────────────────────────────────────────────
+  // ── Watercolor state ────────────────────────────────────────────────────────
+  const [wcResult, setWcResult]         = useState('');
+  const [wcStatus, setWcStatus]         = useState('');
+  const [wcError, setWcError]           = useState('');
+  const [generatingWc, setGeneratingWc] = useState(false);
+
+  // ── API key setup ────────────────────────────────────────────────────────────
+  const [showKeyInput, setShowKeyInput] = useState(false);
+  const [keyDraft, setKeyDraft]         = useState('');
+
+  // ── File upload ─────────────────────────────────────────────────────────────
   const handleFile = async (file: File) => {
     if (!file.type.startsWith('image/') && !/\.(heic|heif)$/i.test(file.name)) {
       setError('Selecione um arquivo de imagem.');
@@ -27,19 +40,16 @@ export default function ImageUpload({ value, onChange }: Props) {
     setUploading(true);
     setError('');
     const isHeic = /\.(heic|heif)$/i.test(file.name) || file.type === 'image/heic' || file.type === 'image/heif';
-    setProgress(isHeic ? 'Convertendo HEIC...' : 'Processando...');
+    setProgress(isHeic ? 'Convertendo HEIC…' : 'Processando…');
     try {
-      setProgress('Enviando para o servidor...');
+      setProgress('Enviando para o servidor…');
       const url = await processAndUpload(file);
       onChange(url);
+      setWcResult('');
       setProgress('');
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Erro desconhecido';
-      if (msg.includes('Bucket not found') || msg.includes('bucket')) {
-        setError('Bucket "wine-images" não encontrado no Supabase Storage. Crie-o primeiro.');
-      } else {
-        setError(`Erro no upload: ${msg}`);
-      }
+      setError(msg.includes('bucket') ? 'Bucket "wine-images" não encontrado no Supabase Storage.' : `Erro no upload: ${msg}`);
       setProgress('');
     } finally {
       setUploading(false);
@@ -52,7 +62,7 @@ export default function ImageUpload({ value, onChange }: Props) {
     if (file) handleFile(file);
   };
 
-  // ── External URL ───────────────────────────────────────────────────────────
+  // ── External URL ─────────────────────────────────────────────────────────────
   const applyUrl = () => {
     const trimmed = urlInput.trim();
     if (!trimmed) return;
@@ -62,30 +72,107 @@ export default function ImageUpload({ value, onChange }: Props) {
       setUrlPreviewError(false);
       onChange(trimmed);
       setUrlInput('');
+      setWcResult('');
     } catch {
-      setError('URL inválida. Use o formato https://...');
+      setError('URL inválida. Use o formato https://…');
     }
   };
 
-  // ── Clear ──────────────────────────────────────────────────────────────────
+  // ── Clear ────────────────────────────────────────────────────────────────────
   const clear = (e: React.MouseEvent) => {
     e.stopPropagation();
     onChange('');
     setUrlInput('');
     setError('');
+    setWcResult('');
+    setWcError('');
     if (inputRef.current) inputRef.current.value = '';
   };
 
-  // ── Render: preview when a value is already set ────────────────────────────
+  // ── Watercolor generation ─────────────────────────────────────────────────
+  const runGeneration = async (key: string) => {
+    setGeneratingWc(true);
+    setWcError('');
+    setWcResult('');
+    try {
+      const url = await transformToWatercolor(value, key, setWcStatus);
+      setWcResult(url);
+    } catch (e) {
+      setWcError(e instanceof Error ? e.message : 'Erro desconhecido');
+    } finally {
+      setGeneratingWc(false);
+      setWcStatus('');
+    }
+  };
+
+  const generateWatercolor = () => {
+    const key = getFalKey();
+    if (!key) { setShowKeyInput(true); return; }
+    runGeneration(key);
+  };
+
+  const saveKey = () => {
+    const trimmed = keyDraft.trim();
+    if (!trimmed) return;
+    saveFalKey(trimmed);
+    setKeyDraft('');
+    setShowKeyInput(false);
+    runGeneration(trimmed);
+  };
+
+  const applyWatercolor = () => { onChange(wcResult); setWcResult(''); };
+  const discardWatercolor = () => setWcResult('');
+  const hasKey = !!getFalKey();
+
+  // ── Render: comparison (original vs watercolor) ──────────────────────────
+  if (value && wcResult) {
+    return (
+      <div className="space-y-3">
+        <div className="grid grid-cols-2 gap-2">
+          <div className="space-y-1">
+            <p className="text-xs text-center font-medium text-neutral-500">Original</p>
+            <div className="rounded-xl overflow-hidden border border-neutral-200 bg-neutral-100">
+              <img src={value} alt="Original" className="w-full h-36 object-contain" />
+            </div>
+          </div>
+          <div className="space-y-1">
+            <p className="text-xs text-center font-medium text-purple-600">🎨 Aquarela</p>
+            <div className="rounded-xl overflow-hidden border-2 border-purple-400 bg-black">
+              <img src={wcResult} alt="Aquarela" className="w-full h-36 object-contain" />
+            </div>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={discardWatercolor}
+            className="h-9 text-xs font-medium text-neutral-600 border border-neutral-300 rounded-lg hover:bg-neutral-50 transition-colors"
+          >
+            Manter original
+          </button>
+          <button
+            type="button"
+            onClick={applyWatercolor}
+            className="h-9 text-xs font-medium text-white bg-purple-700 hover:bg-purple-600 rounded-lg transition-colors flex items-center justify-center gap-1.5"
+          >
+            <Palette size={13} /> Usar aquarela
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Render: preview when a value is set ──────────────────────────────────
   if (value) {
     return (
       <div className="space-y-2">
+        {/* Image preview */}
         <div className="relative rounded-xl overflow-hidden border border-neutral-200 group">
           <img src={value} alt="Preview" className="w-full h-40 object-cover" />
           <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
             <button
               type="button"
-              onClick={() => { onChange(''); setMode('file'); }}
+              onClick={() => { onChange(''); setMode('file'); setWcResult(''); }}
               className="px-3 py-1.5 bg-white/90 hover:bg-white text-neutral-800 text-xs font-medium rounded-lg transition-colors"
             >
               Trocar imagem
@@ -99,12 +186,85 @@ export default function ImageUpload({ value, onChange }: Props) {
             <X size={14} />
           </button>
         </div>
+
         <p className="text-xs text-neutral-400 truncate" title={value}>{value}</p>
+
+        {/* Watercolor button */}
+        <button
+          type="button"
+          onClick={generateWatercolor}
+          disabled={generatingWc}
+          className="w-full h-9 flex items-center justify-center gap-2 text-xs font-medium text-purple-700 border border-purple-200 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+        >
+          {generatingWc ? (
+            <>
+              <Loader2 size={13} className="animate-spin" />
+              {wcStatus || 'Gerando aquarela…'}
+            </>
+          ) : (
+            <>
+              <Palette size={13} />
+              Gerar versão aquarela
+              <ChevronRight size={12} className="text-purple-400" />
+            </>
+          )}
+        </button>
+
+        {/* API key input (shown when key is missing or user wants to change it) */}
+        {showKeyInput && (
+          <div className="bg-neutral-50 border border-neutral-200 rounded-lg p-3 space-y-2">
+            <div className="flex items-center gap-1.5 text-xs font-medium text-neutral-700">
+              <Key size={12} />
+              Chave da API Google AI Studio
+            </div>
+            <div className="flex gap-2">
+              <input
+                type="password"
+                value={keyDraft}
+                onChange={e => setKeyDraft(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && saveKey()}
+                placeholder="AIza…"
+                autoFocus
+                className="flex-1 h-8 px-2.5 text-xs rounded-md border border-neutral-300 outline-none focus:border-purple-600 focus:ring-2 focus:ring-purple-600/20 bg-white"
+              />
+              <button
+                type="button"
+                onClick={saveKey}
+                disabled={!keyDraft.trim()}
+                className="px-3 h-8 bg-purple-700 hover:bg-purple-600 text-white text-xs font-medium rounded-md disabled:opacity-40 transition-colors shrink-0"
+              >
+                Salvar
+              </button>
+            </div>
+            <p className="text-[10px] text-neutral-400 leading-relaxed">
+              Gere sua chave em{' '}
+              <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-purple-600 underline">
+                aistudio.google.com/app/apikey
+              </a>
+              . Salva apenas neste navegador.
+            </p>
+          </div>
+        )}
+
+        {/* Key status footer */}
+        {!showKeyInput && !generatingWc && (
+          <p className="text-[10px] text-neutral-400 text-center">
+            {hasKey ? (
+              <>Chave Google AI configurada · <button type="button" onClick={() => setShowKeyInput(true)} className="text-purple-600 underline">alterar</button></>
+            ) : (
+              <>Configure sua chave Google AI para ativar a transformação em aquarela · <button type="button" onClick={() => setShowKeyInput(true)} className="text-purple-600 underline">configurar</button></>
+            )}
+          </p>
+        )}
+
+        {wcError && (
+          <p className="text-xs text-red-600 bg-red-50 border border-red-200 px-3 py-2 rounded-lg">{wcError}</p>
+        )}
       </div>
     );
   }
 
-  // ── Render: no value — show mode toggle + upload/url UI ───────────────────
+  // ── Render: no value — mode toggle + upload / url UI ─────────────────────
   return (
     <div className="space-y-2">
       {/* Mode toggle */}
@@ -147,7 +307,6 @@ export default function ImageUpload({ value, onChange }: Props) {
             <p className="text-sm text-center">Clique ou arraste uma imagem</p>
             <p className="text-xs text-neutral-400">PNG, JPG, GIF, HEIC → convertida para WebP</p>
           </div>
-
           {uploading && (
             <div className="absolute inset-0 bg-white/80 flex flex-col items-center justify-center gap-2">
               <Loader2 size={22} className="animate-spin text-purple-600" />
@@ -178,7 +337,6 @@ export default function ImageUpload({ value, onChange }: Props) {
               Usar
             </button>
           </div>
-          {/* URL preview */}
           {urlInput && !urlPreviewError && (
             <div className="rounded-xl overflow-hidden border border-neutral-200 bg-neutral-50">
               <img

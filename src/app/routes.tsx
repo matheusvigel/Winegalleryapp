@@ -22,6 +22,7 @@ import Brands from "./backoffice/pages/Brands";
 import Grapes from "./backoffice/pages/Grapes";
 import Experiences from "./backoffice/pages/Experiences";
 import Highlights from "./backoffice/pages/Highlights";
+import BrotherhoodsAdmin from "./backoffice/pages/Brotherhoods";
 
 import Explore from "./pages/Explore";
 import Achievements from "./pages/Achievements";
@@ -52,8 +53,9 @@ export const router = createBrowserRouter([
       { path: "wines",         Component: Wines       },
       { path: "brands",        Component: Brands      },
       { path: "grapes",        Component: Grapes      },
-      { path: "experiences",   Component: Experiences },
-      { path: "highlights",    Component: Highlights  },
+      { path: "experiences",   Component: Experiences       },
+      { path: "highlights",    Component: Highlights        },
+      { path: "brotherhoods",  Component: BrotherhoodsAdmin },
     ],
   },
 
