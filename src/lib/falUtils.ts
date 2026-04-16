@@ -30,11 +30,11 @@ const BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 // ── Watercolor prompt ─────────────────────────────────────────────────────────
 const WATERCOLOR_PROMPT =
   'Transform this wine bottle into an elegant watercolor illustration art. ' +
-  'Use a dark dramatic background (near black). Apply expressive, loose watercolor ' +
-  'brushstrokes with soft painterly texture and translucent color layers. ' +
+  'Use a light, clean white or off-white background — do NOT use dark or black backgrounds. ' +
+  'Apply expressive, loose watercolor brushstrokes with soft painterly texture and translucent color layers. ' +
   'Preserve the bottle shape, label typography, brand name, and all label details accurately. ' +
   'Romantic, sophisticated fine-art wine illustration style — the same bottle, ' +
-  'reimagined as a hand-painted watercolor artwork.';
+  'reimagined as a hand-painted watercolor artwork on bright white paper.';
 
 // ── Helper: fetch any URL and return base64 + mimeType ───────────────────────
 async function imageUrlToBase64(url: string): Promise<{ base64: string; mimeType: string }> {
