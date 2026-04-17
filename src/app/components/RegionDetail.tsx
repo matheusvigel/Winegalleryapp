@@ -82,11 +82,11 @@ export default function RegionDetail() {
         .eq('parent_id', regionId).order('name');
       setSubRegions(subs ?? []);
 
-      // 4. Load collections for this region
+      // 4. Load collections for this region (match on any of the 3 geographic FK columns)
       const { data: cols } = await supabase
         .from('collections')
         .select('id, title, tagline, photo, category, content_type')
-        .or(`region_id.eq.${regionId},country_id.eq.${regionId}`)
+        .or(`region_id.eq.${regionId},country_id.eq.${regionId},sub_region_id.eq.${regionId}`)
         .order('title');
       setCollections(cols ?? []);
 
@@ -170,7 +170,12 @@ export default function RegionDetail() {
                 {parent && (
                   <>
                     <ChevronRight className="w-3 h-3 text-gray-400 flex-shrink-0" />
-                    <Link to={`/region/${parent.id}`} className="text-xs text-purple-600 font-medium hover:underline truncate max-w-[100px]">{parent.name}</Link>
+                    <Link
+                      to={parent.level === 'country' ? `/country/${parent.id}` : `/region/${parent.id}`}
+                      className="text-xs text-purple-600 font-medium hover:underline truncate max-w-[100px]"
+                    >
+                      {parent.name}
+                    </Link>
                   </>
                 )}
                 <ChevronRight className="w-3 h-3 text-gray-400 flex-shrink-0" />

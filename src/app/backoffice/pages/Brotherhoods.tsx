@@ -148,8 +148,8 @@ export default function Brotherhoods() {
         open={modalOpen}
         onClose={() => setModalOpen(false)}
         title={editing ? 'Editar Confraria' : 'Nova Confraria'}
-        onSubmit={handleSave}
       >
+        <form onSubmit={handleSave} className="space-y-5">
         {error && (
           <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>
         )}
@@ -217,6 +217,7 @@ export default function Brotherhoods() {
         <button type="submit" disabled={saving} className={btn}>
           {saving ? 'Salvando…' : editing ? 'Salvar alterações' : 'Criar confraria'}
         </button>
+        </form>
       </FormModal>
 
       {/* ── Delete confirmation ───────────────────────────────────────────────── */}
