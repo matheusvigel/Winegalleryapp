@@ -1,8 +1,13 @@
 import { useParams, Link } from 'react-router';
 import { useEffect, useState } from 'react';
 import { ChevronLeft, Heart, Share2, CheckCircle2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import {
+  toggleTried as psToggleTried,
+  toggleFavorite as psToggleFavorite,
+} from '../../lib/pointsSystem';
 
 interface WineRow {
   id: string;
@@ -58,22 +63,22 @@ export default function WineDetail() {
     if (!user || !id) return;
     setSaving(true);
     const newTried = !tried;
-    await supabase.from('user_progress').upsert(
-      { user_id: user.id, item_id: id, item_type: 'Vinhos', completed: newTried },
-      { onConflict: 'user_id,item_id' }
-    );
-    setTried(newTried);
+    setTried(newTried); // optimistic
+    const result = await psToggleTried(user.id, id, 'wine', tried);
+    if (result && !tried) {
+      toast.success('+1 ponto!', { description: 'Vinho marcado como experimentado 🍷' });
+    }
     setSaving(false);
   };
 
   const toggleFavorite = async () => {
     if (!user || !id) return;
     const newFav = !favorite;
-    await supabase.from('user_progress').upsert(
-      { user_id: user.id, item_id: id, item_type: 'Vinhos', is_favorite: newFav },
-      { onConflict: 'user_id,item_id' }
-    );
-    setFavorite(newFav);
+    setFavorite(newFav); // optimistic
+    const result = await psToggleFavorite(user.id, id, 'wine', favorite);
+    if (result && !favorite) {
+      toast.success('+1 ponto!', { description: 'Adicionado aos favoritos ❤️' });
+    }
   };
 
   if (loading) {

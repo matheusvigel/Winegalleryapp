@@ -1,235 +1,210 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router';
 import { supabase } from '../../lib/supabase';
-import { ArrowLeft, ChevronRight } from 'lucide-react';
+import { ArrowLeft, ChevronRight, MapPin, Layers } from 'lucide-react';
 import { motion } from 'motion/react';
 
-const BG    = '#E9E3D9';
-const CARD  = '#FFFFFF';
-const SURF  = '#F5F0E8';
-const WINE  = '#690037';
-const VERDE = '#2D3A3A';
-const TEXT1 = '#1C1B1F';
-const TEXT2 = '#5C5C5C';
-const MUTED = '#9B9B9B';
-const BORDER = 'rgba(0,0,0,0.08)';
+// In the live DB, "countries" are regions with level='country'.
+// The /country/:countryId route passes the region UUID.
+// Children (regions) have parent_id = countryId and level = 'region'.
+// Collections link via country_id = countryId.
 
-type Country = { id: string; name: string; image_url: string; description: string };
-type Collection = { id: string; title: string; cover_image: string; content_type: string | null };
-type Region = { id: string; name: string; image_url: string; description: string };
-
-const CONTENT_TYPE_LABELS: Record<string, string> = {
-  wines: 'Vinhos', wineries: 'Vinícolas', experiences: 'Experiências', grapes: 'Uvas', mix: 'Mix',
+type RegionRow = {
+  id: string;
+  name: string;
+  photo: string | null;
+  description: string | null;
+  level: string;
 };
+
+type CollectionRow = {
+  id: string;
+  title: string;
+  photo: string;
+  tagline: string | null;
+  category: string;
+  content_type: string;
+};
+
+const CATEGORY_COLORS: Record<string, string> = {
+  'Essencial':      'bg-emerald-100 text-emerald-700',
+  'Fugir do óbvio': 'bg-purple-100 text-purple-700',
+  'Ícones':         'bg-amber-100 text-amber-700',
+};
+
+const FALLBACK = 'https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=600&q=80';
 
 export default function CountryDetail() {
   const { countryId } = useParams<{ countryId: string }>();
   const navigate = useNavigate();
-  const [country, setCountry] = useState<Country | null>(null);
-  const [collections, setCollections] = useState<Collection[]>([]);
-  const [regions, setRegions] = useState<Region[]>([]);
+
+  const [country, setCountry] = useState<RegionRow | null>(null);
+  const [childRegions, setChildRegions] = useState<RegionRow[]>([]);
+  const [collections, setCollections] = useState<CollectionRow[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!countryId) return;
-    const load = async () => {
-      const [{ data: ct }, { data: regs }] = await Promise.all([
-        supabase.from('countries').select('*').eq('id', countryId).single(),
-        supabase.from('regions').select('id, name, image_url, description')
-          .eq('country_id', countryId).is('parent_id', null).order('name'),
-      ]);
-      setCountry(ct);
-      const regionList = regs ?? [];
-      setRegions(regionList);
 
-      if (regionList.length > 0) {
-        const { data: rcLinks } = await supabase
-          .from('region_collections').select('collection_id').in('region_id', regionList.map(r => r.id));
-        const ids = [...new Set((rcLinks ?? []).map(r => r.collection_id))];
-        if (ids.length > 0) {
-          const { data: cols } = await supabase
-            .from('collections').select('id, title, cover_image, content_type')
-            .in('id', ids).order('created_at', { ascending: false }).limit(6);
-          setCollections(cols ?? []);
-        }
-      }
+    const load = async () => {
+      // 1. Load the country (it's a region with level='country')
+      const { data: ct } = await supabase
+        .from('regions')
+        .select('id, name, photo, description, level')
+        .eq('id', countryId)
+        .maybeSingle();
+
+      setCountry(ct ?? null);
+
+      // 2. Child regions (level='region' or 'sub-region', parent_id = countryId)
+      const { data: children } = await supabase
+        .from('regions')
+        .select('id, name, photo, description, level')
+        .eq('parent_id', countryId)
+        .order('name');
+
+      setChildRegions(children ?? []);
+
+      // 3. Collections tied directly to this country
+      const { data: cols } = await supabase
+        .from('collections')
+        .select('id, title, photo, tagline, category, content_type')
+        .eq('country_id', countryId)
+        .order('category')
+        .limit(12);
+
+      setCollections(cols ?? []);
       setLoading(false);
     };
+
     load();
   }, [countryId]);
 
   if (loading) {
     return (
-      <div style={{ minHeight: '100vh', backgroundColor: BG, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <p style={{ fontFamily: "'DM Sans'", fontSize: '0.875rem', color: MUTED }}>Carregando...</p>
+      <div className="min-h-screen bg-gradient-to-b from-purple-50 via-white to-pink-50 flex items-center justify-center">
+        <div className="w-12 h-12 border-4 border-purple-600 border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
-  if (!country) return (
-    <div style={{ minHeight: '100vh', backgroundColor: BG, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <p style={{ fontFamily: "'DM Sans'", fontSize: '0.875rem', color: MUTED }}>País não encontrado</p>
-    </div>
-  );
+  if (!country) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-purple-50 via-white to-pink-50 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-gray-600 mb-2">País não encontrado</p>
+          <Link to="/explore" className="text-purple-600 hover:underline text-sm">Voltar para Explorar</Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: BG }}>
-      {/* ── Header ──────────────────────────────────────────────── */}
-      <div style={{
-        backgroundColor: CARD,
-        borderBottom: `1px solid ${BORDER}`,
-        paddingLeft: 20,
-        paddingRight: 20,
-        paddingTop: 48,
-        paddingBottom: 16,
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4 }}>
-          <motion.button
-            whileTap={{ scale: 0.9 }}
-            onClick={() => navigate(-1)}
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: '50%',
-              backgroundColor: SURF,
-              border: `1px solid ${BORDER}`,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0,
-              cursor: 'pointer',
-            }}
-          >
-            <ArrowLeft size={17} color={TEXT2} />
-          </motion.button>
-          <div style={{ minWidth: 0 }}>
-            {/* Breadcrumb */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap', marginBottom: 2 }}>
-              <Link to="/regions" style={{ fontFamily: "'DM Sans'", fontSize: '0.68rem', color: WINE, fontWeight: 500, textDecoration: 'none' }}>
-                Regiões
-              </Link>
-              <ChevronRight size={10} color={MUTED} />
-              <span style={{ fontFamily: "'DM Sans'", fontSize: '0.68rem', color: TEXT2, fontWeight: 500 }}>{country.name}</span>
+    <div className="min-h-screen bg-gradient-to-b from-purple-50 via-white to-pink-50">
+
+      {/* ── Sticky header ─────────────────────────────────────────── */}
+      <div className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-200">
+        <div className="max-w-2xl mx-auto px-4 pt-12 pb-3">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => navigate(-1)}
+              className="w-10 h-10 bg-gray-100 hover:bg-gray-200 rounded-full flex items-center justify-center transition-colors flex-shrink-0"
+            >
+              <ArrowLeft className="w-5 h-5 text-gray-700" />
+            </button>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1 flex-wrap">
+                <Link to="/explore" className="text-xs text-purple-600 font-medium hover:underline">Explorar</Link>
+                <ChevronRight className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                <span className="text-xs text-gray-500 truncate">{country.name}</span>
+              </div>
+              <h1 className="text-lg font-bold text-gray-900 leading-tight">{country.name}</h1>
             </div>
-            <h1 style={{ margin: 0, fontFamily: "'DM Sans'", fontWeight: 700, fontSize: '1.2rem', color: TEXT1, letterSpacing: '-0.02em', lineHeight: 1.2 }}>
-              {country.name}
-            </h1>
           </div>
         </div>
-        {country.description && (
-          <p style={{ margin: '8px 0 0 48px', fontFamily: "'DM Sans'", fontSize: '0.8rem', color: TEXT2, lineHeight: 1.5 }}>
-            {country.description}
-          </p>
-        )}
       </div>
 
-      <div style={{ padding: '16px 16px 24px' }}>
-        {/* ── Collections ─────────────────────────────────────── */}
-        {collections.length > 0 && (
-          <div style={{ marginBottom: 28 }}>
-            <p style={{ margin: '0 0 12px', fontFamily: "'DM Sans'", fontSize: '0.65rem', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: MUTED }}>
-              Coleções de {country.name}
-            </p>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-              {collections.map((col, i) => (
-                <motion.div
-                  key={col.id}
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.05 * i, duration: 0.25 }}
-                >
-                  <div style={{
-                    backgroundColor: CARD,
-                    borderRadius: 12,
-                    overflow: 'hidden',
-                    border: `1px solid ${BORDER}`,
-                  }}>
-                    <div style={{ position: 'relative', aspectRatio: '1', overflow: 'hidden', backgroundColor: SURF }}>
-                      <img
-                        src={col.cover_image}
-                        alt={col.title}
-                        style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-                      />
-                      {col.content_type && col.content_type !== 'mix' && (
-                        <div style={{ position: 'absolute', top: 8, left: 8 }}>
-                          <span style={{
-                            fontFamily: "'DM Sans'",
-                            fontSize: '0.6rem',
-                            fontWeight: 600,
-                            color: '#FFFFFF',
-                            backgroundColor: 'rgba(0,0,0,0.55)',
-                            backdropFilter: 'blur(8px)',
-                            padding: '2px 7px',
-                            borderRadius: 99,
-                          }}>
-                            {CONTENT_TYPE_LABELS[col.content_type] ?? col.content_type}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                    <p style={{ margin: 0, padding: '8px 10px', fontFamily: "'DM Sans'", fontSize: '0.78rem', fontWeight: 500, color: TEXT1, lineHeight: 1.3, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                      {col.title}
-                    </p>
-                  </div>
-                </motion.div>
-              ))}
+      <div className="pt-24 max-w-2xl mx-auto">
+
+        {/* ── Hero ──────────────────────────────────────────────────── */}
+        {country.photo ? (
+          <div className="relative h-52 mx-4 mb-6 rounded-2xl overflow-hidden shadow-lg">
+            <img
+              src={country.photo}
+              alt={country.name}
+              className="w-full h-full object-cover"
+              onError={(e) => { (e.target as HTMLImageElement).src = FALLBACK; }}
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+            <div className="absolute bottom-0 left-0 right-0 p-5">
+              <div className="flex items-center gap-2 mb-1">
+                <MapPin className="w-4 h-4 text-white/80" />
+                <span className="text-xs text-white/80 font-medium uppercase tracking-wider">País</span>
+              </div>
+              <h2 className="text-2xl font-bold text-white">{country.name}</h2>
+              {country.description && (
+                <p className="text-white/70 text-sm mt-1 line-clamp-2">{country.description}</p>
+              )}
             </div>
           </div>
-        )}
+        ) : country.description ? (
+          <div className="mx-4 mb-6 bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+            <p className="text-gray-600 text-sm leading-relaxed">{country.description}</p>
+          </div>
+        ) : null}
 
-        {/* ── Regions ─────────────────────────────────────────── */}
-        {regions.length > 0 && (
-          <div>
-            <p style={{ margin: '0 0 12px', fontFamily: "'DM Sans'", fontSize: '0.65rem', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: MUTED }}>
+        {/* ── Regions ───────────────────────────────────────────────── */}
+        {childRegions.length > 0 && (
+          <div className="mb-6">
+            <p className="mx-4 mb-3 text-xs font-bold text-gray-400 uppercase tracking-widest">
               Regiões de {country.name}
             </p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {regions.map((region, i) => (
+            <div className="space-y-3 px-4">
+              {childRegions.map((region, i) => (
                 <motion.div
                   key={region.id}
-                  initial={{ opacity: 0, x: -16 }}
-                  animate={{ opacity: 1, x: 0 }}
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.05 * i, duration: 0.3 }}
                 >
-                  <Link to={`/region/${region.id}`} style={{ textDecoration: 'none', display: 'block' }}>
-                    <div style={{
-                      backgroundColor: CARD,
-                      borderRadius: 14,
-                      overflow: 'hidden',
-                      border: `1px solid ${BORDER}`,
-                      transition: 'box-shadow 0.2s ease',
-                    }}
-                    onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.boxShadow = '0 4px 20px rgba(0,0,0,0.10)'}
-                    onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.boxShadow = 'none'}
-                    >
-                      <div style={{ position: 'relative', height: 140, backgroundColor: SURF }}>
-                        <img
-                          src={region.image_url}
-                          alt={region.name}
-                          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-                          draggable={false}
-                        />
-                        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.15) 55%, transparent 100%)' }} />
-                        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '0 16px 14px' }}>
-                          <h3 style={{ margin: 0, fontFamily: "'DM Sans'", fontWeight: 700, fontSize: '1.1rem', color: '#FFFFFF', lineHeight: 1.2 }}>
-                            {region.name}
-                          </h3>
-                          {region.description && (
-                            <p style={{ margin: '2px 0 0', fontFamily: "'DM Sans'", fontSize: '0.72rem', color: 'rgba(255,255,255,0.65)', display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                              {region.description}
-                            </p>
-                          )}
+                  <Link to={`/region/${region.id}`} className="block">
+                    <div className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+                      {region.photo ? (
+                        <div className="relative h-36">
+                          <img
+                            src={region.photo}
+                            alt={region.name}
+                            className="w-full h-full object-cover"
+                            onError={(e) => { (e.target as HTMLImageElement).src = FALLBACK; }}
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/65 to-transparent" />
+                          <div className="absolute bottom-0 left-0 right-0 p-4 flex items-end justify-between">
+                            <div>
+                              <span className="text-[10px] text-white/70 font-medium uppercase tracking-wider mb-0.5 block">
+                                {region.level === 'sub-region' ? 'Sub-região' : 'Região'}
+                              </span>
+                              <h3 className="text-white font-bold text-base">{region.name}</h3>
+                              {region.description && (
+                                <p className="text-white/70 text-xs line-clamp-1 mt-0.5">{region.description}</p>
+                              )}
+                            </div>
+                            <ChevronRight className="w-5 h-5 text-white/80 flex-shrink-0" />
+                          </div>
                         </div>
-                      </div>
-                      <div style={{ padding: '10px 16px 12px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                          <span style={{ fontFamily: "'DM Sans'", fontSize: '0.78rem', color: WINE, fontWeight: 500 }}>Ver coleções</span>
-                          <ChevronRight size={15} color={WINE} />
+                      ) : (
+                        <div className="flex items-center justify-between px-4 py-4">
+                          <div>
+                            <span className="text-[10px] text-gray-400 font-medium uppercase tracking-wider mb-0.5 block">
+                              {region.level === 'sub-region' ? 'Sub-região' : 'Região'}
+                            </span>
+                            <h3 className="text-gray-900 font-semibold text-sm">{region.name}</h3>
+                            {region.description && (
+                              <p className="text-gray-500 text-xs mt-0.5 line-clamp-1">{region.description}</p>
+                            )}
+                          </div>
+                          <ChevronRight className="w-5 h-5 text-purple-500 flex-shrink-0" />
                         </div>
-                        <div style={{ position: 'relative', height: 3, borderRadius: 99, backgroundColor: 'rgba(0,0,0,0.08)', overflow: 'hidden' }}>
-                          <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '0%', backgroundColor: '#F1BD85', borderRadius: 99 }} />
-                        </div>
-                      </div>
+                      )}
                     </div>
                   </Link>
                 </motion.div>
@@ -238,9 +213,68 @@ export default function CountryDetail() {
           </div>
         )}
 
-        {collections.length === 0 && regions.length === 0 && (
-          <div style={{ textAlign: 'center', paddingTop: 64, paddingBottom: 64 }}>
-            <p style={{ fontFamily: "'DM Sans'", fontSize: '0.875rem', color: MUTED }}>Nenhum conteúdo cadastrado ainda.</p>
+        {/* ── Collections from this country ─────────────────────────── */}
+        {collections.length > 0 && (
+          <div className="mb-8">
+            <p className="mx-4 mb-3 text-xs font-bold text-gray-400 uppercase tracking-widest">
+              Coleções de {country.name}
+            </p>
+            <div className="space-y-4 px-4">
+              {collections.map((col, i) => {
+                const catColor = CATEGORY_COLORS[col.category] ?? 'bg-gray-100 text-gray-600';
+                return (
+                  <motion.div
+                    key={col.id}
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.05 * i, duration: 0.3 }}
+                  >
+                    <Link to={`/collection/${col.id}`} className="block">
+                      <div className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+                        {col.photo ? (
+                          <div className="relative h-36">
+                            <img
+                              src={col.photo}
+                              alt={col.title}
+                              className="w-full h-full object-cover"
+                              onError={(e) => { (e.target as HTMLImageElement).src = FALLBACK; }}
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/10 to-transparent" />
+                            <div className="absolute bottom-0 left-0 right-0 p-4">
+                              <span className={`inline-block text-xs font-semibold px-2.5 py-0.5 rounded-full mb-1.5 ${catColor}`}>
+                                {col.category}
+                              </span>
+                              <h3 className="text-white font-bold text-sm leading-tight">{col.title}</h3>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex items-center justify-between px-4 py-4">
+                            <div>
+                              <span className={`inline-block text-xs font-semibold px-2 py-0.5 rounded-full mb-1 ${catColor}`}>
+                                {col.category}
+                              </span>
+                              <h3 className="text-gray-900 font-semibold text-sm">{col.title}</h3>
+                              {col.tagline && (
+                                <p className="text-gray-500 text-xs mt-0.5 line-clamp-1">{col.tagline}</p>
+                              )}
+                            </div>
+                            <ChevronRight className="w-5 h-5 text-purple-500 flex-shrink-0" />
+                          </div>
+                        )}
+                      </div>
+                    </Link>
+                  </motion.div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* ── Empty state ───────────────────────────────────────────── */}
+        {childRegions.length === 0 && collections.length === 0 && (
+          <div className="px-4 py-20 text-center">
+            <Layers className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+            <p className="text-gray-500 text-sm">Nenhum conteúdo cadastrado ainda para este país.</p>
           </div>
         )}
       </div>

@@ -113,6 +113,7 @@ export default function Regions() {
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-neutral-50 border-b border-neutral-200 text-left">
+                <th className="px-4 py-3 text-xs font-semibold text-neutral-500 uppercase tracking-wide w-14 hidden sm:table-cell">Foto</th>
                 <th className="px-4 py-3 text-xs font-semibold text-neutral-500 uppercase tracking-wide">Nome</th>
                 <th className="px-4 py-3 text-xs font-semibold text-neutral-500 uppercase tracking-wide hidden sm:table-cell">Nível</th>
                 <th className="px-4 py-3 text-xs font-semibold text-neutral-500 uppercase tracking-wide hidden md:table-cell">Descrição</th>
@@ -125,7 +126,7 @@ export default function Regions() {
                   return (
                     <Fragment key={r.id}>
                       <tr className="bg-neutral-100 border-b border-neutral-200">
-                        <td colSpan={4} className="px-4 py-2">
+                        <td colSpan={5} className="px-4 py-2">
                           <span className="text-xs font-bold text-neutral-600 uppercase tracking-wider">{r.name}</span>
                         </td>
                       </tr>
@@ -134,6 +135,13 @@ export default function Regions() {
                 }
                 return (
                   <tr key={r.id} className="border-b border-neutral-100 last:border-0 hover:bg-neutral-50/50">
+                    <td className="px-4 py-3 hidden sm:table-cell">
+                      {r.photo ? (
+                        <img src={r.photo} alt={r.name} className="w-10 h-10 rounded-lg object-cover border border-neutral-200" />
+                      ) : (
+                        <div className="w-10 h-10 rounded-lg bg-neutral-100 border border-dashed border-neutral-300 flex items-center justify-center text-neutral-300 text-xs">—</div>
+                      )}
+                    </td>
                     <td className="px-4 py-3 font-medium text-neutral-900">
                       <div className="flex items-center gap-1" style={{ paddingLeft: r.depth * 20 }}>
                         {r.depth > 0 && <ChevronRight size={14} className="text-neutral-300 shrink-0" />}

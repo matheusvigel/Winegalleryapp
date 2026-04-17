@@ -1,190 +1,174 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router';
-import Box from '@mui/material/Box';
-import Typography from '@mui/material/Typography';
-import CardActionArea from '@mui/material/CardActionArea';
-import Skeleton from '@mui/material/Skeleton';
-import { Search } from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
-import { getStats } from '../utils/storage';
+import { Search, MapPin, ChevronRight } from 'lucide-react';
+import { motion } from 'motion/react';
 import { supabase } from '../../lib/supabase';
 
-const BG    = '#E9E3D9';
-const CARD  = '#FFFFFF';
-const SURF  = '#F5F0E8';
-const WINE  = '#690037';
-const VERDE = '#2D3A3A';
-const LARANJA = '#F1BD85';
-const TEXT1 = '#1C1B1F';
-const MUTED = '#9B9B9B';
-const BORDER = 'rgba(0,0,0,0.08)';
+// In the new schema, countries = regions with level='country'.
+// Regions  = regions with level='region',     parent_id = countryId.
+// Sub-regs = regions with level='sub-region', parent_id = regionId.
 
-type Country = {
-  id: string; name: string; image_url: string;
-  regionCount: number; collectionCount: number;
+type CountryRow = {
+  id: string;
+  name: string;
+  photo: string | null;
+  description: string | null;
+  regionCount: number;
+  collectionCount: number;
 };
 
+const FALLBACK = 'https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=600&q=80';
+
 export default function RegionsView() {
-  const { user } = useAuth();
-  const [stats, setStats] = useState(getStats());
-  const [countries, setCountries] = useState<Country[]>([]);
+  const [countries, setCountries] = useState<CountryRow[]>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const handleUpdate = () => setStats(getStats());
-    window.addEventListener('statsUpdated', handleUpdate);
-    return () => window.removeEventListener('statsUpdated', handleUpdate);
-  }, []);
-
-  useEffect(() => {
     const load = async () => {
-      const [{ data: cts }, { data: regionRows }, { data: rcLinks }] = await Promise.all([
-        supabase.from('countries').select('id, name, image_url').order('name'),
-        supabase.from('regions').select('id, country_id'),
-        supabase.from('region_collections').select('region_id, collection_id'),
-      ]);
+      // 1. All country-level regions
+      const { data: cts } = await supabase
+        .from('regions')
+        .select('id, name, photo, description')
+        .eq('level', 'country')
+        .order('name');
+
+      if (!cts || cts.length === 0) { setLoading(false); return; }
+
+      const countryIds = cts.map(c => c.id);
+
+      // 2. Count child regions per country
+      const { data: childRegs } = await supabase
+        .from('regions')
+        .select('parent_id')
+        .in('parent_id', countryIds);
+
       const regionCountMap: Record<string, number> = {};
-      for (const r of regionRows ?? []) regionCountMap[r.country_id] = (regionCountMap[r.country_id] ?? 0) + 1;
-      const regionToCountry: Record<string, string> = {};
-      for (const r of regionRows ?? []) regionToCountry[r.id] = r.country_id;
-      const colCountMap: Record<string, Set<string>> = {};
-      for (const rc of rcLinks ?? []) {
-        const cid = regionToCountry[rc.region_id];
-        if (cid) { if (!colCountMap[cid]) colCountMap[cid] = new Set(); colCountMap[cid].add(rc.collection_id); }
+      for (const r of childRegs ?? []) {
+        if (r.parent_id) regionCountMap[r.parent_id] = (regionCountMap[r.parent_id] ?? 0) + 1;
       }
-      setCountries((cts ?? []).map(c => ({
-        ...c, regionCount: regionCountMap[c.id] ?? 0, collectionCount: colCountMap[c.id]?.size ?? 0,
+
+      // 3. Count collections per country
+      const { data: cols } = await supabase
+        .from('collections')
+        .select('country_id')
+        .in('country_id', countryIds);
+
+      const colCountMap: Record<string, number> = {};
+      for (const c of cols ?? []) {
+        if (c.country_id) colCountMap[c.country_id] = (colCountMap[c.country_id] ?? 0) + 1;
+      }
+
+      setCountries(cts.map(c => ({
+        ...c,
+        regionCount:     regionCountMap[c.id] ?? 0,
+        collectionCount: colCountMap[c.id]   ?? 0,
       })));
       setLoading(false);
     };
     load();
   }, []);
 
-  const pointsInLevel = stats.totalPoints % 100;
-  const filtered = countries.filter(c => c.name.toLowerCase().includes(search.toLowerCase()));
+  const filtered = countries.filter(c =>
+    c.name.toLowerCase().includes(search.toLowerCase())
+  );
 
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: BG }}>
+    <div className="min-h-screen bg-gradient-to-b from-purple-50 via-white to-pink-50">
 
-      {/* ── User level bar ───────────────────────────────────── */}
-      {user && (
-        <Box sx={{ px: 2.5, pt: 2.5, pb: 1 }}>
-          <Box sx={{
-            borderRadius: 2.5,
-            px: 2.5,
-            py: 1.75,
-            backgroundColor: CARD,
-            border: `1px solid ${BORDER}`,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 2,
-          }}>
-            <Box sx={{ flex: 1 }}>
-              <Typography sx={{
-                fontFamily: "'DM Sans'",
-                fontSize: '0.65rem',
-                fontWeight: 600,
-                letterSpacing: '0.08em',
-                textTransform: 'uppercase',
-                color: MUTED,
-                mb: 0.6,
-              }}>
-                Nível {stats.level} em Regiões
-              </Typography>
-              <Box sx={{ position: 'relative', height: 4, borderRadius: 99, bgcolor: 'rgba(0,0,0,0.08)', overflow: 'hidden' }}>
-                <Box sx={{
-                  position: 'absolute', left: 0, top: 0, bottom: 0,
-                  width: `${pointsInLevel}%`,
-                  backgroundColor: VERDE,
-                  borderRadius: 99,
-                  transition: 'width 0.6s ease',
-                }} />
-              </Box>
-            </Box>
-            <Box sx={{ textAlign: 'right', flexShrink: 0 }}>
-              <Typography sx={{ fontFamily: "'DM Sans'", fontSize: '1.1rem', fontWeight: 700, color: VERDE, lineHeight: 1 }}>
-                {pointsInLevel}
-              </Typography>
-              <Typography sx={{ fontFamily: "'DM Sans'", fontSize: '0.55rem', color: MUTED, letterSpacing: '0.06em' }}>
-                /100 pts
-              </Typography>
-            </Box>
-          </Box>
-        </Box>
-      )}
+      {/* ── Header / Search ─────────────────────────────────────── */}
+      <div className="bg-white shadow-sm sticky top-0 z-40">
+        <div className="max-w-md mx-auto px-4 py-4">
+          <div className="flex items-center gap-2 mb-4">
+            <MapPin className="w-5 h-5 text-purple-600" />
+            <h1 className="text-2xl font-bold text-gray-900">Regiões</h1>
+          </div>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Buscar países..."
+              className="w-full pl-10 pr-4 py-3 bg-gray-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
+            />
+          </div>
+        </div>
+      </div>
 
-      {/* ── Search ───────────────────────────────────────────── */}
-      <Box sx={{ px: 2.5, pt: user ? 1.5 : 2.5, pb: 2 }}>
-        <Box sx={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 1.5,
-          bgcolor: SURF,
-          border: `1px solid ${BORDER}`,
-          borderRadius: 2,
-          px: 2,
-          py: 1.25,
-          '&:focus-within': { borderColor: 'rgba(105,0,55,0.3)', bgcolor: CARD },
-          transition: 'border-color 0.2s ease, background-color 0.2s ease',
-        }}>
-          <Search size={15} color={MUTED} />
-          <input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Buscar países..."
-            style={{
-              background: 'none',
-              border: 'none',
-              outline: 'none',
-              flex: 1,
-              fontFamily: "'DM Sans', system-ui, sans-serif",
-              fontSize: '0.875rem',
-              color: TEXT1,
-              caretColor: WINE,
-            }}
-          />
-        </Box>
-      </Box>
+      <div className="max-w-md mx-auto px-4 py-6">
 
-      {/* ── Country list ─────────────────────────────────────── */}
-      {loading ? (
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
-          {[1, 2, 3].map(i => <Skeleton key={i} variant="rectangular" height={200} sx={{ bgcolor: 'rgba(0,0,0,0.06)' }} />)}
-        </Box>
-      ) : filtered.length === 0 ? (
-        <Box sx={{ textAlign: 'center', py: 10 }}>
-          <Typography sx={{ fontFamily: "'DM Sans'", fontSize: '0.85rem', color: MUTED }}>Nenhum país encontrado.</Typography>
-        </Box>
-      ) : (
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
-          {filtered.map(country => (
-            <CardActionArea key={country.id} component={Link} to={`/country/${country.id}`}>
-              <Box sx={{ position: 'relative', height: 200, overflow: 'hidden' }}>
-                <img
-                  src={country.image_url}
-                  alt={country.name}
-                  style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-                />
-                <Box sx={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.80) 0%, rgba(0,0,0,0.20) 55%, rgba(0,0,0,0.04) 100%)' }} />
-                <Box sx={{ position: 'absolute', bottom: 0, left: 0, right: 0, p: 2.5 }}>
-                  <Typography sx={{ fontFamily: "'DM Sans'", fontWeight: 700, fontSize: '1.25rem', color: '#FFFFFF', lineHeight: 1, mb: 0.4 }}>
-                    {country.name}
-                  </Typography>
-                  <Typography sx={{ fontFamily: "'DM Sans'", fontSize: '0.73rem', color: 'rgba(255,255,255,0.65)', letterSpacing: '0.03em' }}>
-                    {country.regionCount} {country.regionCount === 1 ? 'região' : 'regiões'} · {country.collectionCount} {country.collectionCount === 1 ? 'coleção' : 'coleções'}
-                  </Typography>
-                  {user && (
-                    <Box sx={{ mt: 1.5, position: 'relative', height: 2, borderRadius: 99, bgcolor: 'rgba(255,255,255,0.2)', overflow: 'hidden' }}>
-                      <Box sx={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '0%', backgroundColor: LARANJA, borderRadius: 99 }} />
-                    </Box>
-                  )}
-                </Box>
-              </Box>
-            </CardActionArea>
-          ))}
-        </Box>
-      )}
-    </Box>
+        {loading ? (
+          <div className="space-y-4">
+            {[1, 2, 3, 4].map(i => (
+              <div key={i} className="h-48 rounded-2xl bg-gray-100 animate-pulse" />
+            ))}
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="text-center py-20">
+            <div className="text-5xl mb-4">🗺️</div>
+            <p className="text-gray-500">Nenhum país encontrado.</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {filtered.map((country, i) => (
+              <motion.div
+                key={country.id}
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.05 * i, duration: 0.3 }}
+              >
+                <Link to={`/country/${country.id}`} className="block group">
+                  <div className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 group-hover:shadow-md transition-shadow">
+                    <div className="relative h-48">
+                      {country.photo ? (
+                        <img
+                          src={country.photo}
+                          alt={country.name}
+                          className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-300"
+                          onError={(e) => { (e.target as HTMLImageElement).src = FALLBACK; }}
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-gradient-to-br from-purple-200 to-pink-200" />
+                      )}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
+                      <div className="absolute bottom-0 left-0 right-0 p-5">
+                        <div className="flex items-end justify-between">
+                          <div>
+                            <h2 className="text-white font-bold text-xl leading-tight mb-0.5">
+                              {country.name}
+                            </h2>
+                            <p className="text-white/70 text-xs">
+                              {country.regionCount > 0
+                                ? `${country.regionCount} ${country.regionCount === 1 ? 'região' : 'regiões'}`
+                                : ''
+                              }
+                              {country.regionCount > 0 && country.collectionCount > 0 ? ' · ' : ''}
+                              {country.collectionCount > 0
+                                ? `${country.collectionCount} ${country.collectionCount === 1 ? 'coleção' : 'coleções'}`
+                                : ''
+                              }
+                            </p>
+                          </div>
+                          <div className="w-9 h-9 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center flex-shrink-0">
+                            <ChevronRight className="w-5 h-5 text-white" />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    {country.description && (
+                      <div className="px-4 py-3 border-t border-gray-50">
+                        <p className="text-gray-500 text-xs leading-relaxed line-clamp-2">
+                          {country.description}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </Link>
+              </motion.div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
   );
 }

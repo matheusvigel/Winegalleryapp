@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 interface AddReviewSectionProps {
   itemId: string;
   itemName?: string;
-  onAddReview: (itemId: string, review: { photo?: string; comment: string; rating: number }) => void;
+  onAddReview: (itemId: string, review: { photo?: string; comment: string; rating: number }) => Promise<void>;
 }
 
 export function AddReviewSection({ itemId, itemName, onAddReview }: AddReviewSectionProps) {
@@ -24,18 +24,14 @@ export function AddReviewSection({ itemId, itemName, onAddReview }: AddReviewSec
 
   const getTotalPoints = () => {
     let pts = 0;
-    if (photo) pts += 10;
-    if (comment.trim()) pts += 5;
-    if (rating > 0) pts += 3;
+    if (photo) pts += 3;                       // action: 'photo'
+    if (comment.trim() || rating > 0) pts += 3; // action: 'review'
     return pts;
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!comment.trim() && !photo && !rating) return;
-    onAddReview(itemId, { photo: photo ?? undefined, comment, rating });
-    toast.success(`+${getTotalPoints()} pontos! 🎉`, {
-      description: 'Sua experiência foi registrada com sucesso',
-    });
+    await onAddReview(itemId, { photo: photo ?? undefined, comment, rating });
     setPhoto(null);
     setComment('');
     setRating(0);
@@ -57,7 +53,7 @@ export function AddReviewSection({ itemId, itemName, onAddReview }: AddReviewSec
           </div>
         </div>
         <div className="grid grid-cols-3 gap-2 text-center">
-          {[['Foto', '+10'], ['Comentário', '+5'], ['Avaliação', '+3']].map(([label, pts]) => (
+          {[['Foto', '+3'], ['Comentário', '+3'], ['Avaliação', '✓']].map(([label, pts]) => (
             <div key={label} className="bg-white/20 rounded-lg py-2">
               <div className="text-lg font-bold">{pts}</div>
               <div className="text-xs text-yellow-50">{label}</div>
@@ -71,7 +67,7 @@ export function AddReviewSection({ itemId, itemName, onAddReview }: AddReviewSec
         <label className="block">
           <div className="flex items-center justify-between mb-2">
             <span className="font-semibold text-gray-900">📸 Adicione uma foto</span>
-            <span className="text-sm text-orange-600 font-medium">+10 pontos</span>
+            <span className="text-sm text-orange-600 font-medium">+3 pontos</span>
           </div>
           {!photo ? (
             <div className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center cursor-pointer hover:border-purple-400 hover:bg-purple-50/50 transition-all">
@@ -97,7 +93,7 @@ export function AddReviewSection({ itemId, itemName, onAddReview }: AddReviewSec
       <div className="bg-white rounded-2xl p-5 shadow-lg">
         <div className="flex items-center justify-between mb-3">
           <span className="font-semibold text-gray-900">⭐ Sua avaliação</span>
-          <span className="text-sm text-orange-600 font-medium">+3 pontos</span>
+          <span className="text-sm text-orange-600 font-medium">incluso</span>
         </div>
         <div className="flex gap-2 justify-center">
           {[1, 2, 3, 4, 5].map((star) => (
@@ -117,7 +113,7 @@ export function AddReviewSection({ itemId, itemName, onAddReview }: AddReviewSec
       <div className="bg-white rounded-2xl p-5 shadow-lg">
         <div className="flex items-center justify-between mb-3">
           <span className="font-semibold text-gray-900">💭 Seu comentário</span>
-          <span className="text-sm text-orange-600 font-medium">+5 pontos</span>
+          <span className="text-sm text-orange-600 font-medium">+3 pontos</span>
         </div>
         <textarea
           value={comment}

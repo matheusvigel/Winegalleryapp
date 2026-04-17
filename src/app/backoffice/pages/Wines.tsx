@@ -100,6 +100,7 @@ export default function Wines() {
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-neutral-50 border-b border-neutral-200 text-left">
+                <th className="px-4 py-3 text-xs font-semibold text-neutral-500 uppercase tracking-wide w-14 hidden sm:table-cell">Foto</th>
                 <th className="px-4 py-3 text-xs font-semibold text-neutral-500 uppercase tracking-wide">Nome</th>
                 <th className="px-4 py-3 text-xs font-semibold text-neutral-500 uppercase tracking-wide hidden sm:table-cell">Tipo</th>
                 <th className="px-4 py-3 text-xs font-semibold text-neutral-500 uppercase tracking-wide hidden md:table-cell">Categoria</th>
@@ -110,6 +111,13 @@ export default function Wines() {
             <tbody>
               {rows.map((r, i) => (
                 <tr key={r.id} className={`border-b border-neutral-100 last:border-0 ${i % 2 ? 'bg-neutral-50/50' : ''}`}>
+                  <td className="px-4 py-3 hidden sm:table-cell">
+                    {r.photo ? (
+                      <img src={r.photo} alt={r.name} className="w-10 h-10 rounded-lg object-cover border border-neutral-200" />
+                    ) : (
+                      <div className="w-10 h-10 rounded-lg bg-neutral-100 border border-neutral-200 flex items-center justify-center text-neutral-300 text-xs">—</div>
+                    )}
+                  </td>
                   <td className="px-4 py-3 font-medium text-neutral-900">{r.name}</td>
                   <td className="px-4 py-3 hidden sm:table-cell">
                     <span className="bg-purple-100 text-purple-700 text-xs font-medium px-2 py-0.5 rounded-full">{r.type}</span>

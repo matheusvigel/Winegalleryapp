@@ -3,10 +3,16 @@ import { useParams, Link } from 'react-router';
 import { ChevronLeft, Heart, Share2, CheckCircle2, ChevronRight, MapPin } from 'lucide-react';
 import useEmblaCarousel from 'embla-carousel-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { toast } from 'sonner';
 import { AddReviewSection } from '../components/AddReviewSection';
 import { CollectionCard } from '../components/CollectionCard';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import {
+  toggleTried as psToggleTried,
+  toggleFavorite as psToggleFavorite,
+  awardPoints,
+} from '../../lib/pointsSystem';
 
 // ── Data types ─────────────────────────────────────────────────────────────────
 
@@ -271,32 +277,75 @@ export default function CollectionDetail() {
 
   // ── Actions ──────────────────────────────────────────────────────────────────
 
+  const getItemType = (itemId: string): string => {
+    return items.find(i => i.itemId === itemId)?.itemType ?? 'wine';
+  };
+
   const toggleTried = async (itemId: string) => {
+    if (!user) return;
     const current = itemStates[itemId] ?? { tried: false, favorite: false };
-    const newTried = !current.tried;
-    setItemStates(prev => ({ ...prev, [itemId]: { ...current, tried: newTried } }));
-    if (user) {
-      await supabase.from('user_progress').upsert(
-        { user_id: user.id, item_id: itemId, item_type: 'wine', completed: newTried },
-        { onConflict: 'user_id,item_id' }
-      );
+    // Optimistic update
+    setItemStates(prev => ({ ...prev, [itemId]: { ...current, tried: !current.tried } }));
+    const itemType = getItemType(itemId);
+    await psToggleTried(user.id, itemId, itemType, current.tried);
+    if (!current.tried) {
+      toast.success('+1 ponto!', { description: 'Item marcado como experimentado ✓' });
     }
   };
 
   const toggleFavorite = async (itemId: string) => {
+    if (!user) return;
     const current = itemStates[itemId] ?? { tried: false, favorite: false };
-    const newFav = !current.favorite;
-    setItemStates(prev => ({ ...prev, [itemId]: { ...current, favorite: newFav } }));
-    if (user) {
-      await supabase.from('user_progress').upsert(
-        { user_id: user.id, item_id: itemId, item_type: 'wine', is_favorite: newFav },
-        { onConflict: 'user_id,item_id' }
-      );
+    // Optimistic update
+    setItemStates(prev => ({ ...prev, [itemId]: { ...current, favorite: !current.favorite } }));
+    const itemType = getItemType(itemId);
+    await psToggleFavorite(user.id, itemId, itemType, current.favorite);
+    if (!current.favorite) {
+      toast.success('+1 ponto!', { description: 'Adicionado aos favoritos ❤️' });
     }
   };
 
-  const addReview = (itemId: string, review: { photo?: string; comment: string; rating: number }) => {
-    setItemStates(prev => ({ ...prev, [itemId]: { ...(prev[itemId] ?? { tried: false, favorite: false }), review } }));
+  const addReview = async (
+    itemId: string,
+    review: { photo?: string; comment: string; rating: number },
+  ) => {
+    // Persist state in UI
+    setItemStates(prev => ({
+      ...prev,
+      [itemId]: { ...(prev[itemId] ?? { tried: false, favorite: false }), review },
+    }));
+
+    if (!user) return;
+    const itemType = getItemType(itemId);
+
+    // Calculate points: review (comment/rating) = 3 pts, photo = 3 pts
+    const hasReview = review.comment.trim() || review.rating > 0;
+    const hasPhoto  = !!review.photo;
+    let totalPts = 0;
+
+    if (hasReview) {
+      await awardPoints({ userId: user.id, action: 'review', itemId, itemType });
+      totalPts += 3;
+    }
+    if (hasPhoto) {
+      await awardPoints({ userId: user.id, action: 'photo', itemId, itemType });
+      totalPts += 3;
+    }
+
+    // Save to reviews table
+    await supabase.from('reviews').insert({
+      user_id:      user.id,
+      item_id:      itemId,
+      item_type:    itemType,
+      rating:       review.rating,
+      comment:      review.comment || null,
+      photos:       review.photo ? [review.photo] : null,
+      points_earned: totalPts,
+    });
+
+    if (totalPts > 0) {
+      toast.success(`+${totalPts} pontos!`, { description: 'Sua avaliação foi registrada 🎉' });
+    }
   };
 
   // ── Render: loading ──────────────────────────────────────────────────────────

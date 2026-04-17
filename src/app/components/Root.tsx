@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router';
-import { Home, Compass, Users, Trophy, User } from 'lucide-react';
+import { Home, Compass, Users, Trophy, User, Search } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 const NAV_LINKS = [
@@ -103,8 +103,19 @@ export default function Root() {
             })}
           </nav>
 
-          {/* Right: user avatar */}
+          {/* Right: search + user avatar */}
           <div className="flex items-center gap-3 flex-shrink-0">
+            <button
+              onClick={() => navigate('/search')}
+              className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors ${
+                isActive('/search')
+                  ? 'bg-purple-100 text-purple-700'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+              title="Buscar"
+            >
+              <Search className="w-5 h-5" strokeWidth={isActive('/search') ? 2.5 : 2} />
+            </button>
             <button
               onClick={() => navigate('/profile')}
               className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors ${

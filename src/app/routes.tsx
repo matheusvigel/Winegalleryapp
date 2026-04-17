@@ -23,10 +23,14 @@ import Grapes from "./backoffice/pages/Grapes";
 import Experiences from "./backoffice/pages/Experiences";
 import Highlights from "./backoffice/pages/Highlights";
 import BrotherhoodsAdmin from "./backoffice/pages/Brotherhoods";
+import QuizAdmin from "./backoffice/pages/QuizAdmin";
+import UsersAdmin from "./backoffice/pages/Users";
 
 import Explore from "./pages/Explore";
+import SearchPage from "./pages/SearchPage";
 import Achievements from "./pages/Achievements";
 import WineDetail from "./pages/WineDetail";
+import WineryDetail from "./pages/WineryDetail";
 import CollectionDetail from "./pages/CollectionDetail";
 import Brotherhoods from "./pages/Brotherhoods";
 import BrotherhoodDetail from "./pages/BrotherhoodDetail";
@@ -56,6 +60,8 @@ export const router = createBrowserRouter([
       { path: "experiences",   Component: Experiences       },
       { path: "highlights",    Component: Highlights        },
       { path: "brotherhoods",  Component: BrotherhoodsAdmin },
+      { path: "quiz",          Component: QuizAdmin         },
+      { path: "users",         Component: UsersAdmin        },
     ],
   },
 
@@ -66,6 +72,7 @@ export const router = createBrowserRouter([
     children: [
       { index: true,                    Component: Home              },
       { path: "explore",                Component: Explore           },
+      { path: "search",                 Component: SearchPage        },
       { path: "achievements",           Component: Achievements      },
       { path: "brotherhoods",           Component: Brotherhoods      },
       { path: "brotherhoods/:id",       Component: BrotherhoodDetail },
@@ -76,7 +83,8 @@ export const router = createBrowserRouter([
       { path: "country/:countryId",     Component: CountryDetail     },
       { path: "region/:regionId",       Component: RegionDetail      },
       { path: "brands",                 Component: BrandsView        },
-      { path: "brand/:brandId",         Component: RegionDetail      },
+      { path: "brand/:brandId",         Component: WineryDetail      },
+      { path: "winery/:wineryId",       Component: WineryDetail      },
       { path: "grapes",                 Component: GrapesView        },
       { path: "grape/:grapeId",         Component: RegionDetail      },
       {
