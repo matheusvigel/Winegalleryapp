@@ -25,12 +25,15 @@ import Highlights from "./backoffice/pages/Highlights";
 import BrotherhoodsAdmin from "./backoffice/pages/Brotherhoods";
 import QuizAdmin from "./backoffice/pages/QuizAdmin";
 import UsersAdmin from "./backoffice/pages/Users";
+import PlacesAdmin from "./backoffice/pages/Places";
+import ProfileRulesAdmin from "./backoffice/pages/ProfileRules";
 
 import Explore from "./pages/Explore";
 import SearchPage from "./pages/SearchPage";
 import Achievements from "./pages/Achievements";
 import WineDetail from "./pages/WineDetail";
 import WineryDetail from "./pages/WineryDetail";
+import PlaceDetail from "./pages/PlaceDetail";
 import CollectionDetail from "./pages/CollectionDetail";
 import Brotherhoods from "./pages/Brotherhoods";
 import BrotherhoodDetail from "./pages/BrotherhoodDetail";
@@ -62,6 +65,8 @@ export const router = createBrowserRouter([
       { path: "brotherhoods",  Component: BrotherhoodsAdmin },
       { path: "quiz",          Component: QuizAdmin         },
       { path: "users",         Component: UsersAdmin        },
+      { path: "places",        Component: PlacesAdmin       },
+      { path: "profile-rules", Component: ProfileRulesAdmin },
     ],
   },
 
@@ -85,6 +90,7 @@ export const router = createBrowserRouter([
       { path: "brands",                 Component: BrandsView        },
       { path: "brand/:brandId",         Component: WineryDetail      },
       { path: "winery/:wineryId",       Component: WineryDetail      },
+      { path: "place/:placeId",         Component: PlaceDetail       },
       { path: "grapes",                 Component: GrapesView        },
       { path: "grape/:grapeId",         Component: RegionDetail      },
       {

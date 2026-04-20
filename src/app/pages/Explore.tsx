@@ -4,6 +4,8 @@ import { CollectionCard } from '../components/CollectionCard';
 import { Search, MapPin, ChevronRight } from 'lucide-react';
 import { motion } from 'motion/react';
 import { supabase } from '../../lib/supabase';
+import { useAuth } from '../contexts/AuthContext';
+import { PROFILE_LABELS, PROFILE_ICONS, type WineProfile } from '../../lib/profileConstants';
 
 type FilterType = 'all' | 'Vinhos' | 'Experiências' | 'Vinícolas';
 
@@ -13,6 +15,7 @@ interface CollectionRow {
   tagline: string | null;
   photo: string;
   content_type: string;
+  category: string;
 }
 
 interface RegionRow {
@@ -29,6 +32,12 @@ interface CountryRow {
   photo: string | null;
 }
 
+interface ProfileRule {
+  category: string;
+  priority: number;
+  visible: boolean;
+}
+
 const FALLBACK = 'https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=600&q=80';
 
 const FILTERS: { key: FilterType; label: string }[] = [
@@ -38,18 +47,40 @@ const FILTERS: { key: FilterType; label: string }[] = [
   { key: 'Vinícolas',    label: '🏛️ Vinícolas'    },
 ];
 
+// Sort collections by profile rules: hidden categories go last, then by priority
+function sortByProfileRules(cols: CollectionRow[], rules: ProfileRule[]): CollectionRow[] {
+  if (rules.length === 0) return cols;
+  const ruleMap: Record<string, ProfileRule> = {};
+  for (const r of rules) ruleMap[r.category] = r;
+
+  return [...cols].sort((a, b) => {
+    const ra = ruleMap[a.category];
+    const rb = ruleMap[b.category];
+    const visA = ra?.visible ?? true;
+    const visB = rb?.visible ?? true;
+    if (visA !== visB) return visA ? -1 : 1;
+    const prioA = ra?.priority ?? 99;
+    const prioB = rb?.priority ?? 99;
+    return prioA - prioB;
+  });
+}
+
 export default function Explore() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+
   const [selectedFilter, setSelectedFilter] = useState<FilterType>('all');
-  const [collections, setCollections] = useState<CollectionRow[]>([]);
-  const [regions, setRegions] = useState<RegionRow[]>([]);
-  const [countries, setCountries] = useState<CountryRow[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [collections, setCollections]       = useState<CollectionRow[]>([]);
+  const [regions, setRegions]               = useState<RegionRow[]>([]);
+  const [countries, setCountries]           = useState<CountryRow[]>([]);
+  const [profileRules, setProfileRules]     = useState<ProfileRule[]>([]);
+  const [userProfile, setUserProfile]       = useState<WineProfile | null>(null);
+  const [loading, setLoading]               = useState(true);
 
   useEffect(() => {
     const load = async () => {
       const [{ data: cols }, { data: regs }, { data: cts }] = await Promise.all([
-        supabase.from('collections').select('id, title, tagline, photo, content_type').order('title'),
+        supabase.from('collections').select('id, title, tagline, photo, content_type, category').order('title'),
         supabase.from('regions')
           .select('id, name, photo, level, parent:regions!parent_id(name)')
           .in('level', ['region', 'sub-region'])
@@ -69,9 +100,45 @@ export default function Explore() {
     load();
   }, []);
 
-  const filtered = collections.filter(c =>
-    selectedFilter === 'all' || c.content_type === selectedFilter
-  );
+  // Load profile rules when user is known
+  useEffect(() => {
+    if (!user) { setProfileRules([]); setUserProfile(null); return; }
+
+    const loadProfile = async () => {
+      const { data: prof } = await supabase
+        .from('user_profiles')
+        .select('wine_profile')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      const profile = prof?.wine_profile as WineProfile | null;
+      setUserProfile(profile ?? null);
+
+      if (profile) {
+        const { data: rules } = await supabase
+          .from('profile_content_rules')
+          .select('category, priority, visible')
+          .eq('profile', profile);
+        setProfileRules((rules as ProfileRule[]) ?? []);
+      }
+    };
+    loadProfile();
+  }, [user]);
+
+  // Filter by content_type first, then sort/filter by profile rules
+  const filtered = (() => {
+    let cols = collections.filter(c =>
+      selectedFilter === 'all' || c.content_type === selectedFilter
+    );
+    // Only apply profile rules when showing "all" — filtered tabs show everything
+    if (selectedFilter === 'all' && profileRules.length > 0) {
+      // Hide invisible categories
+      const hiddenCats = profileRules.filter(r => !r.visible).map(r => r.category);
+      cols = cols.filter(c => !hiddenCats.includes(c.category));
+      cols = sortByProfileRules(cols, profileRules);
+    }
+    return cols;
+  })();
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-purple-50 via-white to-pink-50">
@@ -110,6 +177,34 @@ export default function Explore() {
       </header>
 
       <div className="max-w-screen-xl mx-auto px-4 py-6 lg:px-8 lg:py-8">
+
+        {/* ── Profile banner (when rules are active) ───────────────── */}
+        {user && userProfile && selectedFilter === 'all' && profileRules.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-6 flex items-center gap-3 bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-100 rounded-2xl px-4 py-3"
+          >
+            <span className="text-2xl">{PROFILE_ICONS[userProfile]}</span>
+            <div>
+              <p className="text-xs text-purple-500 font-medium">Curado para o seu perfil</p>
+              <p className="text-sm font-semibold text-gray-900">{PROFILE_LABELS[userProfile]}</p>
+            </div>
+            <div className="ml-auto flex gap-1.5">
+              {[...profileRules]
+                .filter(r => r.visible)
+                .sort((a, b) => a.priority - b.priority)
+                .map(r => (
+                  <span
+                    key={r.category}
+                    className="text-[10px] bg-white border border-purple-100 text-purple-600 font-semibold px-2 py-0.5 rounded-full"
+                  >
+                    {r.priority}. {r.category}
+                  </span>
+                ))}
+            </div>
+          </motion.div>
+        )}
 
         {/* ── Countries row ────────────────────────────────────────── */}
         {countries.length > 0 && selectedFilter === 'all' && (

@@ -10,14 +10,23 @@ import {
 
 type Experience = {
   id: string; name: string; photo: string; category: string;
+  location_type: string;
   winery_id: string | null; region_id: string | null;
   highlight: string; buy_link: string | null;
 };
 type Option = { id: string; name: string };
 
 const CATEGORIES = ['Essencial', 'Fugir do óbvio', 'Ícones'];
+
+const LOCATION_TYPES: { value: string; label: string; emoji: string }[] = [
+  { value: 'em_casa',     label: 'Em Casa',      emoji: '🏠' },
+  { value: 'na_vinicola', label: 'Na Vinícola',  emoji: '🍇' },
+  { value: 'na_cidade',   label: 'Na Cidade',    emoji: '🏙️' },
+];
+
 const empty = (): Omit<Experience, 'id'> => ({
-  name: '', photo: '', category: 'Essencial', winery_id: null, region_id: null, highlight: '', buy_link: null,
+  name: '', photo: '', category: 'Essencial', location_type: 'na_vinicola',
+  winery_id: null, region_id: null, highlight: '', buy_link: null,
 });
 
 export default function Experiences() {
@@ -52,7 +61,7 @@ export default function Experiences() {
   const openCreate = () => { setEditing(null); setForm(empty()); setError(''); setSheetOpen(true); };
   const openEdit = (r: Experience) => {
     setEditing(r);
-    setForm({ name: r.name, photo: r.photo, category: r.category, winery_id: r.winery_id, region_id: r.region_id, highlight: r.highlight, buy_link: r.buy_link });
+    setForm({ name: r.name, photo: r.photo, category: r.category, location_type: r.location_type ?? 'na_vinicola', winery_id: r.winery_id, region_id: r.region_id, highlight: r.highlight, buy_link: r.buy_link });
     setError(''); setSheetOpen(true);
   };
 
@@ -97,6 +106,7 @@ export default function Experiences() {
               <tr className="bg-neutral-50 border-b border-neutral-200 text-left">
                 <th className="px-4 py-3 text-xs font-semibold text-neutral-500 uppercase tracking-wide">Nome</th>
                 <th className="px-4 py-3 text-xs font-semibold text-neutral-500 uppercase tracking-wide hidden sm:table-cell">Categoria</th>
+                <th className="px-4 py-3 text-xs font-semibold text-neutral-500 uppercase tracking-wide hidden sm:table-cell">Local</th>
                 <th className="px-4 py-3 text-xs font-semibold text-neutral-500 uppercase tracking-wide hidden md:table-cell">Destaque</th>
                 <th className="px-4 py-3 w-20"></th>
               </tr>
@@ -107,6 +117,12 @@ export default function Experiences() {
                   <td className="px-4 py-3 font-medium text-neutral-900">{r.name}</td>
                   <td className="px-4 py-3 hidden sm:table-cell">
                     <span className="bg-purple-100 text-purple-700 text-xs font-medium px-2 py-0.5 rounded-full">{r.category}</span>
+                  </td>
+                  <td className="px-4 py-3 hidden sm:table-cell">
+                    <span className="text-xs text-neutral-600">
+                      {LOCATION_TYPES.find(l => l.value === r.location_type)?.emoji ?? '🍇'}{' '}
+                      {LOCATION_TYPES.find(l => l.value === r.location_type)?.label ?? 'Na Vinícola'}
+                    </span>
                   </td>
                   <td className="px-4 py-3 text-neutral-500 hidden md:table-cell max-w-xs truncate">{r.highlight}</td>
                   <td className="px-4 py-3">
@@ -135,6 +151,25 @@ export default function Experiences() {
               </select>
             </Field>
           </FieldRow>
+          <Field label="Onde acontece *">
+            <div className="flex gap-2">
+              {LOCATION_TYPES.map(lt => (
+                <button
+                  key={lt.value}
+                  type="button"
+                  onClick={() => setForm(f => ({ ...f, location_type: lt.value }))}
+                  className={`flex-1 flex flex-col items-center gap-1 py-2.5 rounded-lg border text-xs font-medium transition-colors ${
+                    form.location_type === lt.value
+                      ? 'border-purple-600 bg-purple-50 text-purple-700'
+                      : 'border-neutral-200 bg-white text-neutral-600 hover:border-purple-300'
+                  }`}
+                >
+                  <span className="text-lg">{lt.emoji}</span>
+                  {lt.label}
+                </button>
+              ))}
+            </div>
+          </Field>
           <FieldRow>
             <Field label="Vinícola (opcional)">
               <select value={form.winery_id ?? ''} onChange={e => setForm(f => ({ ...f, winery_id: e.target.value || null }))} className={inp}>
