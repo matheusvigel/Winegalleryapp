@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router';
-import { Search, X, Wine, MapPin, Building2, Sparkles } from 'lucide-react';
+import { Search, X, Wine, MapPin, Building2, Sparkles, UtensilsCrossed } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { supabase } from '../../lib/supabase';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
-type ResultType = 'wine' | 'winery' | 'region' | 'collection';
+type ResultType = 'wine' | 'winery' | 'region' | 'collection' | 'place';
 
 interface SearchResult {
   id: string;
@@ -24,6 +24,7 @@ const ICONS: Record<ResultType, React.ElementType> = {
   winery:     Building2,
   region:     MapPin,
   collection: Sparkles,
+  place:      UtensilsCrossed,
 };
 
 const TYPE_LABELS: Record<ResultType, string> = {
@@ -31,6 +32,7 @@ const TYPE_LABELS: Record<ResultType, string> = {
   winery:     'Vinícola',
   region:     'Região',
   collection: 'Coleção',
+  place:      'Lugar',
 };
 
 const TYPE_COLORS: Record<ResultType, string> = {
@@ -38,6 +40,7 @@ const TYPE_COLORS: Record<ResultType, string> = {
   winery:     'bg-emerald-100 text-emerald-700',
   region:     'bg-rose-100 text-rose-700',
   collection: 'bg-amber-100 text-amber-700',
+  place:      'bg-sky-100 text-sky-700',
 };
 
 const FALLBACK = 'https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=200&q=60';
@@ -82,6 +85,7 @@ export default function SearchPage() {
         { data: wineries },
         { data: regions },
         { data: collections },
+        { data: places },
       ] = await Promise.all([
         supabase
           .from('wines')
@@ -106,6 +110,12 @@ export default function SearchPage() {
           .from('collections')
           .select('id, title, photo, category')
           .ilike('title', ilike)
+          .limit(5),
+
+        supabase
+          .from('places')
+          .select('id, name, photo, type, sub_type')
+          .ilike('name', ilike)
           .limit(5),
       ]);
 
@@ -142,6 +152,14 @@ export default function SearchPage() {
           photo:    c.photo || null,
           href:     `/collection/${c.id}`,
         })),
+        ...(places ?? []).map((p: any): SearchResult => ({
+          id:       p.id,
+          type:     'place',
+          title:    p.name,
+          subtitle: p.sub_type ?? null,
+          photo:    p.photo || null,
+          href:     `/place/${p.id}`,
+        })),
       ];
 
       setResults(mapped);
@@ -156,11 +174,12 @@ export default function SearchPage() {
     : results.filter(r => r.type === selectedType);
 
   const filterTypes: { key: ResultType | 'all'; label: string }[] = [
-    { key: 'all',       label: 'Tudo'      },
-    { key: 'wine',      label: '🍷 Vinhos'  },
-    { key: 'winery',   label: '🏛️ Vinícolas'},
-    { key: 'region',   label: '📍 Regiões'  },
-    { key: 'collection', label: '✨ Coleções'},
+    { key: 'all',        label: 'Tudo'       },
+    { key: 'wine',       label: '🍷 Vinhos'   },
+    { key: 'winery',     label: '🏛️ Vinícolas' },
+    { key: 'region',     label: '📍 Regiões'   },
+    { key: 'collection', label: '✨ Coleções'  },
+    { key: 'place',      label: '🍽️ Lugares'   },
   ];
 
   return (

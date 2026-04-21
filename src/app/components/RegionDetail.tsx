@@ -93,17 +93,37 @@ export default function RegionDetail() {
       // 5. Load items for all collections
       const colIds = (cols ?? []).map(c => c.id);
       if (colIds.length > 0) {
+        // 5a. Fetch collection_items (no FK join — item_id is polymorphic)
         const { data: ciRows } = await supabase
           .from('collection_items')
-          .select('item_id, collection_id, wines(id, name, highlight, photo, type, wineries(name))')
+          .select('item_id, collection_id, item_type, position')
           .in('collection_id', colIds)
           .order('position');
 
+        // 5b. Fetch wine data separately for all wine item_ids
+        const wineIds = (ciRows ?? [])
+          .filter((ci: any) => !ci.item_type || ci.item_type === 'wine')
+          .map((ci: any) => ci.item_id);
+
+        const wineMap: Record<string, ItemRow['wines']> = {};
+        if (wineIds.length > 0) {
+          const { data: wineRows } = await supabase
+            .from('wines')
+            .select('id, name, highlight, photo, type, wineries(name)')
+            .in('id', wineIds);
+          for (const w of wineRows ?? []) {
+            wineMap[(w as any).id] = w as unknown as ItemRow['wines'];
+          }
+        }
+
         const byCol: Record<string, ItemRow[]> = {};
         for (const ci of ciRows ?? []) {
-          const row = ci as unknown as ItemRow & { collection_id: string };
+          const row = ci as any;
           if (!byCol[row.collection_id]) byCol[row.collection_id] = [];
-          byCol[row.collection_id].push({ item_id: row.item_id, wines: row.wines });
+          byCol[row.collection_id].push({
+            item_id: row.item_id,
+            wines: wineMap[row.item_id] ?? null,
+          });
         }
         setCollectionItems(byCol);
 

@@ -16,12 +16,10 @@ type QuizOption = {
   letter: string;
   option_text: string;
   profile_key: WineProfile;
-  weight: number;
 };
 
 type QuizQuestion = {
   id: string;
-  flow: string;
   position: number;
   question: string;
   context: string | null;
@@ -30,58 +28,41 @@ type QuizQuestion = {
 
 type Answer = {
   questionId: string;
-  optionId: string;
+  optionId:   string;
   profileKey: WineProfile;
-  weight: number;
 };
 
-// ── Profile calculation (3-layer method) ─────────────────────
+// ── Profile calculation (pure frequency count) ────────────────
+// Tiebreak: most beginner profile wins (novato > curioso > ... > expert)
 function calculateProfile(answers: Answer[]): {
-  dominant: WineProfile;
-  totalWeight: number;
-  composition: Record<WineProfile, number>;
+  dominant:    WineProfile;
+  secondaries: WineProfile[];
+  counts:      Record<WineProfile, number>;
 } {
   const freq: Partial<Record<WineProfile, number>> = {};
-  let totalWeight = 0;
-
   for (const a of answers) {
     freq[a.profileKey] = (freq[a.profileKey] ?? 0) + 1;
-    totalWeight += a.weight;
   }
 
-  // Layer 1: most frequent profile
-  const maxFreq = Math.max(...(Object.values(freq) as number[]));
-  const leaders = PROFILE_ORDER.filter(p => (freq[p] ?? 0) === maxFreq);
-
-  let dominant: WineProfile;
-  if (leaders.length === 1) {
-    dominant = leaders[0];
-  } else {
-    // Layer 2: tiebreak by score range
-    if      (totalWeight <= 8)  dominant = 'novato';
-    else if (totalWeight <= 12) dominant = 'curioso';
-    else if (totalWeight <= 17) dominant = 'desbravador';
-    else if (totalWeight <= 21) dominant = 'curador';
-    else                        dominant = 'expert';
-  }
-
-  // Layer 3: composition %
-  const n = answers.length || 1;
-  const composition = Object.fromEntries(
-    PROFILE_ORDER.map(p => [p, Math.round(((freq[p] ?? 0) / n) * 100)])
+  const maxCount = Math.max(...(Object.values(freq) as number[]));
+  // PROFILE_ORDER goes novato → expert; find() returns first tie = most beginner
+  const dominant = PROFILE_ORDER.find(p => (freq[p] ?? 0) === maxCount)!;
+  const secondaries = PROFILE_ORDER.filter(p => p !== dominant && (freq[p] ?? 0) > 0);
+  const counts = Object.fromEntries(
+    PROFILE_ORDER.map(p => [p, freq[p] ?? 0])
   ) as Record<WineProfile, number>;
 
-  return { dominant, totalWeight, composition };
+  return { dominant, secondaries, counts };
 }
 
 // ── Design tokens ─────────────────────────────────────────────
-const BG    = '#F5F0E8';
-const WINE  = '#690037';
-const VERDE = '#2D3A3A';
-const TEXT1 = '#1C1B1F';
-const TEXT2 = '#5C5C5C';
-const MUTED = '#9B9B9B';
-const CARD  = '#FFFFFF';
+const BG     = '#F5F0E8';
+const WINE   = '#690037';
+const VERDE  = '#2D3A3A';
+const TEXT1  = '#1C1B1F';
+const TEXT2  = '#5C5C5C';
+const MUTED  = '#9B9B9B';
+const CARD   = '#FFFFFF';
 const BORDER = 'rgba(0,0,0,0.08)';
 
 // ── Component ────────────────────────────────────────────────
@@ -89,13 +70,26 @@ export default function Onboarding() {
   const navigate = useNavigate();
   const { session } = useAuth();
 
-  const [step, setStep]             = useState<'welcome' | 'quiz' | 'result'>('welcome');
-  const [questions, setQuestions]   = useState<QuizQuestion[]>([]);
-  const [loadingQ, setLoadingQ]     = useState(false);
-  const [currentQ, setCurrentQ]     = useState(0);
-  const [answers, setAnswers]        = useState<Answer[]>([]);
-  const [saving, setSaving]          = useState(false);
-  const [result, setResult]          = useState<ReturnType<typeof calculateProfile> | null>(null);
+  const [step, setStep]           = useState<'welcome' | 'quiz' | 'result'>('welcome');
+  const [questions, setQuestions] = useState<QuizQuestion[]>([]);
+  const [loadingQ, setLoadingQ]   = useState(false);
+  const [currentQ, setCurrentQ]   = useState(0);
+  const [answers, setAnswers]     = useState<Answer[]>([]);
+  const [saving, setSaving]       = useState(false);
+  const [result, setResult]       = useState<ReturnType<typeof calculateProfile> | null>(null);
+  const [completionPoints, setCompletionPoints] = useState(20);
+
+  // Fetch quiz_completion_points from app_settings
+  useEffect(() => {
+    supabase
+      .from('app_settings')
+      .select('value')
+      .eq('key', 'quiz_completion_points')
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data?.value) setCompletionPoints(Number(data.value));
+      });
+  }, []);
 
   // Fetch active quiz questions
   const fetchQuestions = async () => {
@@ -104,21 +98,15 @@ export default function Onboarding() {
       .from('quiz_questions')
       .select('*, options:quiz_options(*)')
       .eq('active', true)
-      .order('flow')
-      .order('position')
-      .limit(10);   // safety cap
+      .order('position');
 
     if (data) {
-      // Shuffle lightly: take up to 5 questions mixing flows
-      const shuffled = data
-        .map((q: any) => ({
-          ...q,
-          options: [...(q.options ?? [])].sort((a: QuizOption, b: QuizOption) =>
-            a.letter.localeCompare(b.letter)
-          ),
-        }))
-        .slice(0, 5); // take first 5 active
-      setQuestions(shuffled);
+      setQuestions(data.map((q: any) => ({
+        ...q,
+        options: [...(q.options ?? [])].sort((a: QuizOption, b: QuizOption) =>
+          a.letter.localeCompare(b.letter)
+        ),
+      })));
     }
     setLoadingQ(false);
     setStep('quiz');
@@ -129,10 +117,8 @@ export default function Onboarding() {
       questionId: questions[currentQ].id,
       optionId:   opt.id,
       profileKey: opt.profile_key,
-      weight:     opt.weight,
     };
 
-    // Update or add answer for this question
     setAnswers(prev => {
       const without = prev.filter(x => x.questionId !== a.questionId);
       return [...without, a];
@@ -157,19 +143,19 @@ export default function Onboarding() {
 
     if (!session?.user?.id) return;
 
-    // Save to user_profiles
     setSaving(true);
-    const level = getLevelForPoints(0); // new user starts at 0 pts
+    const level = getLevelForPoints(completionPoints);
+
     await supabase
       .from('user_profiles')
       .update({
-        wine_profile:         calc.dominant,
-        profile_score:        calc.totalWeight,
-        profile_composition:  calc.composition,
-        user_level:           level,
-        quiz_completed:       true,
+        wine_profile:   calc.dominant,
+        user_level:     level,
+        quiz_completed: true,
+        total_points:   completionPoints,
       })
       .eq('user_id', session.user.id);
+
     setSaving(false);
   };
 
@@ -193,8 +179,16 @@ export default function Onboarding() {
             Bem-vindo ao<br />Wine Gallery
           </h1>
           <p style={{ fontFamily: "'DM Sans'", fontSize: '0.95rem', color: TEXT2, lineHeight: 1.7, marginBottom: 32, maxWidth: 320, margin: '0 auto 32px' }}>
-            Vamos entender sua relação com o vinho para personalizar sua experiência. São apenas 5 perguntas rápidas.
+            Vamos entender sua relação com o vinho para personalizar sua experiência. São apenas algumas perguntas rápidas.
           </p>
+
+          {/* Points incentive */}
+          <div style={{ backgroundColor: 'rgba(105,0,55,0.06)', border: `1px solid rgba(105,0,55,0.12)`, borderRadius: 12, padding: '10px 16px', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: '1.2rem' }}>🎁</span>
+            <p style={{ fontFamily: "'DM Sans'", fontSize: '0.83rem', color: WINE, fontWeight: 500 }}>
+              Complete o quiz e ganhe <strong>{completionPoints} pontos</strong> para começar sua jornada!
+            </p>
+          </div>
 
           <div style={{ backgroundColor: CARD, borderRadius: 16, border: `1px solid ${BORDER}`, padding: '20px 24px', marginBottom: 24, textAlign: 'left' }}>
             <p style={{ fontFamily: "'DM Sans'", fontSize: '0.8rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: MUTED, marginBottom: 12 }}>
@@ -241,9 +235,9 @@ export default function Onboarding() {
 
   // ── STEP: QUIZ ────────────────────────────────────────────
   if (step === 'quiz' && questions.length > 0) {
-    const q = questions[currentQ];
+    const q      = questions[currentQ];
     const totalQ = questions.length;
-    const progress = ((currentQ) / totalQ) * 100;
+    const progress = (currentQ / totalQ) * 100;
 
     return (
       <div style={{ minHeight: '100vh', backgroundColor: BG, display: 'flex', flexDirection: 'column' }}>
@@ -257,7 +251,7 @@ export default function Onboarding() {
         </div>
 
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '32px 20px 24px', maxWidth: 520, margin: '0 auto', width: '100%' }}>
-          {/* Counter */}
+          {/* Counter + back */}
           <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', marginBottom: 24, alignItems: 'center' }}>
             <button
               onClick={() => currentQ > 0 && setCurrentQ(c => c - 1)}
@@ -272,7 +266,7 @@ export default function Onboarding() {
             <div style={{ width: 80 }} />
           </div>
 
-          {/* Question */}
+          {/* Question card */}
           <AnimatePresence mode="wait">
             <motion.div
               key={q.id}
@@ -315,7 +309,8 @@ export default function Onboarding() {
                       }}
                     >
                       <span style={{
-                        width: 28, height: 28, borderRadius: '50%', border: `1.5px solid ${isSelected ? WINE : 'rgba(0,0,0,0.12)'}`,
+                        width: 28, height: 28, borderRadius: '50%',
+                        border: `1.5px solid ${isSelected ? WINE : 'rgba(0,0,0,0.12)'}`,
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                         backgroundColor: isSelected ? WINE : 'transparent',
                         flexShrink: 0, transition: 'all 0.15s ease',
@@ -359,7 +354,8 @@ export default function Onboarding() {
                       style={{
                         width: '100%', height: 50, backgroundColor: WINE, color: '#FFF',
                         border: 'none', borderRadius: 12, fontFamily: "'DM Sans'",
-                        fontSize: '0.95rem', fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer',
+                        fontSize: '0.95rem', fontWeight: 700,
+                        cursor: saving ? 'not-allowed' : 'pointer',
                         opacity: saving ? 0.7 : 1,
                       }}
                     >
@@ -377,11 +373,7 @@ export default function Onboarding() {
 
   // ── STEP: RESULT ─────────────────────────────────────────
   if (step === 'result' && result) {
-    const { dominant, composition } = result;
-    const secondaries = PROFILE_ORDER
-      .filter(p => p !== dominant && (composition[p] ?? 0) > 0)
-      .sort((a, b) => (composition[b] ?? 0) - (composition[a] ?? 0))
-      .slice(0, 2);
+    const { dominant, secondaries, counts } = result;
 
     return (
       <div style={{ minHeight: '100vh', backgroundColor: BG, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '32px 20px' }}>
@@ -411,39 +403,45 @@ export default function Onboarding() {
             </p>
           </div>
 
-          {/* Composition */}
-          <div style={{ backgroundColor: CARD, borderRadius: 16, border: `1px solid ${BORDER}`, padding: '20px 20px', marginBottom: 16, textAlign: 'left' }}>
-            <p style={{ fontFamily: "'DM Sans'", fontSize: '0.72rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: MUTED, marginBottom: 14 }}>
-              Composição do seu perfil
-            </p>
-            {PROFILE_ORDER.filter(p => (composition[p] ?? 0) > 0).sort((a, b) => (composition[b] ?? 0) - (composition[a] ?? 0)).map(p => (
-              <div key={p} style={{ marginBottom: 10 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                  <span style={{ fontFamily: "'DM Sans'", fontSize: '0.83rem', color: TEXT1, display: 'flex', alignItems: 'center', gap: 6 }}>
-                    {PROFILE_ICONS[p]} {PROFILE_LABELS[p]}
-                    {p === dominant && <span style={{ fontSize: '0.65rem', backgroundColor: WINE, color: '#fff', padding: '1px 6px', borderRadius: 4, fontWeight: 600 }}>principal</span>}
-                  </span>
-                  <span style={{ fontFamily: "'DM Sans'", fontSize: '0.83rem', fontWeight: 600, color: TEXT2 }}>
-                    {composition[p]}%
-                  </span>
-                </div>
-                <div style={{ height: 5, backgroundColor: 'rgba(0,0,0,0.06)', borderRadius: 3 }}>
-                  <motion.div
-                    initial={{ width: 0 }}
-                    animate={{ width: `${composition[p]}%` }}
-                    transition={{ duration: 0.6, delay: 0.2 }}
-                    style={{ height: '100%', backgroundColor: p === dominant ? WINE : 'rgba(105,0,55,0.25)', borderRadius: 3 }}
-                  />
-                </div>
-              </div>
-            ))}
-            {secondaries.length > 0 && (
-              <p style={{ fontFamily: "'DM Sans'", fontSize: '0.78rem', color: MUTED, marginTop: 12, lineHeight: 1.5 }}>
-                Você transita entre perfis! A abelha do{' '}
-                <strong style={{ color: TEXT2 }}>{PROFILE_LABELS[secondaries[0]]}</strong> ainda te pica.
-                Continue explorando e sua jornada vai evoluir taça a taça. 🍷
+          {/* Secondary profiles */}
+          {secondaries.length > 0 && (
+            <div style={{ backgroundColor: CARD, borderRadius: 16, border: `1px solid ${BORDER}`, padding: '20px', marginBottom: 16, textAlign: 'left' }}>
+              <p style={{ fontFamily: "'DM Sans'", fontSize: '0.72rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: MUTED, marginBottom: 12 }}>
+                Você também tem características de
               </p>
-            )}
+              {secondaries.map(p => (
+                <div key={p} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: `1px solid rgba(0,0,0,0.05)` }}>
+                  <span style={{ fontSize: '1.4rem' }}>{PROFILE_ICONS[p]}</span>
+                  <div style={{ flex: 1 }}>
+                    <p style={{ fontFamily: "'DM Sans'", fontSize: '0.88rem', fontWeight: 600, color: TEXT1 }}>{PROFILE_LABELS[p]}</p>
+                    <p style={{ fontFamily: "'DM Sans'", fontSize: '0.76rem', color: MUTED }}>{PROFILE_ARCHETYPES[p]}</p>
+                  </div>
+                  <span style={{ fontFamily: "'DM Sans'", fontSize: '0.75rem', fontWeight: 600, color: TEXT2 }}>
+                    {counts[p]}×
+                  </span>
+                </div>
+              ))}
+              <p style={{ fontFamily: "'DM Sans'", fontSize: '0.78rem', color: MUTED, marginTop: 12, lineHeight: 1.5 }}>
+                Sua jornada é multifacetada. Continue explorando e seu perfil vai evoluir taça a taça. 🍷
+              </p>
+            </div>
+          )}
+
+          {/* Points earned */}
+          <div style={{
+            backgroundColor: 'rgba(105,0,55,0.06)', border: '1px solid rgba(105,0,55,0.12)',
+            borderRadius: 12, padding: '12px 16px', marginBottom: 16,
+            display: 'flex', alignItems: 'center', gap: 10,
+          }}>
+            <span style={{ fontSize: '1.5rem' }}>🎁</span>
+            <div style={{ textAlign: 'left' }}>
+              <p style={{ fontFamily: "'DM Sans'", fontSize: '0.88rem', fontWeight: 700, color: WINE }}>
+                +{completionPoints} pontos conquistados!
+              </p>
+              <p style={{ fontFamily: "'DM Sans'", fontSize: '0.76rem', color: TEXT2 }}>
+                Bem-vindo à sua jornada no Wine Gallery.
+              </p>
+            </div>
           </div>
 
           {/* CTA */}
