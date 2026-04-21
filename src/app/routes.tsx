@@ -28,6 +28,7 @@ import UsersAdmin from "./backoffice/pages/Users";
 import PlacesAdmin from "./backoffice/pages/Places";
 import ProfileRulesAdmin from "./backoffice/pages/ProfileRules";
 import ProfilesAdmin from "./backoffice/pages/ProfilesAdmin";
+import AdminsAdmin from "./backoffice/pages/Admins";
 
 import Explore from "./pages/Explore";
 import SearchPage from "./pages/SearchPage";
@@ -65,6 +66,7 @@ export const router = createBrowserRouter([
       { path: "highlights",    Component: Highlights        },
       { path: "brotherhoods",  Component: BrotherhoodsAdmin },
       { path: "quiz",          Component: QuizAdmin         },
+      { path: "admins",        Component: AdminsAdmin       },
       { path: "users",         Component: UsersAdmin        },
       { path: "places",        Component: PlacesAdmin       },
       { path: "profile-rules",  Component: ProfileRulesAdmin },
