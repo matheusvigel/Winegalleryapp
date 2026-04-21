@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import {
   LayoutDashboard, Globe, MapPin, BookOpen,
   Wine, Building2, Grape, LogOut, Menu, X, Star, Sparkles, Users,
-  ClipboardList, UserCog, MapPinned, SlidersHorizontal, UserCircle,
+  ClipboardList, UserCog, MapPinned, SlidersHorizontal, UserCircle, Shield,
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
