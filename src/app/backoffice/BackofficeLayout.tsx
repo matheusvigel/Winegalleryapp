@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import {
   LayoutDashboard, Globe, MapPin, BookOpen,
   Wine, Building2, Grape, LogOut, Menu, X, Star, Sparkles, Users,
-  ClipboardList, UserCog, MapPinned, SlidersHorizontal,
+  ClipboardList, UserCog, MapPinned, SlidersHorizontal, UserCircle,
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
@@ -22,7 +22,8 @@ const navItems = [
   { to: '/admin/places',        label: 'Lugares',      icon: MapPinned,       end: false, table: 'places'          },
   { to: '/admin/quiz',         label: 'Quiz Perfil',  icon: ClipboardList,   end: false, table: 'quiz_questions'  },
   { to: '/admin/users',        label: 'Usuários',     icon: UserCog,         end: false, table: 'user_profiles'   },
-  { to: '/admin/profile-rules', label: 'Perfis & Conteúdo', icon: SlidersHorizontal, end: false, table: null },
+  { to: '/admin/profile-rules',  label: 'Perfis & Conteúdo', icon: SlidersHorizontal, end: false, table: null              },
+  { to: '/admin/wine-profiles', label: 'Perfis de Vinho',   icon: UserCircle,         end: false, table: 'wine_profiles'   },
 ] as const;
 
 type Counts = Partial<Record<string, number>>;

@@ -27,6 +27,7 @@ import QuizAdmin from "./backoffice/pages/QuizAdmin";
 import UsersAdmin from "./backoffice/pages/Users";
 import PlacesAdmin from "./backoffice/pages/Places";
 import ProfileRulesAdmin from "./backoffice/pages/ProfileRules";
+import ProfilesAdmin from "./backoffice/pages/ProfilesAdmin";
 
 import Explore from "./pages/Explore";
 import SearchPage from "./pages/SearchPage";
@@ -66,7 +67,8 @@ export const router = createBrowserRouter([
       { path: "quiz",          Component: QuizAdmin         },
       { path: "users",         Component: UsersAdmin        },
       { path: "places",        Component: PlacesAdmin       },
-      { path: "profile-rules", Component: ProfileRulesAdmin },
+      { path: "profile-rules",  Component: ProfileRulesAdmin },
+      { path: "wine-profiles",  Component: ProfilesAdmin     },
     ],
   },
 

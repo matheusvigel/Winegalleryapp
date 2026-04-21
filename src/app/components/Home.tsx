@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router';
-import { Sparkles, TrendingUp, MapPin, ChevronRight } from 'lucide-react';
+import { Sparkles, TrendingUp, MapPin, ChevronRight, Gift } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getStats } from '../utils/storage';
 import { supabase } from '../../lib/supabase';
@@ -30,19 +30,59 @@ interface CountryRow {
   photo: string;
 }
 
+interface BonusQuestion {
+  id: string;
+  question: string;
+  bonus_points: number;
+}
+
 export default function Home() {
   const { user } = useAuth();
-  const [stats, setStats] = useState(getStats());
-  const [highlights, setHighlights] = useState<HighlightRow[]>([]);
-  const [countries, setCountries] = useState<CountryRow[]>([]);
+  const [stats, setStats]             = useState(getStats());
+  const [highlights, setHighlights]   = useState<HighlightRow[]>([]);
+  const [countries, setCountries]     = useState<CountryRow[]>([]);
   const [collections, setCollections] = useState<CollectionRow[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading]         = useState(true);
+  const [bonusQuestions, setBonusQuestions] = useState<BonusQuestion[]>([]);
+  const [dismissedBonus, setDismissedBonus] = useState(false);
 
   useEffect(() => {
     const h = () => setStats(getStats());
     window.addEventListener('statsUpdated', h);
     return () => window.removeEventListener('statsUpdated', h);
   }, []);
+
+  // Check for unanswered bonus quiz questions
+  useEffect(() => {
+    if (!user) return;
+    const checkBonus = async () => {
+      const { data: profile } = await supabase
+        .from('user_profiles')
+        .select('quiz_completed')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (!profile?.quiz_completed) return; // user hasn't done the quiz yet
+
+      const { data: bonusQs } = await supabase
+        .from('quiz_questions')
+        .select('id, question, bonus_points')
+        .gt('bonus_points', 0)
+        .eq('active', true);
+
+      if (!bonusQs?.length) return;
+
+      const { data: answered } = await supabase
+        .from('quiz_bonus_answers')
+        .select('question_id')
+        .eq('user_id', user.id);
+
+      const answeredIds = new Set((answered ?? []).map((a: any) => a.question_id));
+      const pending = (bonusQs as BonusQuestion[]).filter(q => !answeredIds.has(q.id));
+      setBonusQuestions(pending);
+    };
+    checkBonus();
+  }, [user]);
 
   useEffect(() => {
     const load = async () => {
@@ -136,6 +176,42 @@ export default function Home() {
               </Link>
             )}
           </div>
+
+          {/* Bonus quiz notification */}
+          {user && bonusQuestions.length > 0 && !dismissedBonus && (
+            <div className="mb-6 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-2xl p-4">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center shrink-0">
+                  <Gift className="w-5 h-5 text-amber-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold text-amber-900 mb-0.5">
+                    Nova pergunta do quiz disponível!
+                  </p>
+                  <p className="text-xs text-amber-700 mb-3 leading-relaxed">
+                    Responda e ganhe{' '}
+                    <strong>{bonusQuestions.reduce((s, q) => s + q.bonus_points, 0)} pontos bônus</strong>{' '}
+                    — {bonusQuestions.length === 1 ? '1 pergunta nova' : `${bonusQuestions.length} perguntas novas`} te espera{bonusQuestions.length === 1 ? '' : 'm'}.
+                  </p>
+                  <Link
+                    to="/quiz-bonus"
+                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-amber-500 text-white text-xs font-semibold rounded-xl hover:bg-amber-600 transition-colors"
+                  >
+                    Responder agora <ChevronRight className="w-3.5 h-3.5" />
+                  </Link>
+                </div>
+                <button
+                  onClick={() => setDismissedBonus(true)}
+                  className="text-amber-400 hover:text-amber-600 transition-colors shrink-0 mt-0.5"
+                  aria-label="Fechar"
+                >
+                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                    <path d="M1 1l12 12M13 1L1 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Highlights */}
           {(loading || highlights.length > 0) && (
