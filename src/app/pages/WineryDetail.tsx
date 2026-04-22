@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router';
 import { supabase } from '../../lib/supabase';
-import { ArrowLeft, ChevronRight, MapPin, ExternalLink, Wine, Layers } from 'lucide-react';
+import { ArrowLeft, ChevronRight, MapPin, ExternalLink, Wine, Layers, Star } from 'lucide-react';
 import { motion } from 'motion/react';
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -23,7 +23,16 @@ type WineRow = {
   photo: string | null;
   type: string;
   category: string;
-  average_price: number | null;
+  price_min: number | null;
+  price_max: number | null;
+  highlight: string | null;
+};
+
+type ExperienceRow = {
+  id: string;
+  name: string;
+  photo: string | null;
+  category: string;
   highlight: string | null;
 };
 
@@ -59,11 +68,13 @@ export default function WineryDetail() {
   const resolvedId = wineryId ?? brandId;
   const navigate = useNavigate();
 
-  const [winery, setWinery] = useState<Winery | null>(null);
-  const [wines, setWines] = useState<WineRow[]>([]);
-  const [region, setRegion] = useState<RegionRow | null>(null);
-  const [subRegion, setSubRegion] = useState<RegionRow | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [winery, setWinery]         = useState<Winery | null>(null);
+  const [wines, setWines]           = useState<WineRow[]>([]);
+  const [experiences, setExperiences] = useState<ExperienceRow[]>([]);
+  const [region, setRegion]         = useState<RegionRow | null>(null);
+  const [subRegion, setSubRegion]   = useState<RegionRow | null>(null);
+  const [loading, setLoading]       = useState(true);
+  const [activeTab, setActiveTab]   = useState<'wines' | 'experiences'>('wines');
 
   useEffect(() => {
     if (!resolvedId) return;
@@ -80,13 +91,21 @@ export default function WineryDetail() {
       if (!w) { setLoading(false); return; }
       setWinery(w);
 
-      // 2. Load wines from this winery
-      const { data: wns } = await supabase
-        .from('wines')
-        .select('id, name, photo, type, category, average_price, highlight')
-        .eq('winery_id', resolvedId)
-        .order('name');
+      // 2. Load wines + experiences from this winery in parallel
+      const [{ data: wns }, { data: exps }] = await Promise.all([
+        supabase
+          .from('wines')
+          .select('id, name, photo, type, category, price_min, price_max, highlight')
+          .eq('winery_id', resolvedId)
+          .order('name'),
+        supabase
+          .from('experiences')
+          .select('id, name, photo, category, highlight')
+          .eq('winery_id', resolvedId)
+          .order('name'),
+      ]);
       setWines(wns ?? []);
+      setExperiences(exps ?? []);
 
       // 3. Load region info
       const regionPromise = w.region_id
@@ -278,83 +297,123 @@ export default function WineryDetail() {
           )}
         </div>
 
-        {/* ── Wines ─────────────────────────────────────────────────────── */}
-        <div className="mb-8">
-          <div className="flex items-center gap-2 mx-4 mb-3">
-            <Wine className="w-4 h-4 text-purple-600" />
-            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">
+        {/* ── Tabs: Vinhos / Experiências ────────────────────────────────── */}
+        <div className="mx-4 mb-4">
+          <div className="flex gap-1 bg-gray-100 rounded-xl p-1">
+            <button
+              onClick={() => setActiveTab('wines')}
+              className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-semibold transition-all ${
+                activeTab === 'wines' ? 'bg-white shadow-sm text-purple-700' : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              <Wine className="w-3.5 h-3.5" />
               Vinhos ({wines.length})
-            </p>
+            </button>
+            <button
+              onClick={() => setActiveTab('experiences')}
+              className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-semibold transition-all ${
+                activeTab === 'experiences' ? 'bg-white shadow-sm text-purple-700' : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              <Star className="w-3.5 h-3.5" />
+              Experiências ({experiences.length})
+            </button>
           </div>
+        </div>
 
-          {wines.length === 0 ? (
-            <div className="mx-4 py-12 text-center bg-white rounded-2xl border border-gray-100">
-              <Layers className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-              <p className="text-gray-500 text-sm">Nenhum vinho cadastrado ainda.</p>
-            </div>
-          ) : (
-            <div className="space-y-3 px-4">
-              {wines.map((wine, i) => {
-                const typeColor = TYPE_COLORS[wine.type] ?? 'bg-gray-100 text-gray-600';
-                const catColor  = CATEGORY_COLORS[wine.category] ?? 'bg-gray-100 text-gray-600';
-                return (
+        {/* ── Wines list ─────────────────────────────────────────────────── */}
+        {activeTab === 'wines' && (
+          <div className="mb-8">
+            {wines.length === 0 ? (
+              <div className="mx-4 py-12 text-center bg-white rounded-2xl border border-gray-100">
+                <Layers className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+                <p className="text-gray-500 text-sm">Nenhum vinho cadastrado ainda.</p>
+              </div>
+            ) : (
+              <div className="space-y-3 px-4">
+                {wines.map((wine, i) => {
+                  const typeColor = TYPE_COLORS[wine.type] ?? 'bg-gray-100 text-gray-600';
+                  const catColor  = CATEGORY_COLORS[wine.category] ?? 'bg-gray-100 text-gray-600';
+                  const priceStr  = wine.price_min || wine.price_max
+                    ? wine.price_min !== wine.price_max && wine.price_min && wine.price_max
+                      ? `R$ ${wine.price_min.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} – R$ ${wine.price_max.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}`
+                      : `R$ ${(wine.price_min ?? wine.price_max)!.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}`
+                    : null;
+                  return (
+                    <motion.div
+                      key={wine.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.04 * i, duration: 0.25 }}
+                    >
+                      <Link to={`/wine/${wine.id}`} className="block group">
+                        <div className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 group-hover:shadow-md transition-shadow flex gap-3 p-3">
+                          <div className="w-20 h-24 rounded-xl overflow-hidden bg-gradient-to-br from-purple-50 to-pink-50 flex-shrink-0">
+                            {wine.photo ? (
+                              <img src={wine.photo} alt={wine.name} className="w-full h-full object-contain p-1" onError={e => { (e.target as HTMLImageElement).src = FALLBACK; }} />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center"><Wine className="w-8 h-8 text-purple-300" /></div>
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0 py-1">
+                            <p className="font-semibold text-gray-900 text-sm leading-tight mb-1.5 line-clamp-2">{wine.name}</p>
+                            <div className="flex flex-wrap gap-1.5 mb-2">
+                              <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${typeColor}`}>{wine.type}</span>
+                              <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${catColor}`}>{wine.category}</span>
+                            </div>
+                            {priceStr && <p className="text-xs text-gray-500">{priceStr}</p>}
+                            {wine.highlight && <p className="text-xs text-gray-400 mt-1 line-clamp-2 leading-snug">{wine.highlight}</p>}
+                          </div>
+                          <ChevronRight className="w-4 h-4 text-gray-400 self-center flex-shrink-0 group-hover:text-purple-600 transition-colors" />
+                        </div>
+                      </Link>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── Experiences list ───────────────────────────────────────────── */}
+        {activeTab === 'experiences' && (
+          <div className="mb-8">
+            {experiences.length === 0 ? (
+              <div className="mx-4 py-12 text-center bg-white rounded-2xl border border-gray-100">
+                <Star className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+                <p className="text-gray-500 text-sm">Nenhuma experiência cadastrada ainda.</p>
+              </div>
+            ) : (
+              <div className="space-y-3 px-4">
+                {experiences.map((exp, i) => (
                   <motion.div
-                    key={wine.id}
+                    key={exp.id}
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.04 * i, duration: 0.25 }}
                   >
-                    <Link to={`/wine/${wine.id}`} className="block group">
-                      <div className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 group-hover:shadow-md transition-shadow flex gap-3 p-3">
-
-                        {/* Thumb */}
-                        <div className="w-20 h-24 rounded-xl overflow-hidden bg-gradient-to-br from-purple-50 to-pink-50 flex-shrink-0">
-                          {wine.photo ? (
-                            <img
-                              src={wine.photo}
-                              alt={wine.name}
-                              className="w-full h-full object-contain p-1"
-                              onError={(e) => { (e.target as HTMLImageElement).src = FALLBACK; }}
-                            />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center">
-                              <Wine className="w-8 h-8 text-purple-300" />
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Info */}
-                        <div className="flex-1 min-w-0 py-1">
-                          <p className="font-semibold text-gray-900 text-sm leading-tight mb-1.5 line-clamp-2">
-                            {wine.name}
-                          </p>
-                          <div className="flex flex-wrap gap-1.5 mb-2">
-                            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${typeColor}`}>
-                              {wine.type}
-                            </span>
-                            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${catColor}`}>
-                              {wine.category}
-                            </span>
-                          </div>
-                          {wine.average_price != null && (
-                            <p className="text-xs text-gray-500">
-                              ~R$ {wine.average_price.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}
-                            </p>
-                          )}
-                          {wine.highlight && (
-                            <p className="text-xs text-gray-400 mt-1 line-clamp-2 leading-snug">{wine.highlight}</p>
-                          )}
-                        </div>
-
-                        <ChevronRight className="w-4 h-4 text-gray-400 self-center flex-shrink-0 group-hover:text-purple-600 transition-colors" />
+                    <div className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 flex gap-3 p-3">
+                      <div className="w-20 h-20 rounded-xl overflow-hidden bg-gradient-to-br from-amber-50 to-orange-50 flex-shrink-0">
+                        {exp.photo ? (
+                          <img src={exp.photo} alt={exp.name} className="w-full h-full object-cover" onError={e => { (e.target as HTMLImageElement).src = FALLBACK; }} />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center"><Star className="w-7 h-7 text-amber-300" /></div>
+                        )}
                       </div>
-                    </Link>
+                      <div className="flex-1 min-w-0 py-1">
+                        <p className="font-semibold text-gray-900 text-sm leading-tight mb-1.5">{exp.name}</p>
+                        {exp.category && (
+                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">{exp.category}</span>
+                        )}
+                        {exp.highlight && <p className="text-xs text-gray-400 mt-1.5 line-clamp-2 leading-snug">{exp.highlight}</p>}
+                      </div>
+                    </div>
                   </motion.div>
-                );
-              })}
-            </div>
-          )}
-        </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

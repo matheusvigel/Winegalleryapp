@@ -45,6 +45,15 @@ const TYPE_COLORS: Record<ResultType, string> = {
 
 const FALLBACK = 'https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=200&q=60';
 
+const FILTER_TYPES: { key: ResultType | 'all'; label: string }[] = [
+  { key: 'all',        label: 'Tudo'       },
+  { key: 'wine',       label: '🍷 Vinhos'   },
+  { key: 'winery',     label: '🏛️ Vinícolas' },
+  { key: 'region',     label: '📍 Regiões'   },
+  { key: 'collection', label: '✨ Coleções'  },
+  { key: 'place',      label: '🍽️ Lugares'   },
+];
+
 function useDebounce<T>(value: T, delay: number): T {
   const [debounced, setDebounced] = useState(value);
   useEffect(() => {
@@ -69,7 +78,7 @@ export default function SearchPage() {
   }, []);
 
   useEffect(() => {
-    if (!debouncedQuery.trim()) {
+    if (debouncedQuery.trim().length < 2) {
       setResults([]);
       return;
     }
@@ -173,14 +182,6 @@ export default function SearchPage() {
     ? results
     : results.filter(r => r.type === selectedType);
 
-  const filterTypes: { key: ResultType | 'all'; label: string }[] = [
-    { key: 'all',        label: 'Tudo'       },
-    { key: 'wine',       label: '🍷 Vinhos'   },
-    { key: 'winery',     label: '🏛️ Vinícolas' },
-    { key: 'region',     label: '📍 Regiões'   },
-    { key: 'collection', label: '✨ Coleções'  },
-    { key: 'place',      label: '🍽️ Lugares'   },
-  ];
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-purple-50 via-white to-pink-50">
@@ -209,7 +210,7 @@ export default function SearchPage() {
 
           {/* Type filters */}
           <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
-            {filterTypes.map(({ key, label }) => (
+            {FILTER_TYPES.map(({ key, label }) => (
               <button
                 key={key}
                 onClick={() => setSelectedType(key)}

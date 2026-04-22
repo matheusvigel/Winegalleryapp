@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../../lib/supabase';
 import { Pencil, Check, X, Save } from 'lucide-react';
+import { PROFILE_ORDER } from '../../../lib/profileConstants';
 
 type WineProfileRow = {
   id: string;
@@ -11,8 +12,6 @@ type WineProfileRow = {
   description: string;
   order_index: number;
 };
-
-const PROFILE_ORDER = ['novato', 'curioso', 'desbravador', 'curador', 'expert'];
 
 export default function ProfilesAdmin() {
   const [profiles, setProfiles] = useState<WineProfileRow[]>([]);

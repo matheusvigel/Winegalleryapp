@@ -138,7 +138,7 @@ export default function CollectionDetail() {
         wineIds.length
           ? supabase
               .from('wines')
-              .select('id, name, photo, highlight, tasting_note, type, wineries(name, region:region_id(name))')
+              .select('id, name, photo, highlight, tasting_note, type, wineries(name, region:region_id(name, level))')
               .in('id', wineIds)
           : Promise.resolve({ data: [] }),
 
@@ -178,7 +178,9 @@ export default function CollectionDetail() {
             highlight: w.highlight ?? null,
             tastingNote: w.tasting_note ?? null,
             subName: w.wineries?.name ?? null,
-            location: (w.wineries as any)?.region?.name ?? null,
+            location: (w.wineries as any)?.region?.level !== 'country'
+              ? ((w.wineries as any)?.region?.name ?? null)
+              : null,
             type: w.type ?? null,
             position: ci.position,
           }];

@@ -112,7 +112,7 @@ export default function Home() {
       const [{ data: cols }, { data: hls }, { data: colItems }] = await Promise.all([
         supabase.from('collections').select('id, title, tagline, photo, content_type, category').order('title'),
         supabase.from('highlights').select('id, type, entity_id, label').eq('active', true).order('position').limit(8),
-        supabase.from('collection_items').select('collection_id, item_id'),
+        supabase.from('collection_items').select('collection_id, item_id').limit(500),
       ]);
 
       setCollections((cols as CollectionRow[]) ?? []);
@@ -184,18 +184,13 @@ export default function Home() {
         setProfileRules((rules as ProfileRule[]) ?? []);
       }
 
-      // Check bonus questions
+      // Check bonus questions (parallel fetch)
       if (prof?.quiz_completed) {
-        const { data: bonusQs } = await supabase
-          .from('quiz_questions')
-          .select('id')
-          .gt('bonus_points', 0)
-          .eq('active', true);
+        const [{ data: bonusQs }, { data: answered }] = await Promise.all([
+          supabase.from('quiz_questions').select('id').gt('bonus_points', 0).eq('active', true),
+          supabase.from('quiz_bonus_answers').select('question_id').eq('user_id', user.id),
+        ]);
         if (bonusQs?.length) {
-          const { data: answered } = await supabase
-            .from('quiz_bonus_answers')
-            .select('question_id')
-            .eq('user_id', user.id);
           const answeredIds = new Set((answered ?? []).map((a: any) => a.question_id));
           setBonusCount(bonusQs.filter(q => !answeredIds.has(q.id)).length);
         }
@@ -656,14 +651,13 @@ function ProfileHero({ user, profile, levelProgress, ptsToNext, nextLevel, bonus
                 <span className="text-sm font-normal text-purple-300 ml-1">pts</span>
               </p>
             </div>
-            {nextLevel && (
+            {nextLevel ? (
               <div className="text-right">
                 <p className="text-[10px] text-purple-400">Próximo nível</p>
                 <p className="text-xs font-bold text-purple-200">{LEVEL_LABELS[nextLevel]}</p>
                 <p className="text-[10px] text-purple-400">{ptsToNext} pts restantes</p>
               </div>
-            )}
-            {!nextLevel && (
+            ) : (
               <span className="text-xs font-bold bg-white/15 px-2 py-1 rounded-lg">
                 Nível máximo 🏆
               </span>
