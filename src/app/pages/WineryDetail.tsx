@@ -46,9 +46,9 @@ type RegionRow = {
 
 type CollectionRow = {
   id: string;
-  name: string;
+  title: string;
   photo: string | null;
-  description: string | null;
+  tagline: string | null;
 };
 
 const FALLBACK = 'https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=600&q=80';
@@ -130,7 +130,7 @@ export default function WineryDetail() {
         : Promise.resolve({ data: null });
 
       const collectionsPromise = wineIds.length > 0
-        ? supabase.from('collection_items').select('collection_id, collections(id, name, photo, description)').in('item_id', wineIds)
+        ? supabase.from('collection_items').select('collection_id, collections(id, title, photo, tagline)').in('item_id', wineIds).eq('item_type', 'wine')
         : Promise.resolve({ data: [] });
 
       const [{ data: reg }, { data: sub }, { data: colItems }] = await Promise.all([regionPromise, subRegionPromise, collectionsPromise]);
@@ -505,8 +505,8 @@ export default function WineryDetail() {
                         )}
                       </div>
                       <div className="flex-1 min-w-0 py-1">
-                        <p className="font-semibold text-gray-900 text-sm leading-tight mb-1">{col.name}</p>
-                        {col.description && <p className="text-xs text-gray-400 line-clamp-2 leading-snug">{col.description}</p>}
+                        <p className="font-semibold text-gray-900 text-sm leading-tight mb-1">{col.title}</p>
+                        {col.tagline && <p className="text-xs text-gray-400 line-clamp-2 leading-snug">{col.tagline}</p>}
                       </div>
                       <ChevronRight className="w-4 h-4 text-gray-400 self-center flex-shrink-0 group-hover:text-purple-600 transition-colors" />
                     </div>
