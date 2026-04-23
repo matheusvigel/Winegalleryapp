@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { CollectionCard } from '../components/CollectionCard';
-import { Search, MapPin, ChevronRight } from 'lucide-react';
+import { Search, MapPin, ChevronRight, Sparkles } from 'lucide-react';
 import { motion } from 'motion/react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -30,6 +30,14 @@ interface CountryRow {
   id: string;
   name: string;
   photo: string | null;
+}
+
+interface ExploreExperienceRow {
+  id: string;
+  name: string;
+  photo: string | null;
+  category: string;
+  highlight: string | null;
 }
 
 interface ProfileRule {
@@ -73,13 +81,14 @@ export default function Explore() {
   const [collections, setCollections]       = useState<CollectionRow[]>([]);
   const [regions, setRegions]               = useState<RegionRow[]>([]);
   const [countries, setCountries]           = useState<CountryRow[]>([]);
+  const [experiences, setExperiences]       = useState<ExploreExperienceRow[]>([]);
   const [profileRules, setProfileRules]     = useState<ProfileRule[]>([]);
   const [userProfile, setUserProfile]       = useState<WineProfile | null>(null);
   const [loading, setLoading]               = useState(true);
 
   useEffect(() => {
     const load = async () => {
-      const [{ data: cols }, { data: regs }, { data: cts }] = await Promise.all([
+      const [{ data: cols }, { data: regs }, { data: cts }, { data: exps }] = await Promise.all([
         supabase.from('collections').select('id, title, tagline, photo, content_type, category').order('title'),
         supabase.from('regions')
           .select('id, name, photo, level, parent:regions!parent_id(name)')
@@ -90,11 +99,17 @@ export default function Explore() {
           .select('id, name, photo')
           .eq('level', 'country')
           .order('name'),
+        supabase.from('experiences')
+          .select('id, name, photo, category, highlight')
+          .is('winery_id', null)
+          .order('name')
+          .limit(12),
       ]);
 
       setCollections((cols as CollectionRow[]) ?? []);
       setRegions((regs as unknown as RegionRow[]) ?? []);
       setCountries((cts as CountryRow[]) ?? []);
+      setExperiences((exps as ExploreExperienceRow[]) ?? []);
       setLoading(false);
     };
     load();
@@ -281,6 +296,51 @@ export default function Explore() {
                       {region.parent && (
                         <p className="text-white/70 text-[10px]">{region.parent.name}</p>
                       )}
+                    </div>
+                  </Link>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ── Standalone Experiences ───────────────────────────────── */}
+        {experiences.length > 0 && selectedFilter === 'all' && (
+          <div className="mb-8">
+            <div className="flex items-center gap-2 mb-4">
+              <Sparkles className="w-5 h-5 text-amber-500" />
+              <h2 className="text-lg font-bold text-gray-900">Experiências & Acessórios</h2>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {experiences.map((exp, i) => (
+                <motion.div
+                  key={exp.id}
+                  initial={{ opacity: 0, scale: 0.96 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.04 * i, duration: 0.25 }}
+                >
+                  <Link
+                    to={`/experience/${exp.id}`}
+                    className="block relative overflow-hidden rounded-2xl h-36 group"
+                  >
+                    {exp.photo ? (
+                      <img
+                        src={exp.photo}
+                        alt={exp.name}
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                        onError={(e) => { (e.target as HTMLImageElement).src = FALLBACK; }}
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-amber-200 to-orange-200" />
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
+                    <div className="absolute bottom-3 left-3 right-3">
+                      {exp.category && (
+                        <span className="text-[10px] font-semibold text-amber-300 uppercase tracking-wider mb-0.5 block">
+                          {exp.category}
+                        </span>
+                      )}
+                      <h3 className="text-white font-semibold text-xs leading-tight">{exp.name}</h3>
                     </div>
                   </Link>
                 </motion.div>

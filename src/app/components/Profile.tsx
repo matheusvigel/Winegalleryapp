@@ -412,8 +412,8 @@ export default function Profile() {
           </motion.div>
         )}
 
-        {/* ── Quiz CTA (if not done) ──────────────────────────────── */}
-        {!profileData?.quiz_completed && (
+        {/* ── Quiz CTA (if not done) / Retake button ─────────────── */}
+        {!profileData?.quiz_completed ? (
           <motion.div
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
@@ -454,6 +454,40 @@ export default function Profile() {
                 Fazer o quiz →
               </Link>
             </div>
+          </motion.div>
+        ) : (
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.2 }}
+            style={{ backgroundColor: CARD, borderRadius: 14, padding: '14px 20px', border: `1px solid ${BORDER}`, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 14 }}
+          >
+            <div style={{ fontSize: '1.4rem' }}>🍇</div>
+            <div style={{ flex: 1 }}>
+              <p style={{ margin: '0 0 2px', fontFamily: "'DM Sans'", fontSize: '0.82rem', fontWeight: 600, color: TEXT1 }}>
+                Refazer o quiz
+              </p>
+              <p style={{ margin: 0, fontFamily: "'DM Sans'", fontSize: '0.7rem', color: TEXT2 }}>
+                Seu gosto mudou? Atualize seu perfil.
+              </p>
+            </div>
+            <Link
+              to="/onboarding?retake=true"
+              style={{
+                display: 'inline-block',
+                padding: '7px 16px',
+                backgroundColor: WINE_C,
+                borderRadius: 99,
+                fontFamily: "'DM Sans'",
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                color: '#fff',
+                textDecoration: 'none',
+                flexShrink: 0,
+              }}
+            >
+              Refazer →
+            </Link>
           </motion.div>
         )}
 

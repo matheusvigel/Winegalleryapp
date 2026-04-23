@@ -40,6 +40,8 @@ import WineDiary from "./pages/WineDiary";
 import WineryDetail from "./pages/WineryDetail";
 import PlaceDetail from "./pages/PlaceDetail";
 import CollectionDetail from "./pages/CollectionDetail";
+import ExperienceDetail from "./pages/ExperienceDetail";
+import QuizBonus from "./pages/QuizBonus";
 import Brotherhoods from "./pages/Brotherhoods";
 import BrotherhoodDetail from "./pages/BrotherhoodDetail";
 
@@ -93,6 +95,15 @@ export const router = createBrowserRouter([
       { path: "wine/:id",               Component: WineDetail        },
       { path: "wine-diary",             Component: WineDiary         },
       { path: "collection/:id",         Component: CollectionDetail  },
+      { path: "experience/:id",         Component: ExperienceDetail  },
+      {
+        path: "quiz-bonus",
+        element: (
+          <ProtectedRoute>
+            <QuizBonus />
+          </ProtectedRoute>
+        ),
+      },
       { path: "regions",                Component: RegionsView       },
       { path: "country/:countryId",     Component: CountryDetail     },
       { path: "region/:regionId",       Component: RegionDetail      },
