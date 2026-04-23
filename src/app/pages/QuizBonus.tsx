@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router';
 import { motion, AnimatePresence } from 'motion/react';
 import { ChevronRight, ChevronLeft, Check, Trophy } from 'lucide-react';
-import { toast } from 'sonner';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { getLevelForPoints, type WineProfile } from '../../lib/profileConstants';
@@ -27,7 +26,6 @@ type BonusQuestion = {
 // ── Design tokens (matches Onboarding) ────────────────────────
 const BG     = '#F5F0E8';
 const WINE   = '#690037';
-const VERDE  = '#2D3A3A';
 const TEXT1  = '#1C1B1F';
 const TEXT2  = '#5C5C5C';
 const MUTED  = '#9B9B9B';
@@ -46,8 +44,15 @@ export default function QuizBonus() {
   const [done, setDone]           = useState(false);
   const [totalEarned, setTotalEarned] = useState(0);
   const advanceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mountedRef = useRef(true);
 
-  useEffect(() => () => { if (advanceTimerRef.current) clearTimeout(advanceTimerRef.current); }, []);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      if (advanceTimerRef.current) clearTimeout(advanceTimerRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     if (!user) return;
@@ -100,44 +105,44 @@ export default function QuizBonus() {
 
     setSaving(true);
 
-    // 1. Save the bonus answer
-    await supabase.from('quiz_bonus_answers').insert({
-      user_id:      session.user.id,
-      question_id:  q.id,
-      option_id:    opt.id,
-      profile_key:  opt.profile_key,
-      points_earned: q.bonus_points,
-    });
-
-    // 2. Award the bonus points directly
-    const { data: profile } = await supabase
-      .from('user_profiles')
-      .select('total_points, user_level')
-      .eq('user_id', session.user.id)
-      .single();
+    // Save answer + fetch current profile in parallel
+    const [, { data: profile }] = await Promise.all([
+      supabase.from('quiz_bonus_answers').insert({
+        user_id:       session.user.id,
+        question_id:   q.id,
+        option_id:     opt.id,
+        profile_key:   opt.profile_key,
+        points_earned: q.bonus_points,
+      }),
+      supabase.from('user_profiles')
+        .select('total_points')
+        .eq('user_id', session.user.id)
+        .single(),
+    ]);
 
     if (profile) {
       const newTotal = (profile.total_points ?? 0) + q.bonus_points;
       const newLevel = getLevelForPoints(newTotal);
-      await supabase
-        .from('user_profiles')
-        .update({ total_points: newTotal, user_level: newLevel })
-        .eq('user_id', session.user.id);
-
-      // Log to points log
-      await supabase.from('user_points_log').insert({
-        user_id:     session.user.id,
-        action_type: 'bonus_quiz',
-        item_id:     q.id,
-        item_type:   'quiz_question',
-        points:      q.bonus_points,
-      });
+      // Update profile + log in parallel
+      await Promise.all([
+        supabase.from('user_profiles')
+          .update({ total_points: newTotal, user_level: newLevel })
+          .eq('user_id', session.user.id),
+        supabase.from('user_points_log').insert({
+          user_id:     session.user.id,
+          action_type: 'bonus_quiz',
+          item_id:     q.id,
+          item_type:   'quiz_question',
+          points:      q.bonus_points,
+        }),
+      ]);
     }
+
+    if (!mountedRef.current) return;
 
     setTotalEarned(prev => prev + q.bonus_points);
     setSaving(false);
 
-    // Advance to next question or finish
     if (currentQ < questions.length - 1) {
       setCurrentQ(c => c + 1);
       setSelectedOpt(null);
@@ -156,7 +161,7 @@ export default function QuizBonus() {
   }
 
   // ── No questions available ─────────────────────────────────
-  if (!loading && questions.length === 0) {
+  if (questions.length === 0) {
     return (
       <div style={{ minHeight: '100vh', backgroundColor: BG, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
         <div style={{ fontSize: '3rem', marginBottom: 16 }}>🎉</div>

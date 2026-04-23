@@ -95,13 +95,10 @@ export default function Onboarding() {
       });
   }, []);
 
-  // Auto-start quiz when in retake mode
-  useEffect(() => {
-    if (isRetake && step === 'welcome') {
-      fetchQuestions();
-    }
+  // Auto-start quiz when in retake mode — intentional [] since isRetake is
+  // derived from the URL and never changes during this component's lifetime.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isRetake]);
+  useEffect(() => { if (isRetake) fetchQuestions(); }, []);
 
   // Fetch active quiz questions
   const fetchQuestions = async () => {

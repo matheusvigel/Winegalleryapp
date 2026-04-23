@@ -67,12 +67,14 @@ export default function ExperienceDetail() {
   };
 
   const toggleFavorite = async () => {
-    if (!user || !id) return;
+    if (!user || !id || saving) return;
+    setSaving(true);
     setFavorite(v => !v);
     const result = await psToggleFavorite(user.id, id, 'experience', favorite);
     if (result && !favorite) {
       toast.success('+1 ponto!', { description: 'Adicionado aos favoritos ❤️' });
     }
+    setSaving(false);
   };
 
   if (loading) {
@@ -166,6 +168,7 @@ export default function ExperienceDetail() {
             </button>
             <button
               onClick={toggleFavorite}
+              disabled={saving}
               className={`py-4 rounded-xl font-semibold transition-all flex items-center justify-center gap-2 ${
                 favorite ? 'bg-red-500 text-white shadow-lg' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}

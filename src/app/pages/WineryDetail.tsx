@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { toast } from 'sonner';
 import {
   toggleTried as psToggleTried,
   toggleFavorite as psToggleFavorite,
@@ -125,21 +126,7 @@ export default function WineryDetail() {
 
       const wineIds = (wns ?? []).map(wn => wn.id);
 
-      // Load wine progress states for action buttons
-      if (user && wineIds.length > 0) {
-        const { data: progress } = await supabase
-          .from('user_progress')
-          .select('item_id, completed, is_favorite')
-          .eq('user_id', user.id)
-          .in('item_id', wineIds);
-        const states: Record<string, { tried: boolean; favorite: boolean }> = {};
-        (progress ?? []).forEach((p: any) => {
-          states[p.item_id] = { tried: p.completed ?? false, favorite: p.is_favorite ?? false };
-        });
-        setWineStates(states);
-      }
-
-      // 3. Load region + collections in parallel (collections via wine IDs)
+      // 3. Load region + collections + wine progress states in parallel
       const regionPromise = w.region_id
         ? supabase.from('regions').select('id, name, level, parent:regions!parent_id(id, name)').eq('id', w.region_id).maybeSingle()
         : Promise.resolve({ data: null });
@@ -152,7 +139,13 @@ export default function WineryDetail() {
         ? supabase.from('collection_items').select('collection_id, collections(id, title, photo, tagline)').in('item_id', wineIds).eq('item_type', 'wine')
         : Promise.resolve({ data: [] });
 
-      const [{ data: reg }, { data: sub }, { data: colItems }] = await Promise.all([regionPromise, subRegionPromise, collectionsPromise]);
+      const progressPromise = user && wineIds.length > 0
+        ? supabase.from('user_progress').select('item_id, completed, is_favorite').eq('user_id', user.id).in('item_id', wineIds)
+        : Promise.resolve({ data: [] });
+
+      const [{ data: reg }, { data: sub }, { data: colItems }, { data: progress }] = await Promise.all([
+        regionPromise, subRegionPromise, collectionsPromise, progressPromise,
+      ]);
       setRegion((reg as unknown as RegionRow) ?? null);
       setSubRegion((sub as unknown as RegionRow) ?? null);
 
@@ -163,6 +156,15 @@ export default function WineryDetail() {
         .map(ci => ci.collections as unknown as CollectionRow)
         .filter(Boolean);
       setCollections(uniqueCols);
+
+      // Populate wine action states
+      if (progress && progress.length > 0) {
+        const states: Record<string, { tried: boolean; favorite: boolean }> = {};
+        (progress as any[]).forEach(p => {
+          states[p.item_id] = { tried: p.completed ?? false, favorite: p.is_favorite ?? false };
+        });
+        setWineStates(states);
+      }
 
       setLoading(false);
     };
@@ -189,14 +191,16 @@ export default function WineryDetail() {
     if (!user) return;
     const current = wineStates[wineId] ?? { tried: false, favorite: false };
     setWineStates(prev => ({ ...prev, [wineId]: { ...current, tried: !current.tried } }));
-    await psToggleTried(user.id, wineId, 'wine', current.tried);
+    const result = await psToggleTried(user.id, wineId, 'wine', current.tried);
+    if (result && !current.tried) toast.success('+1 ponto!', { description: 'Vinho marcado como experimentado 🍷' });
   };
 
   const toggleWineFavorite = async (wineId: string) => {
     if (!user) return;
     const current = wineStates[wineId] ?? { tried: false, favorite: false };
     setWineStates(prev => ({ ...prev, [wineId]: { ...current, favorite: !current.favorite } }));
-    await psToggleFavorite(user.id, wineId, 'wine', current.favorite);
+    const result = await psToggleFavorite(user.id, wineId, 'wine', current.favorite);
+    if (result && !current.favorite) toast.success('+1 ponto!', { description: 'Adicionado aos favoritos ❤️' });
   };
 
   if (loading) {
@@ -495,9 +499,7 @@ export default function WineryDetail() {
                               </button>
                             </>
                           ) : (
-                            <Link to={`/wine/${wine.id}`}>
-                              <ChevronRight className="w-4 h-4 text-gray-400" />
-                            </Link>
+                            <ChevronRight className="w-4 h-4 text-gray-400" />
                           )}
                         </div>
                       </div>
