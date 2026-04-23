@@ -164,6 +164,9 @@ export default function WineDetail() {
               {wine.wineries.name}
             </Link>
           )}
+          {wine.highlight && (
+            <p className="text-sm text-gray-500 italic mt-1.5 leading-relaxed">{wine.highlight}</p>
+          )}
 
           <div className="flex flex-wrap gap-2 mt-3">
             {wine.type && (

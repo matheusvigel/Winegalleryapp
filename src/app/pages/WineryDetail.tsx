@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router';
 import { supabase } from '../../lib/supabase';
-import { ArrowLeft, ChevronRight, MapPin, ExternalLink, Wine, Layers, Star } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+import { ArrowLeft, ChevronRight, MapPin, ExternalLink, Wine, Layers, Star, Heart, BookOpen } from 'lucide-react';
 import { motion } from 'motion/react';
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -43,6 +44,13 @@ type RegionRow = {
   parent: { id: string; name: string } | null;
 };
 
+type CollectionRow = {
+  id: string;
+  name: string;
+  photo: string | null;
+  description: string | null;
+};
+
 const FALLBACK = 'https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=600&q=80';
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -67,14 +75,19 @@ export default function WineryDetail() {
   const { wineryId, brandId } = useParams<{ wineryId?: string; brandId?: string }>();
   const resolvedId = wineryId ?? brandId;
   const navigate = useNavigate();
+  const { user } = useAuth();
 
-  const [winery, setWinery]         = useState<Winery | null>(null);
-  const [wines, setWines]           = useState<WineRow[]>([]);
+  const [winery, setWinery]           = useState<Winery | null>(null);
+  const [wines, setWines]             = useState<WineRow[]>([]);
   const [experiences, setExperiences] = useState<ExperienceRow[]>([]);
-  const [region, setRegion]         = useState<RegionRow | null>(null);
-  const [subRegion, setSubRegion]   = useState<RegionRow | null>(null);
-  const [loading, setLoading]       = useState(true);
-  const [activeTab, setActiveTab]   = useState<'wines' | 'experiences'>('wines');
+  const [collections, setCollections] = useState<CollectionRow[]>([]);
+  const [region, setRegion]           = useState<RegionRow | null>(null);
+  const [subRegion, setSubRegion]     = useState<RegionRow | null>(null);
+  const [loading, setLoading]         = useState(true);
+  const [activeTab, setActiveTab]     = useState<'wines' | 'experiences' | 'collections'>('wines');
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [followerCount, setFollowerCount] = useState(0);
+  const [followLoading, setFollowLoading] = useState(false);
 
   useEffect(() => {
     if (!resolvedId) return;
@@ -91,48 +104,67 @@ export default function WineryDetail() {
       if (!w) { setLoading(false); return; }
       setWinery(w);
 
-      // 2. Load wines + experiences from this winery in parallel
-      const [{ data: wns }, { data: exps }] = await Promise.all([
-        supabase
-          .from('wines')
-          .select('id, name, photo, type, category, price_min, price_max, highlight')
-          .eq('winery_id', resolvedId)
-          .order('name'),
-        supabase
-          .from('experiences')
-          .select('id, name, photo, category, highlight')
-          .eq('winery_id', resolvedId)
-          .order('name'),
+      // 2. Load wines + experiences + follow info in parallel
+      const [{ data: wns }, { data: exps }, { count: fCount }, followRes] = await Promise.all([
+        supabase.from('wines').select('id, name, photo, type, category, price_min, price_max, highlight').eq('winery_id', resolvedId).order('name'),
+        supabase.from('experiences').select('id, name, photo, category, highlight').eq('winery_id', resolvedId).order('name'),
+        supabase.from('winery_follows').select('*', { count: 'exact', head: true }).eq('winery_id', resolvedId),
+        user
+          ? supabase.from('winery_follows').select('winery_id').eq('winery_id', resolvedId).eq('user_id', user.id).maybeSingle()
+          : Promise.resolve({ data: null }),
       ]);
       setWines(wns ?? []);
       setExperiences(exps ?? []);
+      setFollowerCount(fCount ?? 0);
+      setIsFollowing(!!followRes.data);
 
-      // 3. Load region info
+      const wineIds = (wns ?? []).map(wn => wn.id);
+
+      // 3. Load region + collections in parallel (collections via wine IDs)
       const regionPromise = w.region_id
-        ? supabase
-            .from('regions')
-            .select('id, name, level, parent:regions!parent_id(id, name)')
-            .eq('id', w.region_id)
-            .maybeSingle()
+        ? supabase.from('regions').select('id, name, level, parent:regions!parent_id(id, name)').eq('id', w.region_id).maybeSingle()
         : Promise.resolve({ data: null });
 
       const subRegionPromise = w.sub_region_id
-        ? supabase
-            .from('regions')
-            .select('id, name, level, parent:regions!parent_id(id, name)')
-            .eq('id', w.sub_region_id)
-            .maybeSingle()
+        ? supabase.from('regions').select('id, name, level, parent:regions!parent_id(id, name)').eq('id', w.sub_region_id).maybeSingle()
         : Promise.resolve({ data: null });
 
-      const [{ data: reg }, { data: sub }] = await Promise.all([regionPromise, subRegionPromise]);
+      const collectionsPromise = wineIds.length > 0
+        ? supabase.from('collection_items').select('collection_id, collections(id, name, photo, description)').in('item_id', wineIds)
+        : Promise.resolve({ data: [] });
+
+      const [{ data: reg }, { data: sub }, { data: colItems }] = await Promise.all([regionPromise, subRegionPromise, collectionsPromise]);
       setRegion((reg as unknown as RegionRow) ?? null);
       setSubRegion((sub as unknown as RegionRow) ?? null);
+
+      // Deduplicate collections
+      const seen = new Set<string>();
+      const uniqueCols = (colItems ?? [])
+        .filter(ci => { if (seen.has(ci.collection_id)) return false; seen.add(ci.collection_id); return true; })
+        .map(ci => ci.collections as unknown as CollectionRow)
+        .filter(Boolean);
+      setCollections(uniqueCols);
 
       setLoading(false);
     };
 
     load();
-  }, [resolvedId]);
+  }, [resolvedId, user]);
+
+  const toggleFollow = async () => {
+    if (!user || !resolvedId) return;
+    setFollowLoading(true);
+    if (isFollowing) {
+      await supabase.from('winery_follows').delete().eq('winery_id', resolvedId).eq('user_id', user.id);
+      setIsFollowing(false);
+      setFollowerCount(c => Math.max(0, c - 1));
+    } else {
+      await supabase.from('winery_follows').insert({ winery_id: resolvedId, user_id: user.id });
+      setIsFollowing(true);
+      setFollowerCount(c => c + 1);
+    }
+    setFollowLoading(false);
+  };
 
   if (loading) {
     return (
@@ -262,47 +294,73 @@ export default function WineryDetail() {
           </div>
         )}
 
-        {/* ── Info row ───────────────────────────────────────────────────── */}
-        <div className="mx-4 mb-6 grid grid-cols-2 gap-3">
-          {displayRegion && (
-            <Link
-              to={`/region/${displayRegion.id}`}
-              className="bg-white rounded-xl p-3.5 shadow-sm border border-gray-100 hover:shadow-md transition-shadow flex items-center gap-2.5 group"
+        {/* ── Follow + info row ──────────────────────────────────────────── */}
+        <div className="mx-4 mb-6 space-y-3">
+          {/* Follow button */}
+          {user && (
+            <button
+              onClick={toggleFollow}
+              disabled={followLoading}
+              className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm transition-all ${
+                isFollowing
+                  ? 'bg-pink-500 text-white shadow-md'
+                  : 'bg-white border border-gray-200 text-gray-700 hover:border-pink-300 hover:text-pink-600'
+              }`}
             >
-              <div className="w-8 h-8 bg-rose-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                <MapPin className="w-4 h-4 text-rose-600" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-[10px] text-gray-400 font-medium uppercase tracking-wide">Região</p>
-                <p className="text-sm font-semibold text-gray-900 truncate">{displayRegion.name}</p>
-              </div>
-              <ChevronRight className="w-4 h-4 text-gray-400 ml-auto flex-shrink-0 group-hover:text-purple-600 transition-colors" />
-            </Link>
+              <Heart className={`w-4 h-4 ${isFollowing ? 'fill-white' : ''}`} />
+              {isFollowing ? 'Seguindo' : 'Seguir vinícola'}
+              {followerCount > 0 && (
+                <span className={`text-xs px-2 py-0.5 rounded-full ${isFollowing ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500'}`}>
+                  {followerCount}
+                </span>
+              )}
+            </button>
           )}
-          {winery.buy_link && (
-            <a
-              href={winery.buy_link}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="bg-white rounded-xl p-3.5 shadow-sm border border-gray-100 hover:shadow-md transition-shadow flex items-center gap-2.5 group"
-            >
-              <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                <ExternalLink className="w-4 h-4 text-purple-600" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-[10px] text-gray-400 font-medium uppercase tracking-wide">Site</p>
-                <p className="text-sm font-semibold text-purple-600 truncate">Visitar</p>
-              </div>
-            </a>
+          {!user && followerCount > 0 && (
+            <p className="text-center text-xs text-gray-400">{followerCount} seguidore{followerCount !== 1 ? 's' : ''}</p>
           )}
+
+          <div className="grid grid-cols-2 gap-3">
+            {displayRegion && (
+              <Link
+                to={`/region/${displayRegion.id}`}
+                className="bg-white rounded-xl p-3.5 shadow-sm border border-gray-100 hover:shadow-md transition-shadow flex items-center gap-2.5 group"
+              >
+                <div className="w-8 h-8 bg-rose-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <MapPin className="w-4 h-4 text-rose-600" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[10px] text-gray-400 font-medium uppercase tracking-wide">Região</p>
+                  <p className="text-sm font-semibold text-gray-900 truncate">{displayRegion.name}</p>
+                </div>
+                <ChevronRight className="w-4 h-4 text-gray-400 ml-auto flex-shrink-0 group-hover:text-purple-600 transition-colors" />
+              </Link>
+            )}
+            {winery.buy_link && (
+              <a
+                href={winery.buy_link}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-white rounded-xl p-3.5 shadow-sm border border-gray-100 hover:shadow-md transition-shadow flex items-center gap-2.5 group"
+              >
+                <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <ExternalLink className="w-4 h-4 text-purple-600" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[10px] text-gray-400 font-medium uppercase tracking-wide">Site</p>
+                  <p className="text-sm font-semibold text-purple-600 truncate">Visitar</p>
+                </div>
+              </a>
+            )}
+          </div>
         </div>
 
-        {/* ── Tabs: Vinhos / Experiências ────────────────────────────────── */}
+        {/* ── Tabs: Vinhos / Experiências / Coleções ─────────────────────── */}
         <div className="mx-4 mb-4">
           <div className="flex gap-1 bg-gray-100 rounded-xl p-1">
             <button
               onClick={() => setActiveTab('wines')}
-              className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-semibold transition-all ${
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold transition-all ${
                 activeTab === 'wines' ? 'bg-white shadow-sm text-purple-700' : 'text-gray-500 hover:text-gray-700'
               }`}
             >
@@ -311,13 +369,24 @@ export default function WineryDetail() {
             </button>
             <button
               onClick={() => setActiveTab('experiences')}
-              className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-semibold transition-all ${
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold transition-all ${
                 activeTab === 'experiences' ? 'bg-white shadow-sm text-purple-700' : 'text-gray-500 hover:text-gray-700'
               }`}
             >
               <Star className="w-3.5 h-3.5" />
-              Experiências ({experiences.length})
+              Exp. ({experiences.length})
             </button>
+            {collections.length > 0 && (
+              <button
+                onClick={() => setActiveTab('collections')}
+                className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold transition-all ${
+                  activeTab === 'collections' ? 'bg-white shadow-sm text-purple-700' : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                <BookOpen className="w-3.5 h-3.5" />
+                Coleções ({collections.length})
+              </button>
+            )}
           </div>
         </div>
 
@@ -412,6 +481,39 @@ export default function WineryDetail() {
                 ))}
               </div>
             )}
+          </div>
+        )}
+
+        {/* ── Collections list ────────────────────────────────────────────── */}
+        {activeTab === 'collections' && (
+          <div className="mb-8">
+            <div className="space-y-3 px-4">
+              {collections.map((col, i) => (
+                <motion.div
+                  key={col.id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.04 * i, duration: 0.25 }}
+                >
+                  <Link to={`/collection/${col.id}`} className="block group">
+                    <div className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 group-hover:shadow-md transition-shadow flex gap-3 p-3">
+                      <div className="w-16 h-16 rounded-xl overflow-hidden bg-gradient-to-br from-purple-50 to-pink-50 flex-shrink-0">
+                        {col.photo ? (
+                          <img src={col.photo} alt={col.name} className="w-full h-full object-cover" onError={e => { (e.target as HTMLImageElement).src = FALLBACK; }} />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center"><BookOpen className="w-6 h-6 text-purple-300" /></div>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0 py-1">
+                        <p className="font-semibold text-gray-900 text-sm leading-tight mb-1">{col.name}</p>
+                        {col.description && <p className="text-xs text-gray-400 line-clamp-2 leading-snug">{col.description}</p>}
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-gray-400 self-center flex-shrink-0 group-hover:text-purple-600 transition-colors" />
+                    </div>
+                  </Link>
+                </motion.div>
+              ))}
+            </div>
           </div>
         )}
       </div>

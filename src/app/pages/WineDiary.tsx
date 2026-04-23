@@ -25,7 +25,11 @@ interface TriedWine {
   winery_name: string | null;
 }
 
-type Step = 'diary' | 'scan' | 'search' | 'submit';
+type Step   = 'diary' | 'scan' | 'search' | 'submit';
+type Intent = 'drank' | 'cellar' | 'wishlist';
+
+const API4AI_KEY = 'a4a-jvt4CzeTq66M5YzcKePQ40Za7xTUawbD';
+const API4AI_URL = 'https://demo.api4ai.cloud/wine-rec/v1/results';
 
 const FALLBACK = 'https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=400&q=80';
 
@@ -39,15 +43,19 @@ export default function WineDiary() {
   const [triedWines, setTriedWines] = useState<TriedWine[]>([]);
   const [loading, setLoading]     = useState(true);
 
-  // Check-in state
-  const [query, setQuery]         = useState('');
-  const [results, setResults]     = useState<WineResult[]>([]);
-  const [searching, setSearching] = useState(false);
-  const [checkedIn, setCheckedIn] = useState<string | null>(null); // wine id just checked in
+  // Check-in / search state
+  const [query, setQuery]           = useState('');
+  const [results, setResults]       = useState<WineResult[]>([]);
+  const [searching, setSearching]   = useState(false);
+  const [checkedIn, setCheckedIn]   = useState<string | null>(null);
   const searchRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Label photo
+  // Intent picker
+  const [pendingWine, setPendingWine] = useState<WineResult | null>(null);
+
+  // Label photo + scanner
   const [labelPhoto, setLabelPhoto] = useState<string | null>(null);
+  const [scanning, setScanning]     = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   // Submit new wine form
@@ -111,26 +119,67 @@ export default function WineDiary() {
 
   useEffect(() => () => { if (searchRef.current) clearTimeout(searchRef.current); }, []);
 
-  const handleCheckIn = async (wine: WineResult) => {
-    if (!user) return;
-    setCheckedIn(wine.id);
-    await psToggleTried(user.id, wine.id, 'wine', false);
-    toast.success('Vinho registrado! 🍷', { description: `${wine.name} adicionado ao seu diário.` });
+  // Opens intent picker instead of immediately checking in
+  const handleCheckIn = (wine: WineResult) => {
+    setPendingWine(wine);
+  };
+
+  const handleIntentSelect = async (intent: Intent) => {
+    if (!user || !pendingWine) return;
+    setCheckedIn(pendingWine.id);
+    setPendingWine(null);
+
+    // Persist intent to user_cellar
+    await supabase.from('user_cellar').upsert(
+      { user_id: user.id, wine_id: pendingWine.id, intent },
+      { onConflict: 'user_id,wine_id' },
+    );
+
+    if (intent === 'drank') {
+      await psToggleTried(user.id, pendingWine.id, 'wine', false);
+      toast.success('Vinho registrado! 🍷', { description: `${pendingWine.name} adicionado ao diário.` });
+    } else if (intent === 'cellar') {
+      toast.success('Adicionado à sua adega! 🏠', { description: pendingWine.name });
+    } else {
+      toast.success('Adicionado à wishlist! ❤️', { description: pendingWine.name });
+    }
+
     setTimeout(() => {
       setStep('diary');
       setQuery('');
       setResults([]);
       setCheckedIn(null);
       loadDiary();
-    }, 1000);
+    }, 800);
   };
 
-  const handlePhotoCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoCapture = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const url = URL.createObjectURL(file);
     setLabelPhoto(url);
     setStep('search');
+    setScanning(true);
+
+    try {
+      const formData = new FormData();
+      formData.append('image', file);
+      const res = await fetch(API4AI_URL, {
+        method: 'POST',
+        headers: { 'api-key': API4AI_KEY },
+        body: formData,
+      });
+      const data = await res.json();
+      // Parse wine name from API4AI response
+      const entity  = data?.results?.[0]?.entities?.[0];
+      const classes = entity?.classes ?? {};
+      const detected = classes.wine_name ?? classes.name ?? classes.label ?? '';
+      if (detected) setQuery(detected);
+    } catch {
+      // Silently fall back — user can type the name manually
+    } finally {
+      setScanning(false);
+    }
   };
 
   const handleSubmitNewWine = async (e: React.FormEvent) => {
@@ -352,6 +401,14 @@ export default function WineDiary() {
               </div>
             )}
 
+            {/* Scanning banner */}
+            {scanning && (
+              <div className="flex items-center gap-2 mb-4 px-4 py-3 bg-purple-50 border border-purple-200 rounded-xl text-sm text-purple-700">
+                <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" />
+                Identificando rótulo…
+              </div>
+            )}
+
             {/* Search input */}
             <div className="relative mb-4">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -359,11 +416,11 @@ export default function WineDiary() {
                 autoFocus
                 value={query}
                 onChange={e => setQuery(e.target.value)}
-                placeholder="Nome do vinho…"
+                placeholder={scanning ? 'Aguarde a identificação…' : 'Nome do vinho…'}
                 className="w-full pl-10 pr-10 py-3.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 shadow-sm"
               />
-              {searching && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-purple-500 animate-spin" />}
-              {query && !searching && (
+              {searching && !scanning && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-purple-500 animate-spin" />}
+              {query && !searching && !scanning && (
                 <button onClick={() => setQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2">
                   <X className="w-4 h-4 text-gray-400" />
                 </button>
@@ -529,6 +586,73 @@ export default function WineDiary() {
           </motion.div>
         )}
 
+      </AnimatePresence>
+
+      {/* ── Intent picker overlay ───────────────────────────────────────── */}
+      <AnimatePresence>
+        {pendingWine && (
+          <motion.div
+            key="intent"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/50 flex items-end"
+            onClick={() => setPendingWine(null)}
+          >
+            <motion.div
+              initial={{ y: 320 }}
+              animate={{ y: 0 }}
+              exit={{ y: 320 }}
+              transition={{ type: 'spring', damping: 28, stiffness: 300 }}
+              className="w-full max-w-lg mx-auto bg-white rounded-t-3xl p-6 pb-10"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-5" />
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Como registrar</p>
+              <p className="text-base font-bold text-gray-900 mb-5 leading-tight">{pendingWine.name}</p>
+
+              <div className="space-y-3">
+                <button
+                  onClick={() => handleIntentSelect('drank')}
+                  className="w-full flex items-center gap-4 p-4 rounded-2xl border-2 border-green-200 bg-green-50 hover:border-green-400 transition-colors text-left"
+                >
+                  <span className="text-3xl">🍷</span>
+                  <div>
+                    <p className="font-bold text-green-900">Já bebi</p>
+                    <p className="text-xs text-green-700 mt-0.5">Marcar como experimentado e ganhar pontos</p>
+                  </div>
+                </button>
+                <button
+                  onClick={() => handleIntentSelect('cellar')}
+                  className="w-full flex items-center gap-4 p-4 rounded-2xl border-2 border-purple-200 bg-purple-50 hover:border-purple-400 transition-colors text-left"
+                >
+                  <span className="text-3xl">🏠</span>
+                  <div>
+                    <p className="font-bold text-purple-900">Minha adega</p>
+                    <p className="text-xs text-purple-700 mt-0.5">Tenho em casa ou estou guardando</p>
+                  </div>
+                </button>
+                <button
+                  onClick={() => handleIntentSelect('wishlist')}
+                  className="w-full flex items-center gap-4 p-4 rounded-2xl border-2 border-pink-200 bg-pink-50 hover:border-pink-400 transition-colors text-left"
+                >
+                  <span className="text-3xl">❤️</span>
+                  <div>
+                    <p className="font-bold text-pink-900">Quero provar</p>
+                    <p className="text-xs text-pink-700 mt-0.5">Adicionar à minha lista de desejos</p>
+                  </div>
+                </button>
+              </div>
+
+              <button
+                onClick={() => setPendingWine(null)}
+                className="w-full mt-4 py-3 text-sm text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                Cancelar
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
       </AnimatePresence>
     </div>
   );
