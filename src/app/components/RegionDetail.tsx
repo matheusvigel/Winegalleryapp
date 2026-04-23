@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router';
 import { supabase } from '../../lib/supabase';
-import { ArrowLeft, ChevronRight, Layers, MapPin } from 'lucide-react';
+import { ArrowLeft, ChevronRight, Layers, MapPin, Wine } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -21,6 +21,14 @@ type CollectionRow = {
   photo: string;
   category: string;
   content_type: string;
+};
+
+type WineryRow = {
+  id: string;
+  name: string;
+  photo: string | null;
+  category: string;
+  highlight: string | null;
 };
 
 type ItemRow = {
@@ -52,6 +60,7 @@ export default function RegionDetail() {
   const [collections, setCollections] = useState<CollectionRow[]>([]);
   const [collectionItems, setCollectionItems] = useState<Record<string, ItemRow[]>>({});
   const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
+  const [wineries, setWineries] = useState<WineryRow[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -76,11 +85,16 @@ export default function RegionDetail() {
         setParent(null);
       }
 
-      // 3. Load sub-regions
-      const { data: subs } = await supabase
-        .from('regions').select('id, name, photo, description, level, parent_id')
-        .eq('parent_id', regionId).order('name');
+      // 3. Load sub-regions + wineries in parallel
+      const [{ data: subs }, { data: wins }] = await Promise.all([
+        supabase.from('regions').select('id, name, photo, description, level, parent_id')
+          .eq('parent_id', regionId).order('name'),
+        supabase.from('wineries').select('id, name, photo, category, highlight')
+          .or(`region_id.eq.${regionId},sub_region_id.eq.${regionId}`)
+          .order('name').limit(40),
+      ]);
       setSubRegions(subs ?? []);
+      setWineries((wins ?? []) as WineryRow[]);
 
       // 4. Load collections for this region (match on any of the 3 geographic FK columns)
       const { data: cols } = await supabase
@@ -360,6 +374,44 @@ export default function RegionDetail() {
           </div>
         )}
 
+        {/* Wineries */}
+        {wineries.length > 0 && (
+          <div className="mb-6">
+            <p className="mx-4 mb-3 text-xs font-bold text-gray-400 uppercase tracking-widest">
+              Vinícolas de {region.name}
+            </p>
+            <div className="flex gap-3 overflow-x-auto px-4 pb-2" style={{ scrollbarWidth: 'none' }}>
+              {wineries.map((w, i) => (
+                <motion.div
+                  key={w.id}
+                  initial={{ opacity: 0, x: 12 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.04 * i, duration: 0.25 }}
+                  className="flex-shrink-0 w-40"
+                >
+                  <Link to={`/winery/${w.id}`} className="block group">
+                    <div className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 group-hover:shadow-md transition-shadow">
+                      <div className="h-28 bg-gradient-to-br from-purple-50 to-pink-50 flex items-center justify-center overflow-hidden">
+                        {w.photo ? (
+                          <img src={w.photo} alt={w.name} className="w-full h-full object-cover" onError={e => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=200&q=60'; }} />
+                        ) : (
+                          <Wine className="w-8 h-8 text-purple-300" />
+                        )}
+                      </div>
+                      <div className="p-2.5">
+                        <p className="text-xs font-semibold text-gray-900 line-clamp-2 leading-tight">{w.name}</p>
+                        {w.category && (
+                          <span className="inline-block mt-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">{w.category}</span>
+                        )}
+                      </div>
+                    </div>
+                  </Link>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Sub-regions */}
         {hasSubRegions && (
           <div className="px-4 pb-6">
@@ -408,7 +460,7 @@ export default function RegionDetail() {
         )}
 
         {/* Empty state */}
-        {!hasCollections && !hasSubRegions && (
+        {!hasCollections && !hasSubRegions && wineries.length === 0 && (
           <div className="px-4 py-20 text-center">
             <Layers className="w-12 h-12 text-gray-300 mx-auto mb-4" />
             <p className="text-gray-500 text-sm">Nenhuma coleção cadastrada ainda para esta região.</p>

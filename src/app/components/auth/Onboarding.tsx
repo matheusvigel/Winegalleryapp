@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router';
+import { useNavigate, useSearchParams } from 'react-router';
 import { motion, AnimatePresence } from 'motion/react';
 import { ChevronRight, ChevronLeft, Check } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
@@ -68,6 +68,8 @@ const BORDER = 'rgba(0,0,0,0.08)';
 // ── Component ────────────────────────────────────────────────
 export default function Onboarding() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const isRetake = searchParams.get('retake') === 'true';
   const { session } = useAuth();
 
   const [step, setStep]           = useState<'welcome' | 'quiz' | 'result'>('welcome');
@@ -92,6 +94,11 @@ export default function Onboarding() {
         if (data?.value) setCompletionPoints(Number(data.value));
       });
   }, []);
+
+  // Auto-start quiz when in retake mode — intentional [] since isRetake is
+  // derived from the URL and never changes during this component's lifetime.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { if (isRetake) fetchQuestions(); }, []);
 
   // Fetch active quiz questions
   const fetchQuestions = async () => {
@@ -164,7 +171,7 @@ export default function Onboarding() {
 
   const goToApp = () => {
     localStorage.removeItem('wine-gallery-onboarding');
-    navigate('/');
+    navigate(isRetake ? '/profile' : '/');
   };
 
   // ── STEP: WELCOME ─────────────────────────────────────────

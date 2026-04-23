@@ -2,7 +2,12 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { ArrowLeft, ChevronRight, MapPin, ExternalLink, Wine, Layers, Star, Heart, BookOpen } from 'lucide-react';
+import { toast } from 'sonner';
+import {
+  toggleTried as psToggleTried,
+  toggleFavorite as psToggleFavorite,
+} from '../../lib/pointsSystem';
+import { ArrowLeft, ChevronRight, MapPin, ExternalLink, Wine, Layers, Star, Heart, BookOpen, CheckCircle2 } from 'lucide-react';
 import { motion } from 'motion/react';
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -88,6 +93,7 @@ export default function WineryDetail() {
   const [isFollowing, setIsFollowing] = useState(false);
   const [followerCount, setFollowerCount] = useState(0);
   const [followLoading, setFollowLoading] = useState(false);
+  const [wineStates, setWineStates] = useState<Record<string, { tried: boolean; favorite: boolean }>>({});
 
   useEffect(() => {
     if (!resolvedId) return;
@@ -120,7 +126,7 @@ export default function WineryDetail() {
 
       const wineIds = (wns ?? []).map(wn => wn.id);
 
-      // 3. Load region + collections in parallel (collections via wine IDs)
+      // 3. Load region + collections + wine progress states in parallel
       const regionPromise = w.region_id
         ? supabase.from('regions').select('id, name, level, parent:regions!parent_id(id, name)').eq('id', w.region_id).maybeSingle()
         : Promise.resolve({ data: null });
@@ -133,7 +139,13 @@ export default function WineryDetail() {
         ? supabase.from('collection_items').select('collection_id, collections(id, title, photo, tagline)').in('item_id', wineIds).eq('item_type', 'wine')
         : Promise.resolve({ data: [] });
 
-      const [{ data: reg }, { data: sub }, { data: colItems }] = await Promise.all([regionPromise, subRegionPromise, collectionsPromise]);
+      const progressPromise = user && wineIds.length > 0
+        ? supabase.from('user_progress').select('item_id, completed, is_favorite').eq('user_id', user.id).in('item_id', wineIds)
+        : Promise.resolve({ data: [] });
+
+      const [{ data: reg }, { data: sub }, { data: colItems }, { data: progress }] = await Promise.all([
+        regionPromise, subRegionPromise, collectionsPromise, progressPromise,
+      ]);
       setRegion((reg as unknown as RegionRow) ?? null);
       setSubRegion((sub as unknown as RegionRow) ?? null);
 
@@ -144,6 +156,15 @@ export default function WineryDetail() {
         .map(ci => ci.collections as unknown as CollectionRow)
         .filter(Boolean);
       setCollections(uniqueCols);
+
+      // Populate wine action states
+      if (progress && progress.length > 0) {
+        const states: Record<string, { tried: boolean; favorite: boolean }> = {};
+        (progress as any[]).forEach(p => {
+          states[p.item_id] = { tried: p.completed ?? false, favorite: p.is_favorite ?? false };
+        });
+        setWineStates(states);
+      }
 
       setLoading(false);
     };
@@ -164,6 +185,22 @@ export default function WineryDetail() {
       setFollowerCount(c => c + 1);
     }
     setFollowLoading(false);
+  };
+
+  const toggleWineTried = async (wineId: string) => {
+    if (!user) return;
+    const current = wineStates[wineId] ?? { tried: false, favorite: false };
+    setWineStates(prev => ({ ...prev, [wineId]: { ...current, tried: !current.tried } }));
+    const result = await psToggleTried(user.id, wineId, 'wine', current.tried);
+    if (result && !current.tried) toast.success('+1 ponto!', { description: 'Vinho marcado como experimentado 🍷' });
+  };
+
+  const toggleWineFavorite = async (wineId: string) => {
+    if (!user) return;
+    const current = wineStates[wineId] ?? { tried: false, favorite: false };
+    setWineStates(prev => ({ ...prev, [wineId]: { ...current, favorite: !current.favorite } }));
+    const result = await psToggleFavorite(user.id, wineId, 'wine', current.favorite);
+    if (result && !current.favorite) toast.success('+1 ponto!', { description: 'Adicionado aos favoritos ❤️' });
   };
 
   if (loading) {
@@ -415,8 +452,8 @@ export default function WineryDetail() {
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: 0.04 * i, duration: 0.25 }}
                     >
-                      <Link to={`/wine/${wine.id}`} className="block group">
-                        <div className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 group-hover:shadow-md transition-shadow flex gap-3 p-3">
+                      <div className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 hover:shadow-md transition-shadow flex gap-3 p-3">
+                        <Link to={`/wine/${wine.id}`} className="flex gap-3 flex-1 min-w-0">
                           <div className="w-20 h-24 rounded-xl overflow-hidden bg-gradient-to-br from-purple-50 to-pink-50 flex-shrink-0">
                             {wine.photo ? (
                               <img src={wine.photo} alt={wine.name} className="w-full h-full object-contain p-1" onError={e => { (e.target as HTMLImageElement).src = FALLBACK; }} />
@@ -433,9 +470,39 @@ export default function WineryDetail() {
                             {priceStr && <p className="text-xs text-gray-500">{priceStr}</p>}
                             {wine.highlight && <p className="text-xs text-gray-400 mt-1 line-clamp-2 leading-snug">{wine.highlight}</p>}
                           </div>
-                          <ChevronRight className="w-4 h-4 text-gray-400 self-center flex-shrink-0 group-hover:text-purple-600 transition-colors" />
+                        </Link>
+                        {/* Quick actions */}
+                        <div className="flex flex-col items-center justify-around flex-shrink-0 py-1 gap-1.5">
+                          {user ? (
+                            <>
+                              <button
+                                onClick={() => toggleWineTried(wine.id)}
+                                title="Já bebi"
+                                className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
+                                  wineStates[wine.id]?.tried
+                                    ? 'bg-green-100 text-green-600'
+                                    : 'bg-gray-100 text-gray-400 hover:bg-green-50 hover:text-green-500'
+                                }`}
+                              >
+                                <CheckCircle2 className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => toggleWineFavorite(wine.id)}
+                                title="Favoritar"
+                                className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
+                                  wineStates[wine.id]?.favorite
+                                    ? 'bg-red-100 text-red-500'
+                                    : 'bg-gray-100 text-gray-400 hover:bg-red-50 hover:text-red-400'
+                                }`}
+                              >
+                                <Heart className={`w-4 h-4 ${wineStates[wine.id]?.favorite ? 'fill-red-500' : ''}`} />
+                              </button>
+                            </>
+                          ) : (
+                            <ChevronRight className="w-4 h-4 text-gray-400" />
+                          )}
                         </div>
-                      </Link>
+                      </div>
                     </motion.div>
                   );
                 })}
@@ -461,22 +528,25 @@ export default function WineryDetail() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.04 * i, duration: 0.25 }}
                   >
-                    <div className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 flex gap-3 p-3">
-                      <div className="w-20 h-20 rounded-xl overflow-hidden bg-gradient-to-br from-amber-50 to-orange-50 flex-shrink-0">
-                        {exp.photo ? (
-                          <img src={exp.photo} alt={exp.name} className="w-full h-full object-cover" onError={e => { (e.target as HTMLImageElement).src = FALLBACK; }} />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center"><Star className="w-7 h-7 text-amber-300" /></div>
-                        )}
+                    <Link to={`/experience/${exp.id}`} className="block group">
+                      <div className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 group-hover:shadow-md transition-shadow flex gap-3 p-3">
+                        <div className="w-20 h-20 rounded-xl overflow-hidden bg-gradient-to-br from-amber-50 to-orange-50 flex-shrink-0">
+                          {exp.photo ? (
+                            <img src={exp.photo} alt={exp.name} className="w-full h-full object-cover" onError={e => { (e.target as HTMLImageElement).src = FALLBACK; }} />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center"><Star className="w-7 h-7 text-amber-300" /></div>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0 py-1">
+                          <p className="font-semibold text-gray-900 text-sm leading-tight mb-1.5">{exp.name}</p>
+                          {exp.category && (
+                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">{exp.category}</span>
+                          )}
+                          {exp.highlight && <p className="text-xs text-gray-400 mt-1.5 line-clamp-2 leading-snug">{exp.highlight}</p>}
+                        </div>
+                        <ChevronRight className="w-4 h-4 text-gray-400 self-center flex-shrink-0 group-hover:text-amber-500 transition-colors" />
                       </div>
-                      <div className="flex-1 min-w-0 py-1">
-                        <p className="font-semibold text-gray-900 text-sm leading-tight mb-1.5">{exp.name}</p>
-                        {exp.category && (
-                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">{exp.category}</span>
-                        )}
-                        {exp.highlight && <p className="text-xs text-gray-400 mt-1.5 line-clamp-2 leading-snug">{exp.highlight}</p>}
-                      </div>
-                    </div>
+                    </Link>
                   </motion.div>
                 ))}
               </div>

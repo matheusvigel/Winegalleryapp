@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router';
 import { supabase } from '../../lib/supabase';
-import { ArrowLeft, ChevronRight, MapPin, Layers } from 'lucide-react';
+import { ArrowLeft, ChevronRight, MapPin, Layers, Wine } from 'lucide-react';
 import { motion } from 'motion/react';
 
 // In the live DB, "countries" are regions with level='country'.
@@ -26,6 +26,14 @@ type CollectionRow = {
   content_type: string;
 };
 
+type WineryRow = {
+  id: string;
+  name: string;
+  photo: string | null;
+  category: string;
+  highlight: string | null;
+};
+
 const CATEGORY_COLORS: Record<string, string> = {
   'Essencial':      'bg-emerald-100 text-emerald-700',
   'Fugir do óbvio': 'bg-purple-100 text-purple-700',
@@ -41,6 +49,7 @@ export default function CountryDetail() {
   const [country, setCountry] = useState<RegionRow | null>(null);
   const [childRegions, setChildRegions] = useState<RegionRow[]>([]);
   const [collections, setCollections] = useState<CollectionRow[]>([]);
+  const [wineries, setWineries] = useState<WineryRow[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -56,24 +65,25 @@ export default function CountryDetail() {
 
       setCountry(ct ?? null);
 
-      // 2. Child regions (level='region' or 'sub-region', parent_id = countryId)
-      const { data: children } = await supabase
-        .from('regions')
-        .select('id, name, photo, description, level')
-        .eq('parent_id', countryId)
-        .order('name');
+      // 2. Child regions + collections + wineries in parallel
+      const childRegionIds = [countryId];
+
+      const [{ data: children }, { data: cols }] = await Promise.all([
+        supabase.from('regions').select('id, name, photo, description, level').eq('parent_id', countryId).order('name'),
+        supabase.from('collections').select('id, title, photo, tagline, category, content_type').eq('country_id', countryId).order('category').limit(12),
+      ]);
 
       setChildRegions(children ?? []);
-
-      // 3. Collections tied directly to this country
-      const { data: cols } = await supabase
-        .from('collections')
-        .select('id, title, photo, tagline, category, content_type')
-        .eq('country_id', countryId)
-        .order('category')
-        .limit(12);
-
       setCollections(cols ?? []);
+
+      // 3. Wineries: in country directly or in any child region
+      const allRegionIds = [countryId, ...(children ?? []).map(r => r.id)];
+      const { data: wins } = await supabase
+        .from('wineries').select('id, name, photo, category, highlight')
+        .in('region_id', allRegionIds)
+        .order('name').limit(40);
+      setWineries((wins ?? []) as WineryRow[]);
+
       setLoading(false);
     };
 
@@ -213,6 +223,44 @@ export default function CountryDetail() {
           </div>
         )}
 
+        {/* ── Wineries ──────────────────────────────────────────────── */}
+        {wineries.length > 0 && (
+          <div className="mb-6">
+            <p className="mx-4 mb-3 text-xs font-bold text-gray-400 uppercase tracking-widest">
+              Vinícolas de {country.name}
+            </p>
+            <div className="flex gap-3 overflow-x-auto px-4 pb-2" style={{ scrollbarWidth: 'none' }}>
+              {wineries.map((w, i) => (
+                <motion.div
+                  key={w.id}
+                  initial={{ opacity: 0, x: 12 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.04 * i, duration: 0.25 }}
+                  className="flex-shrink-0 w-40"
+                >
+                  <Link to={`/winery/${w.id}`} className="block group">
+                    <div className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 group-hover:shadow-md transition-shadow">
+                      <div className="h-28 bg-gradient-to-br from-purple-50 to-pink-50 flex items-center justify-center overflow-hidden">
+                        {w.photo ? (
+                          <img src={w.photo} alt={w.name} className="w-full h-full object-cover" onError={e => { (e.target as HTMLImageElement).src = FALLBACK; }} />
+                        ) : (
+                          <Wine className="w-8 h-8 text-purple-300" />
+                        )}
+                      </div>
+                      <div className="p-2.5">
+                        <p className="text-xs font-semibold text-gray-900 line-clamp-2 leading-tight">{w.name}</p>
+                        {w.category && (
+                          <span className="inline-block mt-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">{w.category}</span>
+                        )}
+                      </div>
+                    </div>
+                  </Link>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* ── Collections from this country ─────────────────────────── */}
         {collections.length > 0 && (
           <div className="mb-8">
@@ -271,7 +319,7 @@ export default function CountryDetail() {
         )}
 
         {/* ── Empty state ───────────────────────────────────────────── */}
-        {childRegions.length === 0 && collections.length === 0 && (
+        {childRegions.length === 0 && collections.length === 0 && wineries.length === 0 && (
           <div className="px-4 py-20 text-center">
             <Layers className="w-12 h-12 text-gray-300 mx-auto mb-4" />
             <p className="text-gray-500 text-sm">Nenhum conteúdo cadastrado ainda para este país.</p>
