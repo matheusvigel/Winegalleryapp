@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../../../lib/supabase';
-import { Plus, Pencil, Trash2, ChevronDown, MapPin, Building2, Grape, Wine, Star } from 'lucide-react';
+import { Plus, Pencil, Trash2, Search, X, MapPin, Building2, Grape, Wine, Star } from 'lucide-react';
 import FormModal, { Field, FieldRow, inp, ta, btn } from '../components/FormModal';
 import ImageUpload from '../components/ImageUpload';
 import {
@@ -34,42 +34,80 @@ const empty = (): Omit<Collection, 'id'> => ({
   content_type: 'Vinhos', country_id: null, region_id: null, sub_region_id: null, is_mixed: false,
 });
 
-function MultiChipSelect({ label, icon, options, selected, onToggle }: {
+function SearchableItemSelect({ label, icon, options, selected, onToggle }: {
   label: string; icon: React.ReactNode; options: ChipOption[]; selected: string[]; onToggle: (id: string) => void;
 }) {
-  const [expanded, setExpanded] = useState(false);
+  const [search, setSearch] = useState('');
+
+  const selectedOpts  = options.filter(o => selected.includes(o.id));
+  const availableOpts = useMemo(() =>
+    options.filter(o =>
+      !selected.includes(o.id) &&
+      o.label.toLowerCase().includes(search.toLowerCase())
+    ), [options, selected, search]);
+
   return (
-    <div className="border border-neutral-200 rounded-lg overflow-hidden">
-      <button type="button" onClick={() => setExpanded(v => !v)} className="w-full flex items-center justify-between px-3 py-2.5 bg-neutral-50 hover:bg-neutral-100 transition-colors">
-        <div className="flex items-center gap-2 text-neutral-700">
-          <span className="text-neutral-400">{icon}</span>
-          <span className="text-sm font-medium">{label}</span>
+    <div className="border border-neutral-200 rounded-xl overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center gap-2 px-3 py-2.5 bg-neutral-50 border-b border-neutral-100">
+        <span className="text-neutral-400">{icon}</span>
+        <span className="text-sm font-medium text-neutral-700">{label}</span>
+        {selected.length > 0 && (
+          <span className="ml-auto text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-semibold">
+            {selected.length} selecionado{selected.length !== 1 ? 's' : ''}
+          </span>
+        )}
+      </div>
+
+      <div className="p-3 space-y-3">
+        {/* Selected chips */}
+        {selectedOpts.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {selectedOpts.map(opt => (
+              <button
+                key={opt.id} type="button" onClick={() => onToggle(opt.id)}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-purple-700 text-white border border-purple-700 hover:bg-purple-600 transition-colors"
+              >
+                {opt.label}
+                {opt.sub && <span className="opacity-60">{opt.sub}</span>}
+                <X size={11} className="opacity-70" />
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Search input */}
+        <div className="relative">
+          <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder={`Buscar ${label.toLowerCase()}…`}
+            className="w-full pl-8 pr-3 h-8 text-sm border border-neutral-200 rounded-lg outline-none focus:border-purple-500 bg-white"
+          />
         </div>
-        <div className="flex items-center gap-2">
-          {selected.length > 0 && <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-semibold">{selected.length}</span>}
-          <ChevronDown size={14} className={`text-neutral-400 transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`} />
-        </div>
-      </button>
-      {expanded && (
-        <div className="p-2.5 border-t border-neutral-100">
+
+        {/* Available options */}
+        <div className="max-h-44 overflow-y-auto">
           {options.length === 0 ? (
-            <p className="text-xs text-neutral-400 py-1 px-1">Nenhum item cadastrado.</p>
+            <p className="text-xs text-neutral-400 py-2 text-center">Nenhum item cadastrado.</p>
+          ) : availableOpts.length === 0 ? (
+            <p className="text-xs text-neutral-400 py-2 text-center">
+              {search ? 'Nenhum resultado.' : 'Todos os itens selecionados.'}
+            </p>
           ) : (
-            <div className="flex flex-wrap gap-1.5 max-h-44 overflow-y-auto">
-              {options.map(opt => {
-                const active = selected.includes(opt.id);
-                return (
-                  <button key={opt.id} type="button" onClick={() => onToggle(opt.id)}
-                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-all border ${active ? 'bg-purple-700 text-white border-purple-700' : 'bg-white text-neutral-600 border-neutral-200 hover:border-purple-300 hover:text-purple-700'}`}>
-                    {opt.label}
-                    {opt.sub && <span className={active ? 'opacity-60' : 'opacity-40'}>{opt.sub}</span>}
-                  </button>
-                );
-              })}
+            <div className="flex flex-wrap gap-1.5 py-1">
+              {availableOpts.map(opt => (
+                <button key={opt.id} type="button" onClick={() => onToggle(opt.id)}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border bg-white text-neutral-600 border-neutral-200 hover:border-purple-400 hover:text-purple-700 hover:bg-purple-50 transition-colors">
+                  {opt.label}
+                  {opt.sub && <span className="opacity-40">{opt.sub}</span>}
+                </button>
+              ))}
             </div>
           )}
         </div>
-      )}
+      </div>
     </div>
   );
 }
@@ -293,7 +331,7 @@ export default function Collections() {
               <label className="block text-sm font-medium text-neutral-700 mb-2">
                 Itens da coleção <span className="text-neutral-400 font-normal">({selItems.length} selecionados)</span>
               </label>
-              <MultiChipSelect label={itemOptions.label} icon={itemOptions.icon} options={itemOptions.opts} selected={selItems} onToggle={toggle} />
+              <SearchableItemSelect label={itemOptions.label} icon={itemOptions.icon} options={itemOptions.opts} selected={selItems} onToggle={toggle} />
             </div>
           )}
 

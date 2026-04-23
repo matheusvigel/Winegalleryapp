@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router';
 import { motion, AnimatePresence } from 'motion/react';
 import { ChevronRight, ChevronLeft, Check } from 'lucide-react';
@@ -78,6 +78,8 @@ export default function Onboarding() {
   const [saving, setSaving]       = useState(false);
   const [result, setResult]       = useState<ReturnType<typeof calculateProfile> | null>(null);
   const [completionPoints, setCompletionPoints] = useState(20);
+  const advanceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (advanceTimerRef.current) clearTimeout(advanceTimerRef.current); }, []);
 
   // Fetch quiz_completion_points from app_settings
   useEffect(() => {
@@ -125,7 +127,8 @@ export default function Onboarding() {
     });
 
     // Auto-advance after short delay
-    setTimeout(() => {
+    if (advanceTimerRef.current) clearTimeout(advanceTimerRef.current);
+    advanceTimerRef.current = setTimeout(() => {
       if (currentQ < questions.length - 1) {
         setCurrentQ(c => c + 1);
       }

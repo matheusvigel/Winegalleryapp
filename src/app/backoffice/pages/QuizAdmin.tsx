@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../../../lib/supabase';
 import { Plus, ChevronUp, ChevronDown, Eye, EyeOff, Pencil, Check, X, Trash2, Gift } from 'lucide-react';
-import { PROFILE_LABELS, PROFILE_ICONS, type WineProfile } from '../../../lib/profileConstants';
+import { PROFILE_LABELS, PROFILE_ICONS, PROFILE_ORDER, type WineProfile } from '../../../lib/profileConstants';
 
 type QuizOption = {
   id: string;
@@ -20,7 +20,6 @@ type QuizQuestion = {
   options: QuizOption[];
 };
 
-const PROFILES: WineProfile[] = ['novato', 'curioso', 'desbravador', 'curador', 'expert'];
 
 // Auto-assign letter based on option index
 function indexToLetter(i: number) {
@@ -117,30 +116,15 @@ export default function QuizAdmin() {
     setSaving(null);
   };
 
-  const updateOptionProfile = async (optId: string, qId: string, profile: WineProfile) => {
+  const updateOption = async (optId: string, qId: string, patch: Partial<QuizOption>) => {
     setSaving(optId);
     const { error } = await supabase
       .from('quiz_options')
-      .update({ profile_key: profile })
+      .update(patch)
       .eq('id', optId);
     if (!error) {
       setQuestions(prev => prev.map(q => q.id === qId
-        ? { ...q, options: q.options.map(o => o.id === optId ? { ...o, profile_key: profile } : o) }
-        : q
-      ));
-    } else setError(error.message);
-    setSaving(null);
-  };
-
-  const updateOptionText = async (optId: string, qId: string, text: string) => {
-    setSaving(optId);
-    const { error } = await supabase
-      .from('quiz_options')
-      .update({ option_text: text })
-      .eq('id', optId);
-    if (!error) {
-      setQuestions(prev => prev.map(q => q.id === qId
-        ? { ...q, options: q.options.map(o => o.id === optId ? { ...o, option_text: text } : o) }
+        ? { ...q, options: q.options.map(o => o.id === optId ? { ...o, ...patch } : o) }
         : q
       ));
     } else setError(error.message);
@@ -202,7 +186,7 @@ export default function QuizAdmin() {
     } else if (error) setError(error.message);
   };
 
-  const sorted = [...questions].sort((a, b) => a.position - b.position);
+  const sorted = useMemo(() => [...questions].sort((a, b) => a.position - b.position), [questions]);
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
@@ -374,8 +358,8 @@ export default function QuizAdmin() {
                     opt={opt}
                     index={oi}
                     saving={saving === opt.id}
-                    onProfileChange={p => updateOptionProfile(opt.id, q.id, p)}
-                    onTextSave={t  => updateOptionText(opt.id, q.id, t)}
+                    onProfileChange={p => updateOption(opt.id, q.id, { profile_key: p })}
+                    onTextSave={t  => updateOption(opt.id, q.id, { option_text: t })}
                     onDelete={() => deleteOption(opt.id, q.id)}
                   />
                 ))}
@@ -399,7 +383,7 @@ export default function QuizAdmin() {
                       onChange={e => setNewOptProfile(e.target.value as WineProfile)}
                       className="h-8 px-2 text-xs border border-neutral-200 rounded-lg outline-none focus:border-purple-600 bg-white"
                     >
-                      {PROFILES.map(p => (
+                      {PROFILE_ORDER.map(p => (
                         <option key={p} value={p}>{PROFILE_ICONS[p]} {PROFILE_LABELS[p]}</option>
                       ))}
                     </select>
@@ -520,7 +504,7 @@ function OptionRow({
         disabled={saving}
         className="h-7 px-2 text-xs border border-neutral-200 rounded-md outline-none focus:border-purple-600 bg-white disabled:opacity-50"
       >
-        {(['novato', 'curioso', 'desbravador', 'curador', 'expert'] as WineProfile[]).map(p => (
+        {PROFILE_ORDER.map(p => (
           <option key={p} value={p}>{PROFILE_ICONS[p]} {PROFILE_LABELS[p]}</option>
         ))}
       </select>

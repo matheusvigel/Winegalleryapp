@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { CollectionCard } from '../components/CollectionCard';
 import { Search, MapPin, ChevronRight } from 'lucide-react';
@@ -108,7 +108,7 @@ export default function Explore() {
       const { data: prof } = await supabase
         .from('user_profiles')
         .select('wine_profile')
-        .eq('id', user.id)
+        .eq('user_id', user.id)
         .maybeSingle();
 
       const profile = prof?.wine_profile as WineProfile | null;
@@ -126,19 +126,18 @@ export default function Explore() {
   }, [user]);
 
   // Filter by content_type first, then sort/filter by profile rules
-  const filtered = (() => {
+  const filtered = useMemo(() => {
     let cols = collections.filter(c =>
       selectedFilter === 'all' || c.content_type === selectedFilter
     );
     // Only apply profile rules when showing "all" — filtered tabs show everything
     if (selectedFilter === 'all' && profileRules.length > 0) {
-      // Hide invisible categories
       const hiddenCats = profileRules.filter(r => !r.visible).map(r => r.category);
       cols = cols.filter(c => !hiddenCats.includes(c.category));
       cols = sortByProfileRules(cols, profileRules);
     }
     return cols;
-  })();
+  }, [collections, selectedFilter, profileRules]);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-purple-50 via-white to-pink-50">

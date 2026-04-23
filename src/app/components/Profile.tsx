@@ -457,6 +457,50 @@ export default function Profile() {
           </motion.div>
         )}
 
+        {/* ── Wine diary shortcut ────────────────────────────────── */}
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.22 }}
+          style={{ marginBottom: 12 }}
+        >
+          <Link
+            to="/wine-diary"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 14,
+              backgroundColor: CARD,
+              borderRadius: 14,
+              padding: '16px 20px',
+              border: `1px solid ${BORDER}`,
+              textDecoration: 'none',
+            }}
+          >
+            <div style={{
+              width: 40,
+              height: 40,
+              borderRadius: 10,
+              background: 'linear-gradient(135deg, #690037 0%, #9f1239 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+            }}>
+              <Wine size={18} color="#fff" />
+            </div>
+            <div style={{ flex: 1 }}>
+              <p style={{ margin: 0, fontFamily: "'DM Sans'", fontSize: '0.85rem', fontWeight: 700, color: TEXT1 }}>
+                Meu Diário de Vinhos
+              </p>
+              <p style={{ margin: '2px 0 0', fontFamily: "'DM Sans'", fontSize: '0.72rem', color: TEXT2 }}>
+                {triedCount > 0 ? `${triedCount} vinho${triedCount !== 1 ? 's' : ''} provado${triedCount !== 1 ? 's' : ''}` : 'Registre os vinhos que você provou'}
+              </p>
+            </div>
+            <TrendingUp size={16} color={MUTED} />
+          </Link>
+        </motion.div>
+
         {/* ── Recent activity ─────────────────────────────────────── */}
         {recentActivity.length > 0 && (
           <motion.div

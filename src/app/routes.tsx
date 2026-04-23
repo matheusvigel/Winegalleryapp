@@ -30,10 +30,13 @@ import ProfileRulesAdmin from "./backoffice/pages/ProfileRules";
 import ProfilesAdmin from "./backoffice/pages/ProfilesAdmin";
 import AdminsAdmin from "./backoffice/pages/Admins";
 
+import WineSubmissionsAdmin from "./backoffice/pages/WineSubmissions";
+
 import Explore from "./pages/Explore";
 import SearchPage from "./pages/SearchPage";
 import Achievements from "./pages/Achievements";
 import WineDetail from "./pages/WineDetail";
+import WineDiary from "./pages/WineDiary";
 import WineryDetail from "./pages/WineryDetail";
 import PlaceDetail from "./pages/PlaceDetail";
 import CollectionDetail from "./pages/CollectionDetail";
@@ -69,8 +72,9 @@ export const router = createBrowserRouter([
       { path: "admins",        Component: AdminsAdmin       },
       { path: "users",         Component: UsersAdmin        },
       { path: "places",        Component: PlacesAdmin       },
-      { path: "profile-rules",  Component: ProfileRulesAdmin },
-      { path: "wine-profiles",  Component: ProfilesAdmin     },
+      { path: "profile-rules",    Component: ProfileRulesAdmin     },
+      { path: "wine-profiles",    Component: ProfilesAdmin         },
+      { path: "wine-submissions", Component: WineSubmissionsAdmin  },
     ],
   },
 
@@ -87,6 +91,7 @@ export const router = createBrowserRouter([
       { path: "brotherhoods/:id",       Component: BrotherhoodDetail },
       { path: "brotherhoods/catalog/:id", Component: BrotherhoodDetail },
       { path: "wine/:id",               Component: WineDetail        },
+      { path: "wine-diary",             Component: WineDiary         },
       { path: "collection/:id",         Component: CollectionDetail  },
       { path: "regions",                Component: RegionsView       },
       { path: "country/:countryId",     Component: CountryDetail     },
