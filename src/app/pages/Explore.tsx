@@ -16,6 +16,9 @@ interface CollectionRow {
   photo: string;
   content_type: string;
   category: string;
+  country: { name: string } | null;
+  region: { name: string } | null;
+  sub_region: { name: string } | null;
 }
 
 interface RegionRow {
@@ -46,6 +49,17 @@ interface ProfileRule {
   visible: boolean;
 }
 
+interface ItemRow {
+  id: string;
+  name: string;
+  photo: string | null;
+  type?: string;
+  average_price?: number;
+  category?: string;
+  highlight?: string | null;
+  winery?: { name: string } | null;
+}
+
 const FALLBACK = 'https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=600&q=80';
 
 const FILTERS: { key: FilterType; label: string }[] = [
@@ -73,6 +87,38 @@ function sortByProfileRules(cols: CollectionRow[], rules: ProfileRule[]): Collec
   });
 }
 
+function ItemCard({ item, collections, filterType }: { item: ItemRow; collections: { id: string; title: string }[]; filterType: string }) {
+  const route = filterType === 'Vinhos' ? `/wine/${item.id}` : filterType === 'Experiências' ? `/experience/${item.id}` : `/winery/${item.id}`;
+  return (
+    <Link to={route} className="flex gap-3 bg-white rounded-2xl p-3 border border-gray-100 shadow-sm hover:shadow-md transition-shadow mb-3">
+      <div className="w-16 h-16 rounded-xl overflow-hidden bg-gradient-to-br from-purple-50 to-pink-50 flex-shrink-0">
+        {item.photo
+          ? <img src={item.photo} alt={item.name} className="w-full h-full object-cover" onError={e => { (e.target as HTMLImageElement).src = FALLBACK; }} />
+          : <div className="w-full h-full flex items-center justify-center text-2xl">{filterType === 'Vinhos' ? '🍷' : filterType === 'Experiências' ? '✨' : '🏛️'}</div>
+        }
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="font-semibold text-gray-900 text-sm leading-tight line-clamp-1">{item.name}</p>
+        {item.winery && <p className="text-xs text-gray-500 mt-0.5">{item.winery.name}</p>}
+        {item.type && <span className="inline-block mt-1 text-[10px] bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-medium">{item.type}</span>}
+        {item.category && !item.type && <span className="inline-block mt-1 text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-medium">{item.category}</span>}
+        {collections.length > 0 && (
+          <div className="flex items-center gap-1 mt-1.5 flex-wrap">
+            <span className="text-[10px] text-gray-400">Em:</span>
+            {collections.slice(0, 2).map(c => (
+              <span key={c.id} className="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{c.title}</span>
+            ))}
+            {collections.length > 2 && (
+              <span className="text-[10px] text-gray-400">+{collections.length - 2}</span>
+            )}
+          </div>
+        )}
+      </div>
+      <ChevronRight className="w-4 h-4 text-gray-400 self-center flex-shrink-0" />
+    </Link>
+  );
+}
+
 export default function Explore() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -86,10 +132,15 @@ export default function Explore() {
   const [userProfile, setUserProfile]       = useState<WineProfile | null>(null);
   const [loading, setLoading]               = useState(true);
 
+  const [viewMode, setViewMode]     = useState<'collections' | 'items'>('collections');
+  const [itemRows, setItemRows]     = useState<ItemRow[]>([]);
+  const [itemColMap, setItemColMap] = useState<Record<string, { id: string; title: string }[]>>({});
+  const [itemsLoading, setItemsLoading] = useState(false);
+
   useEffect(() => {
     const load = async () => {
       const [{ data: cols }, { data: regs }, { data: cts }, { data: exps }] = await Promise.all([
-        supabase.from('collections').select('id, title, tagline, photo, content_type, category').order('title'),
+        supabase.from('collections').select('id, title, tagline, photo, content_type, category, country:country_id(name), region:region_id(name), sub_region:sub_region_id(name)').order('title'),
         supabase.from('regions')
           .select('id, name, photo, level, parent:regions!parent_id(name)')
           .in('level', ['region', 'sub-region'])
@@ -139,6 +190,40 @@ export default function Explore() {
     };
     loadProfile();
   }, [user]);
+
+  // Reset viewMode when filter changes
+  useEffect(() => { setViewMode('collections'); }, [selectedFilter]);
+
+  // Load items when in items view
+  useEffect(() => {
+    if (viewMode !== 'items' || selectedFilter === 'all') return;
+    const load = async () => {
+      setItemsLoading(true);
+      const typeCollections = collections.filter(c => c.content_type === selectedFilter);
+      const colIds = typeCollections.map(c => c.id);
+      const tableName = selectedFilter === 'Vinhos' ? 'wines' : selectedFilter === 'Experiências' ? 'experiences' : 'wineries';
+      const selectStr = selectedFilter === 'Vinhos'
+        ? 'id, name, photo, type, average_price, winery:winery_id(name)'
+        : 'id, name, photo, category, highlight';
+      const [{ data: items }, { data: colItems }] = await Promise.all([
+        supabase.from(tableName).select(selectStr).order('name').limit(60),
+        colIds.length > 0
+          ? supabase.from('collection_items').select('item_id, collection_id').in('collection_id', colIds)
+          : Promise.resolve({ data: [] }),
+      ]);
+      const colTitleMap = Object.fromEntries(typeCollections.map(c => [c.id, c.title]));
+      const map: Record<string, { id: string; title: string }[]> = {};
+      for (const ci of (colItems ?? []) as { item_id: string; collection_id: string }[]) {
+        if (!map[ci.item_id]) map[ci.item_id] = [];
+        const title = colTitleMap[ci.collection_id];
+        if (title) map[ci.item_id].push({ id: ci.collection_id, title });
+      }
+      setItemRows((items ?? []) as ItemRow[]);
+      setItemColMap(map);
+      setItemsLoading(false);
+    };
+    load();
+  }, [viewMode, selectedFilter, collections]);
 
   // Filter by content_type first, then sort/filter by profile rules
   const filtered = useMemo(() => {
@@ -264,9 +349,14 @@ export default function Explore() {
         {/* ── Regions grid ─────────────────────────────────────────── */}
         {regions.length > 0 && selectedFilter === 'all' && (
           <div className="mb-8">
-            <div className="flex items-center gap-2 mb-4">
-              <MapPin className="w-5 h-5 text-purple-600" />
-              <h2 className="text-lg font-bold text-gray-900">Explorar por Região</h2>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <MapPin className="w-5 h-5 text-purple-600" />
+                <h2 className="text-lg font-bold text-gray-900">Explorar por Região</h2>
+              </div>
+              <Link to="/regions" className="text-sm text-purple-600 font-medium hover:underline flex items-center gap-1">
+                Ver todas <ChevronRight className="w-4 h-4" />
+              </Link>
             </div>
             <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
               {regions.map((region, i) => (
@@ -355,12 +445,40 @@ export default function Explore() {
             {selectedFilter === 'all' ? 'Todas as Coleções' : FILTERS.find(f => f.key === selectedFilter)?.label}
           </h2>
 
+          {/* View mode toggle — only when a specific filter is active */}
+          {selectedFilter !== 'all' && (
+            <div className="flex gap-2 mb-4">
+              <button
+                onClick={() => setViewMode('collections')}
+                className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${viewMode === 'collections' ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+              >
+                Por Coleções
+              </button>
+              <button
+                onClick={() => setViewMode('items')}
+                className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${viewMode === 'items' ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+              >
+                Individual
+              </button>
+            </div>
+          )}
+
           {loading ? (
             <div className="space-y-4">
               {[1, 2, 3].map(i => (
                 <div key={i} className="rounded-3xl bg-gray-100 animate-pulse h-64" />
               ))}
             </div>
+          ) : viewMode === 'items' && selectedFilter !== 'all' ? (
+            itemsLoading ? (
+              <div className="flex justify-center py-10"><div className="w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" /></div>
+            ) : itemRows.length > 0 ? (
+              itemRows.map(item => (
+                <ItemCard key={item.id} item={item} collections={itemColMap[item.id] ?? []} filterType={selectedFilter} />
+              ))
+            ) : (
+              <div className="text-center py-12"><div className="text-6xl mb-4">🔍</div><p className="text-gray-500">Nenhum item encontrado</p></div>
+            )
           ) : filtered.length > 0 ? (
             filtered.map(col => (
               <CollectionCard
@@ -370,6 +488,10 @@ export default function Explore() {
                 coverImage={col.photo}
                 description={col.tagline ?? ''}
                 contentType={col.content_type}
+                category={col.category}
+                country={(col.country as any)?.name}
+                region={(col.region as any)?.name}
+                subRegion={(col.sub_region as any)?.name}
               />
             ))
           ) : (

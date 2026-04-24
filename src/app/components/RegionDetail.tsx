@@ -88,7 +88,7 @@ export default function RegionDetail() {
       // 3. Load sub-regions + wineries in parallel
       const [{ data: subs }, { data: wins }] = await Promise.all([
         supabase.from('regions').select('id, name, photo, description, level, parent_id')
-          .eq('parent_id', regionId).order('name'),
+          .eq('parent_id', regionId).order('position').order('name'),
         supabase.from('wineries').select('id, name, photo, category, highlight')
           .or(`region_id.eq.${regionId},sub_region_id.eq.${regionId}`)
           .order('name').limit(40),
@@ -412,43 +412,40 @@ export default function RegionDetail() {
           </div>
         )}
 
-        {/* Sub-regions */}
+        {/* Sub-regiões — carrossel compacto */}
         {hasSubRegions && (
-          <div className="px-4 pb-6">
-            <p className="mb-3 text-xs font-bold text-gray-400 uppercase tracking-widest">
+          <div className="mb-6">
+            <p className="mx-4 mb-3 text-xs font-bold text-gray-400 uppercase tracking-widest">
               Sub-regiões de {region.name}
             </p>
-            <div className="space-y-3">
+            <div className="flex gap-3 overflow-x-auto px-4 pb-2" style={{ scrollbarWidth: 'none' }}>
               {subRegions.map((sr, i) => (
                 <motion.div
                   key={sr.id}
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.06 * i, duration: 0.3 }}
+                  initial={{ opacity: 0, x: 16 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.04 * i, duration: 0.25 }}
+                  className="flex-shrink-0 w-40"
                 >
-                  <Link to={`/region/${sr.id}`} className="block">
-                    <div className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
-                      {sr.photo ? (
-                        <div className="relative h-36">
-                          <img src={sr.photo} alt={sr.name} className="w-full h-full object-cover" />
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/65 to-transparent" />
-                          <div className="absolute bottom-0 left-0 right-0 p-4 flex items-end justify-between">
-                            <div>
-                              <h3 className="text-white font-bold text-base">{sr.name}</h3>
-                              {sr.description && (
-                                <p className="text-white/70 text-xs line-clamp-1 mt-0.5">{sr.description}</p>
-                              )}
-                            </div>
-                            <ChevronRight className="w-5 h-5 text-white/80 flex-shrink-0" />
-                          </div>
+                  <Link to={`/region/${sr.id}`} className="block group">
+                    <div className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 group-hover:shadow-md transition-shadow">
+                      <div className="relative h-24 bg-gradient-to-br from-purple-50 to-pink-50">
+                        {sr.photo && (
+                          <img
+                            src={sr.photo}
+                            alt={sr.name}
+                            className="w-full h-full object-cover"
+                            onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=300&q=70'; }}
+                          />
+                        )}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                        <div className="absolute bottom-0 left-0 right-0 p-2.5">
+                          <p className="text-white font-semibold text-xs leading-tight line-clamp-2">{sr.name}</p>
                         </div>
-                      ) : (
-                        <div className="flex items-center justify-between px-4 py-4">
-                          <div>
-                            <h3 className="text-gray-900 font-semibold text-sm">{sr.name}</h3>
-                            {sr.description && <p className="text-gray-500 text-xs mt-0.5 line-clamp-1">{sr.description}</p>}
-                          </div>
-                          <ChevronRight className="w-5 h-5 text-purple-500 flex-shrink-0" />
+                      </div>
+                      {sr.description && (
+                        <div className="px-2.5 py-1.5">
+                          <p className="text-[10px] text-gray-400 line-clamp-1">{sr.description}</p>
                         </div>
                       )}
                     </div>

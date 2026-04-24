@@ -1,6 +1,6 @@
 import { useState, useEffect, Fragment } from 'react';
 import { supabase } from '../../../lib/supabase';
-import { Plus, Pencil, Trash2, ChevronRight } from 'lucide-react';
+import { Plus, Pencil, Trash2, ChevronRight, ChevronUp, ChevronDown } from 'lucide-react';
 import FormModal, { Field, FieldRow, inp, ta, btn } from '../components/FormModal';
 import ImageUpload from '../components/ImageUpload';
 import {
@@ -8,22 +8,19 @@ import {
   AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '../../components/ui/alert-dialog';
 
-type Region = { id: string; name: string; parent_id: string | null; level: string; photo: string | null; description: string | null };
-type RegionRow = Region & { depth: number };
+type Region = { id: string; name: string; parent_id: string | null; level: string; photo: string | null; description: string | null; position: number };
+type RegionRow = Region & { depth: number; siblings: string[] };
 
 const LEVELS = [
   { value: 'region', label: 'Região' },
   { value: 'sub-region', label: 'Sub-região' },
 ];
 
-const empty = (): Omit<Region, 'id'> => ({ name: '', parent_id: null, level: 'region', photo: null, description: null });
+const empty = (): Omit<Region, 'id'> => ({ name: '', parent_id: null, level: 'region', photo: null, description: null, position: 0 });
 
 function buildTree(countries: Region[], regions: Region[]): RegionRow[] {
   const result: RegionRow[] = [];
   for (const country of countries) {
-    const children = regions.filter(r => r.parent_id === country.id || regions.some(r2 => r2.parent_id === country.id && r.parent_id === r2.id));
-    const directChildren = regions.filter(r => r.parent_id === country.id);
-    if (directChildren.length === 0 && !regions.some(r => r.parent_id === country.id)) continue;
     const allUnder = regions.filter(r => {
       let cur: Region | undefined = r;
       while (cur?.parent_id) {
@@ -32,14 +29,14 @@ function buildTree(countries: Region[], regions: Region[]): RegionRow[] {
       }
       return false;
     });
-    if (allUnder.length === 0 && directChildren.length === 0) continue;
-    result.push({ ...country, depth: -1 });
+    if (allUnder.length === 0) continue;
+    result.push({ ...country, depth: -1, siblings: [] });
     const walk = (parentId: string, depth: number) => {
-      const kids = regions.filter(r => r.parent_id === parentId).sort((a, b) => a.name.localeCompare(b.name));
-      for (const r of kids) { result.push({ ...r, depth }); walk(r.id, depth + 1); }
+      const kids = regions.filter(r => r.parent_id === parentId).sort((a, b) => a.position - b.position || a.name.localeCompare(b.name));
+      const siblingIds = kids.map(k => k.id);
+      for (const r of kids) { result.push({ ...r, depth, siblings: siblingIds }); walk(r.id, depth + 1); }
     };
     walk(country.id, 0);
-    void children;
   }
   return result;
 }
@@ -53,10 +50,11 @@ export default function Regions() {
   const [editing, setEditing] = useState<Region | null>(null);
   const [form, setForm] = useState(empty());
   const [saving, setSaving] = useState(false);
+  const [reordering, setReordering] = useState(false);
   const [error, setError] = useState('');
 
   const load = async () => {
-    const { data } = await supabase.from('regions').select('id, name, parent_id, level, photo, description').order('name');
+    const { data } = await supabase.from('regions').select('id, name, parent_id, level, photo, description, position').order('position').order('name');
     const all = (data ?? []) as Region[];
     setCountries(all.filter(r => r.level === 'country'));
     setRows(all.filter(r => r.level !== 'country'));
@@ -68,13 +66,24 @@ export default function Regions() {
     setEditing(null); setForm({ ...empty(), ...prefill }); setError(''); setModalOpen(true);
   };
   const openEdit = (r: Region) => {
-    setEditing(r); setForm({ name: r.name, parent_id: r.parent_id, level: r.level, photo: r.photo, description: r.description }); setError(''); setModalOpen(true);
+    setEditing(r); setForm({ name: r.name, parent_id: r.parent_id, level: r.level, photo: r.photo, description: r.description, position: r.position }); setError(''); setModalOpen(true);
   };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true); setError('');
-    const payload = { name: form.name, parent_id: form.parent_id || null, level: form.level, photo: form.photo || null, description: form.description || null };
+    // When creating, place the new item at the end of its sibling list
+    const siblingCount = editing
+      ? 0
+      : rows.filter(r => r.parent_id === (form.parent_id || null)).length;
+    const payload = {
+      name: form.name,
+      parent_id: form.parent_id || null,
+      level: form.level,
+      photo: form.photo || null,
+      description: form.description || null,
+      ...(editing ? {} : { position: siblingCount }),
+    };
     const result = editing
       ? await supabase.from('regions').update(payload).eq('id', editing.id)
       : await supabase.from('regions').insert(payload);
@@ -88,8 +97,22 @@ export default function Regions() {
     setDeleteId(null); load();
   };
 
-  // Parent options: for a region, parents can be countries or other regions
-  const parentOptions = [...countries, ...rows.filter(r => r.level === 'region' && r.id !== editing?.id)];
+  const moveRegion = async (id: string, siblings: string[], direction: 'up' | 'down') => {
+    const idx = siblings.indexOf(id);
+    const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
+    if (swapIdx < 0 || swapIdx >= siblings.length) return;
+    const swapId = siblings[swapIdx];
+    const current = rows.find(r => r.id === id)!;
+    const swap    = rows.find(r => r.id === swapId)!;
+    setReordering(true);
+    await Promise.all([
+      supabase.from('regions').update({ position: swap.position }).eq('id', id),
+      supabase.from('regions').update({ position: current.position }).eq('id', swapId),
+    ]);
+    setReordering(false);
+    load();
+  };
+
   const tree = buildTree(countries, rows);
 
   return (
@@ -117,7 +140,7 @@ export default function Regions() {
                 <th className="px-4 py-3 text-xs font-semibold text-neutral-500 uppercase tracking-wide">Nome</th>
                 <th className="px-4 py-3 text-xs font-semibold text-neutral-500 uppercase tracking-wide hidden sm:table-cell">Nível</th>
                 <th className="px-4 py-3 text-xs font-semibold text-neutral-500 uppercase tracking-wide hidden md:table-cell">Descrição</th>
-                <th className="px-4 py-3 w-28"></th>
+                <th className="px-4 py-3 w-36"></th>
               </tr>
             </thead>
             <tbody>
@@ -156,9 +179,25 @@ export default function Regions() {
                     <td className="px-4 py-3 text-neutral-500 hidden md:table-cell max-w-xs truncate">{r.description ?? '—'}</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-1">
-                        <button onClick={() => openCreate({ parent_id: r.id, level: 'sub-region' })} className="p-1.5 text-neutral-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors" title="Adicionar sub-região">
-                          <Plus size={14} />
-                        </button>
+                        {/* Reorder buttons — only for non-country rows */}
+                        <button
+                          onClick={() => moveRegion(r.id, r.siblings, 'up')}
+                          disabled={reordering || r.siblings.indexOf(r.id) === 0}
+                          className="p-1.5 text-neutral-400 hover:text-purple-600 hover:bg-purple-50 rounded transition-colors disabled:opacity-25 disabled:cursor-not-allowed"
+                          title="Mover para cima"
+                        ><ChevronUp size={14} /></button>
+                        <button
+                          onClick={() => moveRegion(r.id, r.siblings, 'down')}
+                          disabled={reordering || r.siblings.indexOf(r.id) === r.siblings.length - 1}
+                          className="p-1.5 text-neutral-400 hover:text-purple-600 hover:bg-purple-50 rounded transition-colors disabled:opacity-25 disabled:cursor-not-allowed"
+                          title="Mover para baixo"
+                        ><ChevronDown size={14} /></button>
+                        {/* Only show "add sub-region" button on regions (depth 0), not on sub-regions */}
+                        {r.level === 'region' && (
+                          <button onClick={() => openCreate({ parent_id: r.id, level: 'sub-region' })} className="p-1.5 text-neutral-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors" title="Adicionar sub-região">
+                            <Plus size={14} />
+                          </button>
+                        )}
                         <button onClick={() => openEdit(r)} className="p-1.5 text-neutral-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"><Pencil size={14} /></button>
                         <button onClick={() => setDeleteId(r.id)} className="p-1.5 text-neutral-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"><Trash2 size={14} /></button>
                       </div>
@@ -179,22 +218,37 @@ export default function Regions() {
               <input required value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Bordeaux" className={inp} />
             </Field>
             <Field label="Nível *">
-              <select required value={form.level} onChange={e => setForm(f => ({ ...f, level: e.target.value }))} className={inp}>
+              <select
+                required
+                value={form.level}
+                onChange={e => setForm(f => ({ ...f, level: e.target.value, parent_id: null }))}
+                className={inp}
+              >
                 {LEVELS.map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
               </select>
             </Field>
           </FieldRow>
-          <Field label="Pertence a (País ou Região pai) *">
-            <select required value={form.parent_id ?? ''} onChange={e => setForm(f => ({ ...f, parent_id: e.target.value || null }))} className={inp}>
-              <option value="">Selecione...</option>
-              <optgroup label="Países">
+
+          {form.level === 'region' ? (
+            <Field label="País *">
+              <select required value={form.parent_id ?? ''} onChange={e => setForm(f => ({ ...f, parent_id: e.target.value || null }))} className={inp}>
+                <option value="">Selecione o país...</option>
                 {countries.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </optgroup>
-              <optgroup label="Regiões">
-                {rows.filter(r => r.level === 'region' && r.id !== editing?.id).map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-              </optgroup>
-            </select>
-          </Field>
+              </select>
+            </Field>
+          ) : (
+            <Field label="Região pai *">
+              <select required value={form.parent_id ?? ''} onChange={e => setForm(f => ({ ...f, parent_id: e.target.value || null }))} className={inp}>
+                <option value="">Selecione a região...</option>
+                {rows
+                  .filter(r => r.level === 'region' && r.id !== editing?.id)
+                  .sort((a, b) => a.name.localeCompare(b.name))
+                  .map(r => <option key={r.id} value={r.id}>{r.name}</option>)
+                }
+              </select>
+            </Field>
+          )}
+
           <Field label="Imagem (opcional)">
             <ImageUpload value={form.photo ?? ''} onChange={url => setForm(f => ({ ...f, photo: url || null }))} />
           </Field>
