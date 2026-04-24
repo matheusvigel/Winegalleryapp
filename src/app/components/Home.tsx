@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { Link } from 'react-router';
 import { motion } from 'motion/react';
 import { ChevronRight, Lock, Trophy, Zap } from 'lucide-react';
@@ -9,6 +9,7 @@ import {
   LEVEL_LABELS, LEVEL_POINTS,
   type WineProfile, type UserLevel,
 } from '../../lib/profileConstants';
+import { CollectionCard } from '../components/CollectionCard';
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -36,6 +37,9 @@ interface CollectionRow {
   photo:        string;
   content_type: string;
   category:     string;
+  country:      { name: string } | null;
+  region:       { name: string } | null;
+  sub_region:   { name: string } | null;
 }
 
 interface ProfileRule {
@@ -55,18 +59,6 @@ const HIGHLIGHT_TYPE: Record<string, { label: string; emoji: string; bg: string 
   wine:        { label: 'Vinho',        emoji: '🍷', bg: 'bg-purple-600'  },
   place:       { label: 'Lugar',        emoji: '🍽️', bg: 'bg-sky-500'     },
   experience:  { label: 'Experiência',  emoji: '✨', bg: 'bg-orange-500'  },
-};
-
-const CATEGORY_PILL: Record<string, string> = {
-  'Essencial':       'bg-purple-100 text-purple-700',
-  'Fugir do óbvio':  'bg-rose-100 text-rose-700',
-  'Ícones':          'bg-amber-100 text-amber-700',
-};
-
-const CONTENT_TYPE_PILL: Record<string, { emoji: string; pill: string }> = {
-  Vinhos:        { emoji: '🍷', pill: 'bg-purple-50 text-purple-600'  },
-  Experiências:  { emoji: '✨', pill: 'bg-orange-50 text-orange-600'  },
-  Vinícolas:     { emoji: '🏛️', pill: 'bg-emerald-50 text-emerald-700'},
 };
 
 const NEXT_LEVEL: Record<UserLevel, UserLevel | null> = {
@@ -105,12 +97,18 @@ export default function Home() {
   const [bonusCount, setBonusCount]                 = useState(0);
   const [dismissedBonus, setDismissedBonus]         = useState(false);
   const [loading, setLoading]                       = useState(true);
+  const [visibleCount, setVisibleCount]             = useState(6);
+
+  const sentinelRef = useRef<HTMLDivElement>(null);
 
   // ── Load global data ─────────────────────────────────────────
   useEffect(() => {
     const load = async () => {
       const [{ data: cols }, { data: hls }, { data: colItems }] = await Promise.all([
-        supabase.from('collections').select('id, title, tagline, photo, content_type, category').order('title'),
+        supabase
+          .from('collections')
+          .select('id, title, tagline, photo, content_type, category, country:country_id(name), region:region_id(name), sub_region:sub_region_id(name)')
+          .order('title'),
         supabase.from('highlights').select('id, type, entity_id, label').eq('active', true).order('position').limit(8),
         supabase.from('collection_items').select('collection_id, item_id').limit(500),
       ]);
@@ -210,6 +208,29 @@ export default function Home() {
       .sort((a, b) => (ruleMap[a.category]?.priority ?? 99) - (ruleMap[b.category]?.priority ?? 99));
   }, [collections, profileRules]);
 
+  // Reset visible count when personalizedCollections changes (profile change)
+  useEffect(() => {
+    setVisibleCount(6);
+  }, [personalizedCollections]);
+
+  // ── Infinite scroll via IntersectionObserver ──────────────────
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          setVisibleCount(prev => Math.min(prev + 6, personalizedCollections.length));
+        }
+      },
+      { rootMargin: '100px' }
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [personalizedCollections.length]);
+
   // ── Collection progress ───────────────────────────────────────
   const getProgress = (colId: string) => {
     const items = collectionItemsMap[colId] ?? [];
@@ -220,6 +241,8 @@ export default function Home() {
   const levelProgress = profile ? getLevelProgress(profile.total_points, profile.user_level) : 0;
   const ptsToNext     = profile ? getPtsToNext(profile.total_points, profile.user_level) : 0;
   const nextLevel     = profile ? NEXT_LEVEL[profile.user_level] : null;
+
+  const hasMore = visibleCount < personalizedCollections.length;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -303,10 +326,31 @@ export default function Home() {
                 {[1,2,3].map(i => <div key={i} className="h-28 rounded-2xl bg-gray-100 animate-pulse" />)}
               </div>
             ) : personalizedCollections.length > 0 ? (
-              <div className="space-y-3">
-                {personalizedCollections.slice(0, 6).map((col, i) => (
-                  <CollectionCard key={col.id} col={col} index={i} progress={getProgress(col.id)} />
+              <div>
+                {personalizedCollections.slice(0, visibleCount).map((col) => (
+                  <CollectionCard
+                    key={col.id}
+                    id={col.id}
+                    title={col.title}
+                    coverImage={col.photo}
+                    description={col.tagline ?? ''}
+                    contentType={col.content_type}
+                    category={col.category}
+                    country={(col.country as any)?.name}
+                    region={(col.region as any)?.name}
+                    subRegion={(col.sub_region as any)?.name}
+                    progress={getProgress(col.id).pct}
+                    totalItems={getProgress(col.id).total}
+                    completedItems={getProgress(col.id).done}
+                  />
                 ))}
+                {/* Sentinel for infinite scroll */}
+                <div ref={sentinelRef} />
+                {hasMore && (
+                  <div className="flex justify-center py-4">
+                    <span className="text-sm text-gray-400">Carregando...</span>
+                  </div>
+                )}
               </div>
             ) : (
               <EmptyBox text="Nenhuma coleção disponível." />
@@ -499,82 +543,6 @@ function HighlightCard({ h, index }: { h: HighlightRow; index: number }) {
         <p className="absolute bottom-3 left-3 right-3 text-white font-semibold text-sm leading-snug line-clamp-2">
           {h.label}
         </p>
-      </Link>
-    </motion.div>
-  );
-}
-
-// ── Personalized collection card ───────────────────────────────────────
-function CollectionCard({ col, index, progress }: {
-  col: CollectionRow;
-  index: number;
-  progress: { total: number; done: number; pct: number };
-}) {
-  const catPill  = CATEGORY_PILL[col.category]         ?? 'bg-gray-100 text-gray-600';
-  const typeConf = CONTENT_TYPE_PILL[col.content_type] ?? { emoji: '📚', pill: 'bg-gray-50 text-gray-500' };
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, x: -8 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ delay: 0.05 * index, duration: 0.25 }}
-    >
-      <Link
-        to={`/collection/${col.id}`}
-        className="flex gap-4 bg-white border border-gray-100 rounded-2xl p-4 shadow-sm hover:shadow-md transition-all group"
-      >
-        {/* Thumbnail */}
-        <div className="w-20 h-20 rounded-xl overflow-hidden flex-shrink-0 bg-gray-100">
-          {col.photo ? (
-            <img
-              src={col.photo}
-              alt={col.title}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-              onError={e => { (e.target as HTMLImageElement).src = FALLBACK; }}
-            />
-          ) : (
-            <div className="w-full h-full bg-gradient-to-br from-purple-100 to-pink-100 flex items-center justify-center text-2xl">
-              {typeConf.emoji}
-            </div>
-          )}
-        </div>
-
-        {/* Info */}
-        <div className="flex-1 min-w-0 flex flex-col justify-between">
-          <div>
-            {/* Badges */}
-            <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
-              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${catPill}`}>
-                {col.category}
-              </span>
-              <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${typeConf.pill}`}>
-                {typeConf.emoji} {col.content_type}
-              </span>
-            </div>
-            <p className="text-sm font-bold text-gray-900 leading-snug line-clamp-1">{col.title}</p>
-            {col.tagline && (
-              <p className="text-xs text-gray-500 mt-0.5 line-clamp-1">{col.tagline}</p>
-            )}
-          </div>
-
-          {/* Progress bar */}
-          {progress.total > 0 && (
-            <div className="mt-2.5">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-[10px] text-gray-400">
-                  {progress.done} de {progress.total} itens
-                </span>
-                <span className="text-[10px] font-bold text-purple-600">{progress.pct}%</span>
-              </div>
-              <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-gradient-to-r from-purple-500 to-pink-400 rounded-full transition-all duration-700"
-                  style={{ width: `${progress.pct}%` }}
-                />
-              </div>
-            </div>
-          )}
-        </div>
       </Link>
     </motion.div>
   );
