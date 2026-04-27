@@ -90,31 +90,41 @@ function sortByProfileRules(cols: CollectionRow[], rules: ProfileRule[]): Collec
 function ItemCard({ item, collections, filterType }: { item: ItemRow; collections: { id: string; title: string }[]; filterType: string }) {
   const route = filterType === 'Vinhos' ? `/wine/${item.id}` : filterType === 'Experiências' ? `/experience/${item.id}` : `/winery/${item.id}`;
   return (
-    <Link to={route} className="flex gap-3 bg-white rounded-2xl p-3 border border-gray-100 shadow-sm hover:shadow-md transition-shadow mb-3">
-      <div className="w-16 h-16 rounded-xl overflow-hidden bg-gradient-to-br from-purple-50 to-pink-50 flex-shrink-0">
+    <Link to={route} className="flex gap-3 bg-white rounded-2xl p-3 mb-3 transition-shadow hover:shadow-md"
+          style={{ border: '1px solid rgba(139,90,43,0.12)', boxShadow: '0 1px 3px rgba(28,18,9,0.06)' }}>
+      <div className="w-16 h-16 rounded-xl overflow-hidden flex-shrink-0"
+           style={{ background: '#F8EBF1' }}>
         {item.photo
           ? <img src={item.photo} alt={item.name} className="w-full h-full object-cover" onError={e => { (e.target as HTMLImageElement).src = FALLBACK; }} />
           : <div className="w-full h-full flex items-center justify-center text-2xl">{filterType === 'Vinhos' ? '🍷' : filterType === 'Experiências' ? '✨' : '🏛️'}</div>
         }
       </div>
       <div className="flex-1 min-w-0">
-        <p className="font-semibold text-gray-900 text-sm leading-tight line-clamp-1">{item.name}</p>
-        {item.winery && <p className="text-xs text-gray-500 mt-0.5">{item.winery.name}</p>}
-        {item.type && <span className="inline-block mt-1 text-[10px] bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-medium">{item.type}</span>}
-        {item.category && !item.type && <span className="inline-block mt-1 text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-medium">{item.category}</span>}
+        <p className="font-semibold text-sm leading-tight line-clamp-1"
+           style={{ color: '#1C1209', fontFamily: '"Fraunces", Georgia, serif' }}>{item.name}</p>
+        {item.winery && <p className="text-xs mt-0.5" style={{ color: '#7A6855' }}>{item.winery.name}</p>}
+        {item.type && (
+          <span className="inline-block mt-1 text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                style={{ background: '#F8EBF1', color: '#6B0035' }}>{item.type}</span>
+        )}
+        {item.category && !item.type && (
+          <span className="inline-block mt-1 text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                style={{ background: '#FBF3DC', color: '#7A4F07' }}>{item.category}</span>
+        )}
         {collections.length > 0 && (
           <div className="flex items-center gap-1 mt-1.5 flex-wrap">
-            <span className="text-[10px] text-gray-400">Em:</span>
+            <span className="text-[10px]" style={{ color: '#B0A090' }}>Em:</span>
             {collections.slice(0, 2).map(c => (
-              <span key={c.id} className="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{c.title}</span>
+              <span key={c.id} className="text-[10px] px-2 py-0.5 rounded-full"
+                    style={{ background: '#EDE4D6', color: '#7A6855' }}>{c.title}</span>
             ))}
             {collections.length > 2 && (
-              <span className="text-[10px] text-gray-400">+{collections.length - 2}</span>
+              <span className="text-[10px]" style={{ color: '#B0A090' }}>+{collections.length - 2}</span>
             )}
           </div>
         )}
       </div>
-      <ChevronRight className="w-4 h-4 text-gray-400 self-center flex-shrink-0" />
+      <ChevronRight className="w-4 h-4 self-center flex-shrink-0" style={{ color: '#C8B9A8' }} />
     </Link>
   );
 }
@@ -240,20 +250,24 @@ export default function Explore() {
   }, [collections, selectedFilter, profileRules]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-purple-50 via-white to-pink-50">
+    <div className="min-h-screen bg-background">
 
       {/* ── Header ──────────────────────────────────────────────────── */}
-      <header className="bg-white shadow-sm sticky top-0 z-40">
+      <header className="sticky top-0 z-40 bg-white"
+              style={{ borderBottom: '1px solid rgba(139,90,43,0.12)' }}>
         <div className="max-w-screen-xl mx-auto px-4 lg:px-8 py-4">
-          <h1 className="text-2xl font-bold text-gray-900 mb-4 lg:hidden">Explorar</h1>
+          <h1 className="text-2xl section-title mb-4 lg:hidden">Explorar</h1>
 
           {/* Search bar — navigates to /search */}
           <button
             onClick={() => navigate('/search')}
-            className="w-full flex items-center gap-3 px-4 py-3 bg-gray-100 rounded-xl text-left mb-4 hover:bg-gray-200 transition-colors"
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left mb-4 transition-colors"
+            style={{ background: '#EDE4D6' }}
+            onMouseEnter={e => (e.currentTarget.style.background = '#E0D3C0')}
+            onMouseLeave={e => (e.currentTarget.style.background = '#EDE4D6')}
           >
-            <Search className="w-5 h-5 text-gray-400 flex-shrink-0" />
-            <span className="text-gray-400 text-sm">Buscar vinhos, vinícolas, regiões...</span>
+            <Search className="w-5 h-5 flex-shrink-0" style={{ color: '#B0A090' }} />
+            <span className="text-sm" style={{ color: '#B0A090' }}>Buscar vinhos, vinícolas, regiões...</span>
           </button>
 
           {/* Type filters */}
@@ -262,11 +276,10 @@ export default function Explore() {
               <button
                 key={key}
                 onClick={() => setSelectedFilter(key)}
-                className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap flex-shrink-0 transition-colors ${
-                  selectedFilter === key
-                    ? 'bg-purple-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
+                className="px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap flex-shrink-0 transition-colors"
+                style={selectedFilter === key
+                  ? { background: '#6B0035', color: '#FFFFFF' }
+                  : { background: '#EDE4D6', color: '#7A6855' }}
               >
                 {label}
               </button>
@@ -282,22 +295,21 @@ export default function Explore() {
           <motion.div
             initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mb-6 flex items-center gap-3 bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-100 rounded-2xl px-4 py-3"
+            className="mb-6 flex items-center gap-3 rounded-2xl px-4 py-3"
+            style={{ background: '#F8EBF1', border: '1px solid rgba(107,0,53,0.15)' }}
           >
             <span className="text-2xl">{PROFILE_ICONS[userProfile]}</span>
             <div>
-              <p className="text-xs text-purple-500 font-medium">Curado para o seu perfil</p>
-              <p className="text-sm font-semibold text-gray-900">{PROFILE_LABELS[userProfile]}</p>
+              <p className="text-xs font-medium" style={{ color: '#9B1B4D' }}>Curado para o seu perfil</p>
+              <p className="text-sm font-semibold" style={{ color: '#1C1209' }}>{PROFILE_LABELS[userProfile]}</p>
             </div>
-            <div className="ml-auto flex gap-1.5">
+            <div className="ml-auto flex gap-1.5 flex-wrap">
               {[...profileRules]
                 .filter(r => r.visible)
                 .sort((a, b) => a.priority - b.priority)
                 .map(r => (
-                  <span
-                    key={r.category}
-                    className="text-[10px] bg-white border border-purple-100 text-purple-600 font-semibold px-2 py-0.5 rounded-full"
-                  >
+                  <span key={r.category} className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                        style={{ background: '#FFFFFF', border: '1px solid rgba(107,0,53,0.15)', color: '#6B0035' }}>
                     {r.priority}. {r.category}
                   </span>
                 ))}
@@ -311,19 +323,16 @@ export default function Explore() {
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <span className="text-lg">🌍</span>
-                <h2 className="text-lg font-bold text-gray-900">Por País</h2>
+                <h2 className="text-lg section-title">Por País</h2>
               </div>
-              <Link to="/regions" className="text-sm text-purple-600 font-medium hover:underline flex items-center gap-1">
+              <Link to="/regions" className="text-sm font-semibold hover:underline flex items-center gap-0.5"
+                    style={{ color: '#6B0035' }}>
                 Ver todos <ChevronRight className="w-4 h-4" />
               </Link>
             </div>
             <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
               {countries.map((country) => (
-                <Link
-                  key={country.id}
-                  to={`/country/${country.id}`}
-                  className="flex-shrink-0 group"
-                >
+                <Link key={country.id} to={`/country/${country.id}`} className="flex-shrink-0 group">
                   <div className="relative w-28 h-20 rounded-xl overflow-hidden">
                     {country.photo ? (
                       <img
@@ -333,7 +342,8 @@ export default function Explore() {
                         onError={(e) => { (e.target as HTMLImageElement).src = FALLBACK; }}
                       />
                     ) : (
-                      <div className="w-full h-full bg-gradient-to-br from-purple-200 to-pink-200" />
+                      <div className="w-full h-full"
+                           style={{ background: 'linear-gradient(135deg, #6B0035 0%, #9B1B4D 100%)' }} />
                     )}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
                     <p className="absolute bottom-2 left-2 right-2 text-white text-xs font-semibold leading-tight">
@@ -351,10 +361,11 @@ export default function Explore() {
           <div className="mb-8">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
-                <MapPin className="w-5 h-5 text-purple-600" />
-                <h2 className="text-lg font-bold text-gray-900">Explorar por Região</h2>
+                <MapPin className="w-5 h-5" style={{ color: '#9B1B4D' }} />
+                <h2 className="text-lg section-title">Explorar por Região</h2>
               </div>
-              <Link to="/regions" className="text-sm text-purple-600 font-medium hover:underline flex items-center gap-1">
+              <Link to="/regions" className="text-sm font-semibold hover:underline flex items-center gap-0.5"
+                    style={{ color: '#6B0035' }}>
                 Ver todas <ChevronRight className="w-4 h-4" />
               </Link>
             </div>
@@ -366,10 +377,8 @@ export default function Explore() {
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ delay: 0.04 * i, duration: 0.25 }}
                 >
-                  <Link
-                    to={`/region/${region.id}`}
-                    className="relative overflow-hidden rounded-2xl h-32 cursor-pointer group block"
-                  >
+                  <Link to={`/region/${region.id}`}
+                        className="relative overflow-hidden rounded-2xl h-32 cursor-pointer group block">
                     {region.photo ? (
                       <img
                         src={region.photo}
@@ -378,13 +387,15 @@ export default function Explore() {
                         onError={(e) => { (e.target as HTMLImageElement).src = FALLBACK; }}
                       />
                     ) : (
-                      <div className="w-full h-full bg-gradient-to-br from-purple-300 to-pink-300" />
+                      <div className="w-full h-full"
+                           style={{ background: 'linear-gradient(135deg, #4A0024 0%, #6B0035 100%)' }} />
                     )}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
                     <div className="absolute bottom-3 left-3 right-3">
-                      <h3 className="text-white font-semibold text-sm mb-0.5 leading-tight">{region.name}</h3>
+                      <h3 className="text-white font-semibold text-sm mb-0.5 leading-tight"
+                          style={{ fontFamily: '"Fraunces", Georgia, serif' }}>{region.name}</h3>
                       {region.parent && (
-                        <p className="text-white/70 text-[10px]">{region.parent.name}</p>
+                        <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.65)' }}>{region.parent.name}</p>
                       )}
                     </div>
                   </Link>
@@ -398,8 +409,8 @@ export default function Explore() {
         {experiences.length > 0 && selectedFilter === 'all' && (
           <div className="mb-8">
             <div className="flex items-center gap-2 mb-4">
-              <Sparkles className="w-5 h-5 text-amber-500" />
-              <h2 className="text-lg font-bold text-gray-900">Experiências & Acessórios</h2>
+              <Sparkles className="w-5 h-5" style={{ color: '#B8820B' }} />
+              <h2 className="text-lg section-title">Experiências & Acessórios</h2>
             </div>
             <div className="grid grid-cols-2 gap-3">
               {experiences.map((exp, i) => (
@@ -421,12 +432,14 @@ export default function Explore() {
                         onError={(e) => { (e.target as HTMLImageElement).src = FALLBACK; }}
                       />
                     ) : (
-                      <div className="w-full h-full bg-gradient-to-br from-amber-200 to-orange-200" />
+                      <div className="w-full h-full"
+                           style={{ background: 'linear-gradient(135deg, #B8820B 0%, #7A4F07 100%)' }} />
                     )}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
                     <div className="absolute bottom-3 left-3 right-3">
                       {exp.category && (
-                        <span className="text-[10px] font-semibold text-amber-300 uppercase tracking-wider mb-0.5 block">
+                        <span className="text-[10px] font-semibold uppercase tracking-wider mb-0.5 block"
+                              style={{ color: '#D4A82A' }}>
                           {exp.category}
                         </span>
                       )}
@@ -441,7 +454,7 @@ export default function Explore() {
 
         {/* ── Collections ──────────────────────────────────────────── */}
         <div>
-          <h2 className="text-xl font-bold text-gray-900 mb-4">
+          <h2 className="text-xl section-title mb-4">
             {selectedFilter === 'all' ? 'Todas as Coleções' : FILTERS.find(f => f.key === selectedFilter)?.label}
           </h2>
 
@@ -450,13 +463,19 @@ export default function Explore() {
             <div className="flex gap-2 mb-4">
               <button
                 onClick={() => setViewMode('collections')}
-                className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${viewMode === 'collections' ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+                className="px-4 py-1.5 rounded-full text-sm font-semibold transition-colors"
+                style={viewMode === 'collections'
+                  ? { background: '#6B0035', color: '#FFFFFF' }
+                  : { background: '#EDE4D6', color: '#7A6855' }}
               >
                 Por Coleções
               </button>
               <button
                 onClick={() => setViewMode('items')}
-                className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${viewMode === 'items' ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+                className="px-4 py-1.5 rounded-full text-sm font-semibold transition-colors"
+                style={viewMode === 'items'
+                  ? { background: '#6B0035', color: '#FFFFFF' }
+                  : { background: '#EDE4D6', color: '#7A6855' }}
               >
                 Individual
               </button>
@@ -466,18 +485,24 @@ export default function Explore() {
           {loading ? (
             <div className="space-y-4">
               {[1, 2, 3].map(i => (
-                <div key={i} className="rounded-3xl bg-gray-100 animate-pulse h-64" />
+                <div key={i} className="rounded-3xl animate-pulse h-64" style={{ background: '#EDE4D6' }} />
               ))}
             </div>
           ) : viewMode === 'items' && selectedFilter !== 'all' ? (
             itemsLoading ? (
-              <div className="flex justify-center py-10"><div className="w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" /></div>
+              <div className="flex justify-center py-10">
+                <div className="w-8 h-8 border-2 border-t-transparent rounded-full animate-spin"
+                     style={{ borderColor: '#6B0035', borderTopColor: 'transparent' }} />
+              </div>
             ) : itemRows.length > 0 ? (
               itemRows.map(item => (
                 <ItemCard key={item.id} item={item} collections={itemColMap[item.id] ?? []} filterType={selectedFilter} />
               ))
             ) : (
-              <div className="text-center py-12"><div className="text-6xl mb-4">🔍</div><p className="text-gray-500">Nenhum item encontrado</p></div>
+              <div className="text-center py-12">
+                <div className="text-6xl mb-4">🔍</div>
+                <p style={{ color: '#B0A090' }}>Nenhum item encontrado</p>
+              </div>
             )
           ) : filtered.length > 0 ? (
             filtered.map(col => (
@@ -497,7 +522,7 @@ export default function Explore() {
           ) : (
             <div className="text-center py-12">
               <div className="text-6xl mb-4">🔍</div>
-              <p className="text-gray-500">Nenhuma coleção encontrada</p>
+              <p style={{ color: '#B0A090' }}>Nenhuma coleção encontrada</p>
             </div>
           )}
         </div>

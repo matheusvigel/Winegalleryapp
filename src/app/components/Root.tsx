@@ -3,20 +3,20 @@ import { Home, Compass, Users, Trophy, User, Search } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 const NAV_LINKS = [
-  { path: '/',              label: 'Início',     Icon: Home    },
-  { path: '/explore',       label: 'Explorar',   Icon: Compass },
-  { path: '/brotherhoods',  label: 'Confrarias', Icon: Users   },
-  { path: '/achievements',  label: 'Conquistas', Icon: Trophy  },
+  { path: '/',             label: 'Início',     Icon: Home    },
+  { path: '/explore',      label: 'Explorar',   Icon: Compass },
+  { path: '/brotherhoods', label: 'Confrarias', Icon: Users   },
+  { path: '/achievements', label: 'Conquistas', Icon: Trophy  },
 ];
 
 const MOBILE_NAV = [
-  { path: '/',              label: 'Início',     Icon: Home    },
-  { path: '/explore',       label: 'Explorar',   Icon: Compass },
-  { path: '/brotherhoods',  label: 'Confrarias', Icon: Users   },
-  { path: '/profile',       label: 'Perfil',     Icon: User    },
+  { path: '/',             label: 'Início',     Icon: Home    },
+  { path: '/explore',      label: 'Explorar',   Icon: Compass },
+  { path: '/brotherhoods', label: 'Confrarias', Icon: Users   },
+  { path: '/profile',      label: 'Perfil',     Icon: User    },
 ];
 
-function WineArchIcon({ size = 28, color = '#1C1B1F' }: { size?: number; color?: string }) {
+function WineArchIcon({ size = 28, color = '#6B0035' }: { size?: number; color?: string }) {
   const h = Math.round((size * 76) / 54);
   return (
     <svg width={size} height={h} viewBox="0 0 54 76" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -27,7 +27,7 @@ function WineArchIcon({ size = 28, color = '#1C1B1F' }: { size?: number; color?:
       </defs>
       <circle cx="27" cy="1.5" r="1.5" fill={color} />
       <path d="M2,76 L2,24 Q2,0 27,0 Q52,0 52,24 L52,76 Z" stroke={color} strokeWidth="2.2" fill="none" />
-      <g clipPath="url(#wg-root-clip)" stroke={color} strokeWidth="1.3" opacity="1">
+      <g clipPath="url(#wg-root-clip)" stroke={color} strokeWidth="1.3" opacity="0.7">
         <line x1="-20" y1="60"  x2="80" y2="-40" />
         <line x1="-20" y1="80"  x2="80" y2="-20" />
         <line x1="-20" y1="100" x2="80" y2="0"   />
@@ -63,18 +63,20 @@ export default function Root() {
   const isActive = useActive();
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-purple-50 via-white to-pink-50">
+    <div className="min-h-screen bg-background">
 
       {/* ═══════════════════════════════════════════════════════
           DESKTOP top navbar (lg+)
           ═══════════════════════════════════════════════════════ */}
-      <header className="hidden lg:block sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm">
+      <header className="hidden lg:block sticky top-0 z-50 bg-white"
+              style={{ borderBottom: '1px solid rgba(139,90,43,0.12)', boxShadow: '0 1px 4px rgba(28,18,9,0.05)' }}>
         <div className="max-w-screen-xl mx-auto px-6 h-16 flex items-center justify-between gap-8">
 
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2.5 flex-shrink-0 no-underline">
-            <WineArchIcon size={26} color="#7c3aed" />
-            <span className="font-bold text-lg tracking-tight text-gray-900" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
+            <WineArchIcon size={26} color="#6B0035" />
+            <span className="font-bold text-lg tracking-tight"
+                  style={{ fontFamily: "'Fraunces', Georgia, serif", color: '#6B0035', letterSpacing: '-0.02em' }}>
               wine gallery
             </span>
           </Link>
@@ -87,16 +89,28 @@ export default function Root() {
                 <Link
                   key={path}
                   to={path}
-                  className={`relative flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors no-underline ${
-                    active
-                      ? 'text-purple-700 bg-purple-50'
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                  }`}
+                  className="relative flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors no-underline"
+                  style={active
+                    ? { color: '#6B0035', background: '#F8EBF1' }
+                    : { color: '#7A6855' }}
+                  onMouseEnter={e => {
+                    if (!active) {
+                      e.currentTarget.style.color = '#1C1209';
+                      e.currentTarget.style.background = '#EDE4D6';
+                    }
+                  }}
+                  onMouseLeave={e => {
+                    if (!active) {
+                      e.currentTarget.style.color = '#7A6855';
+                      e.currentTarget.style.background = 'transparent';
+                    }
+                  }}
                 >
                   <Icon className="w-4 h-4" strokeWidth={active ? 2.5 : 2} />
                   {label}
                   {active && (
-                    <span className="absolute bottom-0 left-4 right-4 h-0.5 bg-purple-600 rounded-full" />
+                    <span className="absolute bottom-0 left-4 right-4 h-0.5 rounded-full"
+                          style={{ background: '#6B0035' }} />
                   )}
                 </Link>
               );
@@ -104,25 +118,23 @@ export default function Root() {
           </nav>
 
           {/* Right: search + user avatar */}
-          <div className="flex items-center gap-3 flex-shrink-0">
+          <div className="flex items-center gap-2 flex-shrink-0">
             <button
               onClick={() => navigate('/search')}
-              className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors ${
-                isActive('/search')
-                  ? 'bg-purple-100 text-purple-700'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
+              className="w-9 h-9 rounded-full flex items-center justify-center transition-colors"
+              style={isActive('/search')
+                ? { background: '#F8EBF1', color: '#6B0035' }
+                : { background: '#EDE4D6', color: '#7A6855' }}
               title="Buscar"
             >
               <Search className="w-5 h-5" strokeWidth={isActive('/search') ? 2.5 : 2} />
             </button>
             <button
               onClick={() => navigate('/profile')}
-              className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors ${
-                isActive('/profile')
-                  ? 'bg-purple-100 text-purple-700'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
+              className="w-9 h-9 rounded-full flex items-center justify-center transition-colors overflow-hidden"
+              style={isActive('/profile')
+                ? { background: '#F8EBF1', color: '#6B0035' }
+                : { background: '#EDE4D6', color: '#7A6855' }}
             >
               {user?.user_metadata?.avatar_url ? (
                 <img
@@ -141,11 +153,13 @@ export default function Root() {
       {/* ═══════════════════════════════════════════════════════
           MOBILE top header (< lg)
           ═══════════════════════════════════════════════════════ */}
-      <header className="lg:hidden sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-gray-200">
+      <header className="lg:hidden sticky top-0 z-40"
+              style={{ background: 'rgba(255,255,255,0.95)', backdropFilter: 'blur(12px)', borderBottom: '1px solid rgba(139,90,43,0.12)' }}>
         <div className="flex items-center justify-center h-14 px-5">
           <Link to="/" className="flex items-center gap-2.5 no-underline">
-            <WineArchIcon size={24} color="#7c3aed" />
-            <span className="font-bold text-lg tracking-tight text-gray-900" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
+            <WineArchIcon size={24} color="#6B0035" />
+            <span className="font-bold text-lg tracking-tight"
+                  style={{ fontFamily: "'Fraunces', Georgia, serif", color: '#6B0035', letterSpacing: '-0.02em' }}>
               wine gallery
             </span>
           </Link>
@@ -156,11 +170,9 @@ export default function Root() {
           Content
           ═══════════════════════════════════════════════════════ */}
       <main className="lg:pb-0 pb-20">
-        {/* Desktop: full-width container */}
         <div className="hidden lg:block">
           <Outlet />
         </div>
-        {/* Mobile: keep as-is */}
         <div className="lg:hidden">
           <Outlet />
         </div>
@@ -169,7 +181,8 @@ export default function Root() {
       {/* ═══════════════════════════════════════════════════════
           MOBILE bottom nav (< lg)
           ═══════════════════════════════════════════════════════ */}
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200">
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white pb-safe"
+           style={{ borderTop: '1px solid rgba(139,90,43,0.12)' }}>
         <div className="flex justify-around items-center h-16">
           {MOBILE_NAV.map(({ path, label, Icon }) => {
             const active = isActive(path);
@@ -177,12 +190,17 @@ export default function Root() {
               <Link
                 key={path}
                 to={path}
-                className={`flex flex-col items-center justify-center flex-1 h-full transition-colors no-underline ${
-                  active ? 'text-purple-600' : 'text-gray-400'
-                }`}
+                className="flex flex-col items-center justify-center flex-1 h-full transition-colors no-underline"
+                style={{ color: active ? '#6B0035' : '#B0A090' }}
               >
-                <Icon className="w-6 h-6 mb-0.5" strokeWidth={active ? 2.5 : 2} />
-                <span className="text-[10px] font-medium">{label}</span>
+                <div className="flex items-center justify-center w-10 h-6 rounded-full mb-0.5 transition-colors"
+                     style={{ background: active ? 'rgba(107,0,53,0.08)' : 'transparent' }}>
+                  <Icon className="w-5 h-5" strokeWidth={active ? 2.5 : 1.75} />
+                </div>
+                <span className="text-[10px] font-semibold tracking-wide"
+                      style={{ fontFamily: '"DM Sans", sans-serif' }}>
+                  {label}
+                </span>
               </Link>
             );
           })}
