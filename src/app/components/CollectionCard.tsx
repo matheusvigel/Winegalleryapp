@@ -1,5 +1,5 @@
 import { Link } from 'react-router';
-import { ChevronRight, MapPin } from 'lucide-react';
+import { MapPin } from 'lucide-react';
 
 export interface CollectionCardProps {
   id: string;
@@ -14,6 +14,7 @@ export interface CollectionCardProps {
   progress?: number;
   totalItems?: number;
   completedItems?: number;
+  previewPhotos?: string[];   // first N item photos, already fetched by parent
 }
 
 const CONTENT_TYPE_LABELS: Record<string, string> = {
@@ -28,45 +29,53 @@ const CONTENT_TYPE_LABELS: Record<string, string> = {
   brotherhoods: '🤝 Confrarias',
 };
 
-// Category → { background, text, border }
 const CATEGORY_STYLES: Record<string, { bg: string; text: string; border: string }> = {
-  'Essencial':      { bg: '#E8F0EC', text: '#2D4A3E', border: 'rgba(45,74,62,0.20)' },
-  'Fugir do óbvio': { bg: '#F8EBF1', text: '#6B0035', border: 'rgba(107,0,53,0.20)' },
-  'Ícones':         { bg: '#FBF3DC', text: '#7A4F07', border: 'rgba(184,130,11,0.25)' },
+  'Essencial':      { bg: '#E8F0EC', text: '#2D4A3E', border: 'rgba(45,74,62,0.20)'    },
+  'Fugir do óbvio': { bg: '#F8EBF1', text: '#6B0035', border: 'rgba(107,0,53,0.20)'    },
+  'Ícones':         { bg: '#FBF3DC', text: '#7A4F07', border: 'rgba(184,130,11,0.25)'  },
 };
 
 const FALLBACK = 'https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=600&q=80';
+
+const THUMB_FALLBACK = '#EDE4D6';
 
 export function CollectionCard({
   id, title, coverImage, description, contentType, category,
   progress = 0, totalItems = 0, completedItems = 0,
   country, region, subRegion,
+  previewPhotos,
 }: CollectionCardProps) {
   const typeLabel = contentType ? (CONTENT_TYPE_LABELS[contentType] ?? contentType) : null;
   const geoParts  = [country, region, subRegion].filter(Boolean);
   const geoString = geoParts.join(' › ');
-  const catStyle  = category ? (CATEGORY_STYLES[category] ?? { bg: '#EDE4D6', text: '#7A6855', border: 'rgba(139,90,43,0.18)' }) : null;
+  const catStyle  = category
+    ? (CATEGORY_STYLES[category] ?? { bg: '#EDE4D6', text: '#7A6855', border: 'rgba(139,90,43,0.18)' })
+    : null;
+
+  const hasItems = previewPhotos && previewPhotos.length > 0;
+  const extraCount = totalItems > (previewPhotos?.length ?? 0)
+    ? totalItems - (previewPhotos?.length ?? 0)
+    : 0;
 
   return (
     <Link to={`/collection/${id}`} className="block mb-4 group">
       <div
-        className="bg-white overflow-hidden transition-shadow duration-200 group-hover:shadow-md"
+        className="bg-white overflow-hidden transition-all duration-200 group-hover:shadow-lg"
         style={{
-          borderRadius: '18px',
+          borderRadius: '20px',
           border: '1px solid rgba(139,90,43,0.12)',
           boxShadow: '0 1px 4px rgba(28,18,9,0.06)',
         }}
       >
-        {/* ── Cover image ──────────────────────────────────────────── */}
-        <div className="relative h-48 overflow-hidden bg-cream-200">
+        {/* ── Cover image ────────────────────────────────────────── */}
+        <div className="relative overflow-hidden" style={{ height: hasItems ? '168px' : '192px' }}>
           <img
             src={coverImage || FALLBACK}
             alt={title}
             className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500"
             onError={(e) => { (e.target as HTMLImageElement).src = FALLBACK; }}
           />
-          {/* Gradient overlay — stronger at bottom for legibility */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/10 to-transparent" />
 
           {/* Content-type pill — top-left */}
           {typeLabel && (
@@ -117,43 +126,40 @@ export function CollectionCard({
         </div>
 
         {/* ── Card body ────────────────────────────────────────────── */}
-        <div className="px-4 pt-3 pb-4">
+        <div className="px-4 pt-3" style={{ paddingBottom: hasItems ? '12px' : '16px' }}>
 
-          {/* Title + chevron */}
-          <div className="flex items-start justify-between gap-2 mb-1">
-            <h3
-              className="font-bold text-[1.05rem] leading-snug line-clamp-2 flex-1"
-              style={{ fontFamily: '"Fraunces", Georgia, serif', color: '#1C1209', letterSpacing: '-0.01em' }}
-            >
-              {title}
-            </h3>
-            <ChevronRight
-              className="w-4 h-4 shrink-0 mt-1 transition-colors duration-150"
-              style={{ color: '#B0A090' }}
-              onMouseEnter={e => (e.currentTarget.style.color = '#6B0035')}
-              onMouseLeave={e => (e.currentTarget.style.color = '#B0A090')}
-            />
-          </div>
+          {/* Title */}
+          <h3
+            className="font-bold leading-snug line-clamp-2 mb-1"
+            style={{
+              fontFamily: '"Fraunces", Georgia, serif',
+              color: '#1C1209',
+              letterSpacing: '-0.01em',
+              fontSize: '1.05rem',
+            }}
+          >
+            {title}
+          </h3>
 
           {/* Description */}
           {description && (
-            <p className="text-sm line-clamp-2 mb-2 leading-relaxed" style={{ color: '#7A6855' }}>
+            <p className="text-sm line-clamp-1 mb-1.5 leading-relaxed" style={{ color: '#7A6855' }}>
               {description}
             </p>
           )}
 
           {/* Geography */}
           {geoString && (
-            <div className="flex items-center gap-1 text-xs mb-3" style={{ color: '#B0A090' }}>
+            <div className="flex items-center gap-1 text-xs" style={{ color: '#B0A090', marginBottom: hasItems ? '12px' : '0' }}>
               <MapPin className="w-3 h-3 shrink-0" style={{ color: '#9B1B4D' }} />
               <span className="truncate">{geoString}</span>
             </div>
           )}
 
-          {/* Progress */}
-          {totalItems > 0 && (
-            <>
-              <div className="flex items-center justify-between mb-1.5">
+          {/* Progress bar (when no preview photos) */}
+          {!hasItems && totalItems > 0 && (
+            <div className="mt-2">
+              <div className="flex items-center justify-between mb-1">
                 <span className="text-xs" style={{ color: '#B0A090' }}>{completedItems}/{totalItems} itens</span>
                 <span className="text-xs font-bold" style={{ color: '#6B0035' }}>{progress}%</span>
               </div>
@@ -166,9 +172,67 @@ export function CollectionCard({
                   }}
                 />
               </div>
-            </>
+            </div>
           )}
         </div>
+
+        {/* ── Item preview strip ──────────────────────────────────── */}
+        {hasItems && (
+          <div
+            className="px-4 pb-3 flex items-center gap-2"
+            style={{ borderTop: '1px solid rgba(139,90,43,0.08)', paddingTop: '10px' }}
+          >
+            {/* Thumbnails */}
+            <div className="flex gap-1.5 flex-1 min-w-0">
+              {previewPhotos!.slice(0, 5).map((photo, i) => (
+                <div
+                  key={i}
+                  className="flex-shrink-0 overflow-hidden"
+                  style={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: 10,
+                    background: THUMB_FALLBACK,
+                    border: '1px solid rgba(139,90,43,0.10)',
+                  }}
+                >
+                  <img
+                    src={photo}
+                    alt=""
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      const el = e.target as HTMLImageElement;
+                      el.style.display = 'none';
+                    }}
+                  />
+                </div>
+              ))}
+
+              {/* Overflow count */}
+              {extraCount > 0 && (
+                <div
+                  className="flex-shrink-0 flex items-center justify-center"
+                  style={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: 10,
+                    background: '#EDE4D6',
+                    border: '1px solid rgba(139,90,43,0.10)',
+                  }}
+                >
+                  <span className="text-xs font-bold" style={{ color: '#7A6855' }}>+{extraCount}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Item count summary */}
+            {totalItems > 0 && (
+              <span className="text-xs flex-shrink-0 font-medium" style={{ color: '#B0A090' }}>
+                {completedItems > 0 ? `${completedItems}/` : ''}{totalItems} itens
+              </span>
+            )}
+          </div>
+        )}
       </div>
     </Link>
   );

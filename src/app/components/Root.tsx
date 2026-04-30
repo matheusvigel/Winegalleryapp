@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router';
-import { Home, Compass, Users, Trophy, User, Search } from 'lucide-react';
+import { Home, Compass, Users, Trophy, User, Search, GlassWater } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 const NAV_LINKS = [
@@ -10,10 +10,11 @@ const NAV_LINKS = [
 ];
 
 const MOBILE_NAV = [
-  { path: '/',             label: 'Início',     Icon: Home    },
-  { path: '/explore',      label: 'Explorar',   Icon: Compass },
-  { path: '/brotherhoods', label: 'Confrarias', Icon: Users   },
-  { path: '/profile',      label: 'Perfil',     Icon: User    },
+  { path: '/',             label: 'Início',     Icon: Home        },
+  { path: '/explore',      label: 'Explorar',   Icon: Compass     },
+  { path: '/adega',        label: 'Adega',      Icon: GlassWater  },
+  { path: '/brotherhoods', label: 'Confrarias', Icon: Users       },
+  { path: '/profile',      label: 'Perfil',     Icon: User        },
 ];
 
 function WineArchIcon({ size = 28, color = '#6B0035' }: { size?: number; color?: string }) {

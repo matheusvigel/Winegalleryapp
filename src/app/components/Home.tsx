@@ -93,6 +93,7 @@ export default function Home() {
   const [collections, setCollections]               = useState<CollectionRow[]>([]);
   const [profileRules, setProfileRules]             = useState<ProfileRule[]>([]);
   const [collectionItemsMap, setCollectionItemsMap] = useState<Record<string, string[]>>({});
+  const [previewPhotosMap, setPreviewPhotosMap]     = useState<Record<string, string[]>>({});
   const [completedIds, setCompletedIds]             = useState<Set<string>>(new Set());
   const [bonusCount, setBonusCount]                 = useState(0);
   const [dismissedBonus, setDismissedBonus]         = useState(false);
@@ -110,18 +111,46 @@ export default function Home() {
           .select('id, title, tagline, photo, content_type, category, country:country_id(name), region:region_id(name), sub_region:sub_region_id(name)')
           .order('title'),
         supabase.from('highlights').select('id, type, entity_id, label').eq('active', true).order('position').limit(8),
-        supabase.from('collection_items').select('collection_id, item_id').limit(500),
+        supabase.from('collection_items').select('collection_id, item_id, item_type, position').order('collection_id').order('position').limit(1000),
       ]);
 
       setCollections((cols as CollectionRow[]) ?? []);
 
-      // Build collection → item_ids map
+      // Build collection → item_ids map (for progress tracking)
       const map: Record<string, string[]> = {};
-      for (const row of colItems ?? []) {
+      for (const row of (colItems ?? []) as any[]) {
         if (!map[row.collection_id]) map[row.collection_id] = [];
         map[row.collection_id].push(row.item_id);
       }
       setCollectionItemsMap(map);
+
+      // Build preview photos map: collection → first 5 item photos
+      const previewPerCol: Record<string, { item_id: string; item_type: string }[]> = {};
+      for (const row of (colItems ?? []) as any[]) {
+        if (!previewPerCol[row.collection_id]) previewPerCol[row.collection_id] = [];
+        if (previewPerCol[row.collection_id].length < 5) {
+          previewPerCol[row.collection_id].push({ item_id: row.item_id, item_type: row.item_type });
+        }
+      }
+      const previewItems = Object.values(previewPerCol).flat();
+      const pvWineIds   = previewItems.filter(r => r.item_type === 'wine').map(r => r.item_id);
+      const pvExpIds    = previewItems.filter(r => r.item_type === 'experience').map(r => r.item_id);
+      const pvWineryIds = previewItems.filter(r => r.item_type === 'winery').map(r => r.item_id);
+      const [pvWines, pvExps, pvWineries] = await Promise.all([
+        pvWineIds.length   ? supabase.from('wines').select('id, photo').in('id', pvWineIds)         : Promise.resolve({ data: [] }),
+        pvExpIds.length    ? supabase.from('experiences').select('id, photo').in('id', pvExpIds)    : Promise.resolve({ data: [] }),
+        pvWineryIds.length ? supabase.from('wineries').select('id, photo').in('id', pvWineryIds)    : Promise.resolve({ data: [] }),
+      ]);
+      const photoById: Record<string, string> = {};
+      for (const r of [...(pvWines.data ?? []), ...(pvExps.data ?? []), ...(pvWineries.data ?? [])] as any[]) {
+        if (r.photo) photoById[r.id] = r.photo;
+      }
+      const newPreviewMap: Record<string, string[]> = {};
+      for (const [colId, items] of Object.entries(previewPerCol)) {
+        const photos = items.map(r => photoById[r.item_id]).filter(Boolean);
+        if (photos.length > 0) newPreviewMap[colId] = photos;
+      }
+      setPreviewPhotosMap(newPreviewMap);
 
       // Resolve highlight photos/names
       const hlList = hls ?? [];
@@ -333,23 +362,27 @@ export default function Home() {
               </div>
             ) : personalizedCollections.length > 0 ? (
               <div>
-                {personalizedCollections.slice(0, visibleCount).map((col) => (
-                  <CollectionCard
-                    key={col.id}
-                    id={col.id}
-                    title={col.title}
-                    coverImage={col.photo}
-                    description={col.tagline ?? ''}
-                    contentType={col.content_type}
-                    category={col.category}
-                    country={(col.country as any)?.name}
-                    region={(col.region as any)?.name}
-                    subRegion={(col.sub_region as any)?.name}
-                    progress={getProgress(col.id).pct}
-                    totalItems={getProgress(col.id).total}
-                    completedItems={getProgress(col.id).done}
-                  />
-                ))}
+                {personalizedCollections.slice(0, visibleCount).map((col) => {
+                  const prog = getProgress(col.id);
+                  return (
+                    <CollectionCard
+                      key={col.id}
+                      id={col.id}
+                      title={col.title}
+                      coverImage={col.photo}
+                      description={col.tagline ?? ''}
+                      contentType={col.content_type}
+                      category={col.category}
+                      country={(col.country as any)?.name}
+                      region={(col.region as any)?.name}
+                      subRegion={(col.sub_region as any)?.name}
+                      progress={prog.pct}
+                      totalItems={prog.total}
+                      completedItems={prog.done}
+                      previewPhotos={previewPhotosMap[col.id]}
+                    />
+                  );
+                })}
                 {/* Sentinel for infinite scroll */}
                 <div ref={sentinelRef} />
                 {hasMore && (

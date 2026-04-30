@@ -142,10 +142,11 @@ export default function Explore() {
   const [userProfile, setUserProfile]       = useState<WineProfile | null>(null);
   const [loading, setLoading]               = useState(true);
 
-  const [viewMode, setViewMode]     = useState<'collections' | 'items'>('collections');
-  const [itemRows, setItemRows]     = useState<ItemRow[]>([]);
-  const [itemColMap, setItemColMap] = useState<Record<string, { id: string; title: string }[]>>({});
+  const [viewMode, setViewMode]         = useState<'collections' | 'items'>('collections');
+  const [itemRows, setItemRows]         = useState<ItemRow[]>([]);
+  const [itemColMap, setItemColMap]     = useState<Record<string, { id: string; title: string }[]>>({});
   const [itemsLoading, setItemsLoading] = useState(false);
+  const [previewPhotosMap, setPreviewPhotosMap] = useState<Record<string, string[]>>({});
 
   useEffect(() => {
     const load = async () => {
@@ -167,11 +168,50 @@ export default function Explore() {
           .limit(12),
       ]);
 
-      setCollections((cols as CollectionRow[]) ?? []);
+      const colList = (cols as CollectionRow[]) ?? [];
+      setCollections(colList);
       setRegions((regs as unknown as RegionRow[]) ?? []);
       setCountries((cts as CountryRow[]) ?? []);
       setExperiences((exps as ExploreExperienceRow[]) ?? []);
       setLoading(false);
+
+      // Fetch preview photos for collection cards (non-blocking)
+      if (colList.length > 0) {
+        const colIds = colList.map(c => c.id);
+        const { data: ciRows } = await supabase
+          .from('collection_items')
+          .select('collection_id, item_id, item_type, position')
+          .in('collection_id', colIds)
+          .order('collection_id')
+          .order('position')
+          .limit(1000);
+
+        const previewPerCol: Record<string, { item_id: string; item_type: string }[]> = {};
+        for (const row of (ciRows ?? []) as any[]) {
+          if (!previewPerCol[row.collection_id]) previewPerCol[row.collection_id] = [];
+          if (previewPerCol[row.collection_id].length < 5)
+            previewPerCol[row.collection_id].push({ item_id: row.item_id, item_type: row.item_type });
+        }
+        const allPv = Object.values(previewPerCol).flat();
+        const pvWineIds   = allPv.filter(r => r.item_type === 'wine').map(r => r.item_id);
+        const pvExpIds    = allPv.filter(r => r.item_type === 'experience').map(r => r.item_id);
+        const pvWineryIds = allPv.filter(r => r.item_type === 'winery').map(r => r.item_id);
+        const [pvW, pvE, pvWn] = await Promise.all([
+          pvWineIds.length   ? supabase.from('wines').select('id, photo').in('id', pvWineIds)      : Promise.resolve({ data: [] }),
+          pvExpIds.length    ? supabase.from('experiences').select('id, photo').in('id', pvExpIds) : Promise.resolve({ data: [] }),
+          pvWineryIds.length ? supabase.from('wineries').select('id, photo').in('id', pvWineryIds) : Promise.resolve({ data: [] }),
+        ]);
+        const photoById: Record<string, string> = {};
+        for (const r of [...(pvW.data ?? []), ...(pvE.data ?? []), ...(pvWn.data ?? [])] as any[]) {
+          if (r.photo) photoById[r.id] = r.photo;
+        }
+        const pvMap: Record<string, string[]> = {};
+        for (const [colId, items] of Object.entries(previewPerCol)) {
+          const photos = items.map(r => photoById[r.item_id]).filter(Boolean);
+          if (photos.length) pvMap[colId] = photos;
+        }
+        setPreviewPhotosMap(pvMap);
+      }
     };
     load();
   }, []);
@@ -517,6 +557,7 @@ export default function Explore() {
                 country={(col.country as any)?.name}
                 region={(col.region as any)?.name}
                 subRegion={(col.sub_region as any)?.name}
+                previewPhotos={previewPhotosMap[col.id]}
               />
             ))
           ) : (

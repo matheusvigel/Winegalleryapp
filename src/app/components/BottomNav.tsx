@@ -1,11 +1,12 @@
 import { Link, useLocation } from 'react-router';
-import { Home, Compass, Users, User } from 'lucide-react';
+import { Home, Compass, Users, User, GlassWater } from 'lucide-react';
 
 const links = [
-  { path: '/',             icon: Home,    label: 'Início'    },
-  { path: '/explore',      icon: Compass, label: 'Explorar'  },
-  { path: '/brotherhoods', icon: Users,   label: 'Confrarias'},
-  { path: '/profile',      icon: User,    label: 'Perfil'    },
+  { path: '/',             icon: Home,         label: 'Início'    },
+  { path: '/explore',      icon: Compass,      label: 'Explorar'  },
+  { path: '/adega',        icon: GlassWater,   label: 'Adega'     },
+  { path: '/brotherhoods', icon: Users,        label: 'Confrarias'},
+  { path: '/profile',      icon: User,         label: 'Perfil'    },
 ];
 
 export function BottomNav() {
@@ -17,7 +18,7 @@ export function BottomNav() {
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 pb-safe"
          style={{ background: '#FFFFFF', borderTop: '1px solid rgba(139,90,43,0.12)' }}>
-      <div className="max-w-md mx-auto flex justify-around items-center h-16">
+      <div className="max-w-md mx-auto flex justify-around items-center h-16 px-1">
         {links.map(({ path, icon: Icon, label }) => {
           const active = isActive(path);
           return (
