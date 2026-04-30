@@ -499,7 +499,7 @@ export default function Profile() {
           style={{ marginBottom: 12 }}
         >
           <Link
-            to="/wine-diary"
+            to="/adega"
             style={{
               display: 'flex',
               alignItems: 'center',

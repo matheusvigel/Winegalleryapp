@@ -1,5 +1,5 @@
 import { Link } from 'react-router';
-import { ChevronRight, MapPin } from 'lucide-react';
+import { MapPin } from 'lucide-react';
 
 export interface CollectionCardProps {
   id: string;
@@ -14,6 +14,7 @@ export interface CollectionCardProps {
   progress?: number;
   totalItems?: number;
   completedItems?: number;
+  previewPhotos?: string[];   // first N item photos, already fetched by parent
 }
 
 const CONTENT_TYPE_LABELS: Record<string, string> = {
@@ -28,115 +29,210 @@ const CONTENT_TYPE_LABELS: Record<string, string> = {
   brotherhoods: '🤝 Confrarias',
 };
 
-const CATEGORY_STYLES: Record<string, string> = {
-  'Essencial':      'bg-emerald-100 text-emerald-700',
-  'Fugir do óbvio': 'bg-purple-100 text-purple-700',
-  'Ícones':         'bg-amber-100 text-amber-700',
+const CATEGORY_STYLES: Record<string, { bg: string; text: string; border: string }> = {
+  'Essencial':      { bg: '#E8F0EC', text: '#2D4A3E', border: 'rgba(45,74,62,0.20)'    },
+  'Fugir do óbvio': { bg: '#F8EBF1', text: '#6B0035', border: 'rgba(107,0,53,0.20)'    },
+  'Ícones':         { bg: '#FBF3DC', text: '#7A4F07', border: 'rgba(184,130,11,0.25)'  },
 };
 
 const FALLBACK = 'https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=600&q=80';
+
+const THUMB_FALLBACK = '#EDE4D6';
 
 export function CollectionCard({
   id, title, coverImage, description, contentType, category,
   progress = 0, totalItems = 0, completedItems = 0,
   country, region, subRegion,
+  previewPhotos,
 }: CollectionCardProps) {
-  const typeLabel = contentType
-    ? (CONTENT_TYPE_LABELS[contentType] ?? contentType)
+  const typeLabel = contentType ? (CONTENT_TYPE_LABELS[contentType] ?? contentType) : null;
+  const geoParts  = [country, region, subRegion].filter(Boolean);
+  const geoString = geoParts.join(' › ');
+  const catStyle  = category
+    ? (CATEGORY_STYLES[category] ?? { bg: '#EDE4D6', text: '#7A6855', border: 'rgba(139,90,43,0.18)' })
     : null;
 
-  const geoParts = [country, region, subRegion].filter(Boolean);
-  const geoString = geoParts.join(' › ');
-
-  const categoryStyle = category ? (CATEGORY_STYLES[category] ?? 'bg-neutral-100 text-neutral-700') : null;
+  const hasItems = previewPhotos && previewPhotos.length > 0;
+  const extraCount = totalItems > (previewPhotos?.length ?? 0)
+    ? totalItems - (previewPhotos?.length ?? 0)
+    : 0;
 
   return (
-    <Link to={`/collection/${id}`} className="block mb-5 group">
-      <div className="bg-white rounded-[20px] overflow-hidden shadow-sm border border-neutral-100 group-hover:shadow-md transition-shadow duration-200">
-
-        {/* ── Cover image ────────────────────────────────────── */}
-        <div className="relative h-48 overflow-hidden bg-neutral-100">
+    <Link to={`/collection/${id}`} className="block mb-4 group">
+      <div
+        className="bg-white overflow-hidden transition-all duration-200 group-hover:shadow-lg"
+        style={{
+          borderRadius: '20px',
+          border: '1px solid rgba(139,90,43,0.12)',
+          boxShadow: '0 1px 4px rgba(28,18,9,0.06)',
+        }}
+      >
+        {/* ── Cover image ────────────────────────────────────────── */}
+        <div className="relative overflow-hidden" style={{ height: hasItems ? '168px' : '192px' }}>
           <img
             src={coverImage || FALLBACK}
             alt={title}
-            className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-300"
-            onError={(e) => {
-              (e.target as HTMLImageElement).src = FALLBACK;
-            }}
+            className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500"
+            onError={(e) => { (e.target as HTMLImageElement).src = FALLBACK; }}
           />
-          {/* gradient overlay */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/10 to-transparent" />
 
           {/* Content-type pill — top-left */}
           {typeLabel && (
             <div className="absolute top-3 left-3">
-              <span className="inline-flex items-center gap-1 px-3 py-1 bg-white/95 backdrop-blur-sm rounded-full text-xs font-semibold text-neutral-800 shadow-sm">
+              <span
+                className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold"
+                style={{
+                  background: 'rgba(255,255,255,0.92)',
+                  backdropFilter: 'blur(6px)',
+                  borderRadius: '9999px',
+                  color: '#1C1209',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.12)',
+                }}
+              >
                 {typeLabel}
               </span>
             </div>
           )}
 
-          {/* Progress % badge — top-right */}
+          {/* Progress badge — top-right */}
           {progress > 0 && (
             <div className="absolute top-3 right-3">
-              <span className="inline-flex items-center px-3 py-1 bg-purple-600 rounded-full text-xs font-bold text-white shadow-sm">
+              <span
+                className="inline-flex items-center px-2.5 py-1 text-[11px] font-bold text-white"
+                style={{ background: '#6B0035', borderRadius: '9999px', boxShadow: '0 1px 4px rgba(0,0,0,0.2)' }}
+              >
                 {progress}%
               </span>
             </div>
           )}
 
-          {/* Category pill — bottom-left over gradient */}
-          {category && categoryStyle && (
+          {/* Category pill — bottom-left */}
+          {category && catStyle && (
             <div className="absolute bottom-3 left-3">
-              <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${categoryStyle}`}>
+              <span
+                className="inline-flex items-center px-2.5 py-1 text-[11px] font-semibold"
+                style={{
+                  background: catStyle.bg,
+                  color: catStyle.text,
+                  border: `1px solid ${catStyle.border}`,
+                  borderRadius: '9999px',
+                }}
+              >
                 {category}
               </span>
             </div>
           )}
         </div>
 
-        {/* ── Card body ──────────────────────────────────────── */}
-        <div className="px-4 pt-3 pb-4">
+        {/* ── Card body ────────────────────────────────────────────── */}
+        <div className="px-4 pt-3" style={{ paddingBottom: hasItems ? '12px' : '16px' }}>
 
-          {/* Title + chevron */}
-          <div className="flex items-start justify-between gap-2 mb-1.5">
-            <h3 className="font-bold text-[1.05rem] text-neutral-900 leading-snug line-clamp-2 flex-1">
-              {title}
-            </h3>
-            <ChevronRight className="w-5 h-5 text-neutral-400 shrink-0 mt-0.5 group-hover:text-purple-600 transition-colors" />
-          </div>
+          {/* Title */}
+          <h3
+            className="font-bold leading-snug line-clamp-2 mb-1"
+            style={{
+              fontFamily: '"Fraunces", Georgia, serif',
+              color: '#1C1209',
+              letterSpacing: '-0.01em',
+              fontSize: '1.05rem',
+            }}
+          >
+            {title}
+          </h3>
 
-          {/* Description / tagline */}
+          {/* Description */}
           {description && (
-            <p className="text-sm text-neutral-500 line-clamp-2 mb-2 leading-relaxed">
+            <p className="text-sm line-clamp-1 mb-1.5 leading-relaxed" style={{ color: '#7A6855' }}>
               {description}
             </p>
           )}
 
-          {/* Geography breadcrumb */}
+          {/* Geography */}
           {geoString && (
-            <div className="flex items-center gap-1 text-xs text-neutral-500 mb-3">
-              <MapPin className="w-3 h-3 text-rose-400 shrink-0" />
+            <div className="flex items-center gap-1 text-xs" style={{ color: '#B0A090', marginBottom: hasItems ? '12px' : '0' }}>
+              <MapPin className="w-3 h-3 shrink-0" style={{ color: '#9B1B4D' }} />
               <span className="truncate">{geoString}</span>
             </div>
           )}
 
-          {/* Progress section */}
-          {totalItems > 0 && (
-            <>
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="text-xs text-neutral-500">{completedItems}/{totalItems} itens</span>
-                <span className="text-xs font-semibold text-purple-600">{progress}%</span>
+          {/* Progress bar (when no preview photos) */}
+          {!hasItems && totalItems > 0 && (
+            <div className="mt-2">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs" style={{ color: '#B0A090' }}>{completedItems}/{totalItems} itens</span>
+                <span className="text-xs font-bold" style={{ color: '#6B0035' }}>{progress}%</span>
               </div>
-              <div className="h-1.5 bg-neutral-100 rounded-full overflow-hidden">
+              <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(139,90,43,0.10)' }}>
                 <div
-                  className="h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-full transition-all duration-500"
-                  style={{ width: `${Math.max(progress, completedItems > 0 ? 4 : 0)}%` }}
+                  className="h-full rounded-full transition-all duration-500"
+                  style={{
+                    width: `${Math.max(progress, completedItems > 0 ? 4 : 0)}%`,
+                    background: 'linear-gradient(90deg, #6B0035 0%, #9B1B4D 100%)',
+                  }}
                 />
               </div>
-            </>
+            </div>
           )}
         </div>
+
+        {/* ── Item preview strip ──────────────────────────────────── */}
+        {hasItems && (
+          <div
+            className="px-4 pb-3 flex items-center gap-2"
+            style={{ borderTop: '1px solid rgba(139,90,43,0.08)', paddingTop: '10px' }}
+          >
+            {/* Thumbnails */}
+            <div className="flex gap-1.5 flex-1 min-w-0">
+              {previewPhotos!.slice(0, 5).map((photo, i) => (
+                <div
+                  key={i}
+                  className="flex-shrink-0 overflow-hidden"
+                  style={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: 10,
+                    background: THUMB_FALLBACK,
+                    border: '1px solid rgba(139,90,43,0.10)',
+                  }}
+                >
+                  <img
+                    src={photo}
+                    alt=""
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      const el = e.target as HTMLImageElement;
+                      el.style.display = 'none';
+                    }}
+                  />
+                </div>
+              ))}
+
+              {/* Overflow count */}
+              {extraCount > 0 && (
+                <div
+                  className="flex-shrink-0 flex items-center justify-center"
+                  style={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: 10,
+                    background: '#EDE4D6',
+                    border: '1px solid rgba(139,90,43,0.10)',
+                  }}
+                >
+                  <span className="text-xs font-bold" style={{ color: '#7A6855' }}>+{extraCount}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Item count summary */}
+            {totalItems > 0 && (
+              <span className="text-xs flex-shrink-0 font-medium" style={{ color: '#B0A090' }}>
+                {completedItems > 0 ? `${completedItems}/` : ''}{totalItems} itens
+              </span>
+            )}
+          </div>
+        )}
       </div>
     </Link>
   );

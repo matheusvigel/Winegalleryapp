@@ -93,6 +93,7 @@ export default function Home() {
   const [collections, setCollections]               = useState<CollectionRow[]>([]);
   const [profileRules, setProfileRules]             = useState<ProfileRule[]>([]);
   const [collectionItemsMap, setCollectionItemsMap] = useState<Record<string, string[]>>({});
+  const [previewPhotosMap, setPreviewPhotosMap]     = useState<Record<string, string[]>>({});
   const [completedIds, setCompletedIds]             = useState<Set<string>>(new Set());
   const [bonusCount, setBonusCount]                 = useState(0);
   const [dismissedBonus, setDismissedBonus]         = useState(false);
@@ -110,18 +111,46 @@ export default function Home() {
           .select('id, title, tagline, photo, content_type, category, country:country_id(name), region:region_id(name), sub_region:sub_region_id(name)')
           .order('title'),
         supabase.from('highlights').select('id, type, entity_id, label').eq('active', true).order('position').limit(8),
-        supabase.from('collection_items').select('collection_id, item_id').limit(500),
+        supabase.from('collection_items').select('collection_id, item_id, item_type, position').order('collection_id').order('position').limit(1000),
       ]);
 
       setCollections((cols as CollectionRow[]) ?? []);
 
-      // Build collection → item_ids map
+      // Build collection → item_ids map (for progress tracking)
       const map: Record<string, string[]> = {};
-      for (const row of colItems ?? []) {
+      for (const row of (colItems ?? []) as any[]) {
         if (!map[row.collection_id]) map[row.collection_id] = [];
         map[row.collection_id].push(row.item_id);
       }
       setCollectionItemsMap(map);
+
+      // Build preview photos map: collection → first 5 item photos
+      const previewPerCol: Record<string, { item_id: string; item_type: string }[]> = {};
+      for (const row of (colItems ?? []) as any[]) {
+        if (!previewPerCol[row.collection_id]) previewPerCol[row.collection_id] = [];
+        if (previewPerCol[row.collection_id].length < 5) {
+          previewPerCol[row.collection_id].push({ item_id: row.item_id, item_type: row.item_type });
+        }
+      }
+      const previewItems = Object.values(previewPerCol).flat();
+      const pvWineIds   = previewItems.filter(r => r.item_type === 'wine').map(r => r.item_id);
+      const pvExpIds    = previewItems.filter(r => r.item_type === 'experience').map(r => r.item_id);
+      const pvWineryIds = previewItems.filter(r => r.item_type === 'winery').map(r => r.item_id);
+      const [pvWines, pvExps, pvWineries] = await Promise.all([
+        pvWineIds.length   ? supabase.from('wines').select('id, photo').in('id', pvWineIds)         : Promise.resolve({ data: [] }),
+        pvExpIds.length    ? supabase.from('experiences').select('id, photo').in('id', pvExpIds)    : Promise.resolve({ data: [] }),
+        pvWineryIds.length ? supabase.from('wineries').select('id, photo').in('id', pvWineryIds)    : Promise.resolve({ data: [] }),
+      ]);
+      const photoById: Record<string, string> = {};
+      for (const r of [...(pvWines.data ?? []), ...(pvExps.data ?? []), ...(pvWineries.data ?? [])] as any[]) {
+        if (r.photo) photoById[r.id] = r.photo;
+      }
+      const newPreviewMap: Record<string, string[]> = {};
+      for (const [colId, items] of Object.entries(previewPerCol)) {
+        const photos = items.map(r => photoById[r.item_id]).filter(Boolean);
+        if (photos.length > 0) newPreviewMap[colId] = photos;
+      }
+      setPreviewPhotosMap(newPreviewMap);
 
       // Resolve highlight photos/names
       const hlList = hls ?? [];
@@ -245,21 +274,24 @@ export default function Home() {
   const hasMore = visibleCount < personalizedCollections.length;
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background">
 
       {/* ── Mobile top bar ──────────────────────────────────────── */}
-      <header className="lg:hidden bg-white border-b border-gray-100 sticky top-0 z-40">
+      <header className="lg:hidden sticky top-0 z-40"
+              style={{ background: '#FFFFFF', borderBottom: '1px solid rgba(139,90,43,0.12)' }}>
         <div className="px-4 py-3 flex items-center justify-between">
-          <h1 className="text-lg font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+          <h1 className="text-lg font-bold"
+              style={{ fontFamily: '"Fraunces", Georgia, serif', color: '#6B0035', letterSpacing: '-0.02em' }}>
             Wine Gallery
           </h1>
           {profile && (
             <Link to="/profile" className="flex items-center gap-2">
               <div className="text-right">
-                <p className="text-xs font-bold text-gray-900 leading-none">{profile.total_points} pts</p>
-                <p className="text-[10px] text-gray-400 leading-none mt-0.5">{LEVEL_LABELS[profile.user_level]}</p>
+                <p className="text-xs font-bold leading-none" style={{ color: '#1C1209' }}>{profile.total_points} pts</p>
+                <p className="text-[10px] leading-none mt-0.5" style={{ color: '#B0A090' }}>{LEVEL_LABELS[profile.user_level]}</p>
               </div>
-              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-purple-100 to-pink-100 flex items-center justify-center text-lg border-2 border-purple-200">
+              <div className="w-9 h-9 rounded-full flex items-center justify-center text-lg"
+                   style={{ background: '#F8EBF1', border: '2px solid rgba(107,0,53,0.20)' }}>
                 {PROFILE_ICONS[profile.wine_profile]}
               </div>
             </Link>
@@ -297,7 +329,8 @@ export default function Home() {
             {loading ? (
               <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
                 {[1,2,3,4].map(i => (
-                  <div key={i} className="min-w-[200px] h-56 rounded-2xl bg-gray-100 animate-pulse flex-shrink-0" />
+                  <div key={i} className="min-w-[200px] h-56 rounded-2xl animate-pulse flex-shrink-0"
+                       style={{ background: '#EDE4D6' }} />
                 ))}
               </div>
             ) : highlights.length > 0 ? (
@@ -323,27 +356,33 @@ export default function Home() {
             />
             {loading ? (
               <div className="space-y-3">
-                {[1,2,3].map(i => <div key={i} className="h-28 rounded-2xl bg-gray-100 animate-pulse" />)}
+                {[1,2,3].map(i => (
+                  <div key={i} className="h-28 rounded-2xl animate-pulse" style={{ background: '#EDE4D6' }} />
+                ))}
               </div>
             ) : personalizedCollections.length > 0 ? (
               <div>
-                {personalizedCollections.slice(0, visibleCount).map((col) => (
-                  <CollectionCard
-                    key={col.id}
-                    id={col.id}
-                    title={col.title}
-                    coverImage={col.photo}
-                    description={col.tagline ?? ''}
-                    contentType={col.content_type}
-                    category={col.category}
-                    country={(col.country as any)?.name}
-                    region={(col.region as any)?.name}
-                    subRegion={(col.sub_region as any)?.name}
-                    progress={getProgress(col.id).pct}
-                    totalItems={getProgress(col.id).total}
-                    completedItems={getProgress(col.id).done}
-                  />
-                ))}
+                {personalizedCollections.slice(0, visibleCount).map((col) => {
+                  const prog = getProgress(col.id);
+                  return (
+                    <CollectionCard
+                      key={col.id}
+                      id={col.id}
+                      title={col.title}
+                      coverImage={col.photo}
+                      description={col.tagline ?? ''}
+                      contentType={col.content_type}
+                      category={col.category}
+                      country={(col.country as any)?.name}
+                      region={(col.region as any)?.name}
+                      subRegion={(col.sub_region as any)?.name}
+                      progress={prog.pct}
+                      totalItems={prog.total}
+                      completedItems={prog.done}
+                      previewPhotos={previewPhotosMap[col.id]}
+                    />
+                  );
+                })}
                 {/* Sentinel for infinite scroll */}
                 <div ref={sentinelRef} />
                 {hasMore && (
@@ -360,21 +399,22 @@ export default function Home() {
           {/* ── 4. Desafios — Em breve ────────────────────────────── */}
           <section>
             <div className="flex items-center gap-2.5 mb-4">
-              <Trophy className="w-5 h-5 text-gray-300" />
-              <h2 className="text-xl font-bold text-gray-300">Desafios</h2>
-              <span className="text-[10px] font-bold bg-gray-100 text-gray-400 px-2 py-0.5 rounded-full tracking-wide uppercase">
-                Em breve
-              </span>
+              <Trophy className="w-5 h-5" style={{ color: '#C8B9A8' }} />
+              <h2 className="text-xl font-bold section-title" style={{ color: '#C8B9A8' }}>Desafios</h2>
+              <span className="chip chip-cream" style={{ opacity: 0.8 }}>Em breve</span>
             </div>
 
-            <div className="relative rounded-2xl overflow-hidden border border-gray-100 bg-white">
+            <div className="relative rounded-2xl overflow-hidden bg-white"
+                 style={{ border: '1px solid rgba(139,90,43,0.12)' }}>
               {/* Frosted overlay */}
-              <div className="absolute inset-0 bg-white/85 backdrop-blur-[3px] z-10 flex flex-col items-center justify-center gap-3 p-6">
-                <div className="w-12 h-12 rounded-2xl bg-gray-100 flex items-center justify-center">
-                  <Lock className="w-6 h-6 text-gray-300" />
+              <div className="absolute inset-0 backdrop-blur-[3px] z-10 flex flex-col items-center justify-center gap-3 p-6"
+                   style={{ background: 'rgba(255,255,255,0.88)' }}>
+                <div className="w-12 h-12 rounded-2xl flex items-center justify-center"
+                     style={{ background: '#EDE4D6' }}>
+                  <Lock className="w-6 h-6" style={{ color: '#C8B9A8' }} />
                 </div>
-                <p className="text-gray-600 font-bold text-center">Desafios chegando em breve</p>
-                <p className="text-gray-400 text-sm text-center max-w-xs leading-relaxed">
+                <p className="font-bold text-center" style={{ color: '#7A6855' }}>Desafios chegando em breve</p>
+                <p className="text-sm text-center max-w-xs leading-relaxed" style={{ color: '#B0A090' }}>
                   Challenges semanais, conquistas exclusivas e rankings entre amigos.
                 </p>
               </div>
@@ -385,15 +425,17 @@ export default function Home() {
                   { emoji: '🗺️', title: 'Explorador de Regiões',   pts: 100, label: 'Aventura'   },
                   { emoji: '⭐', title: 'Semana do Expert',         pts: 200, label: 'Avançado'   },
                 ].map((d, i) => (
-                  <div key={i} className="flex items-center gap-3 bg-gray-50 rounded-xl p-3">
-                    <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-xl shadow-sm">
+                  <div key={i} className="flex items-center gap-3 rounded-xl p-3"
+                       style={{ background: '#FBF7F2' }}>
+                    <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-xl"
+                         style={{ boxShadow: '0 1px 3px rgba(28,18,9,0.08)' }}>
                       {d.emoji}
                     </div>
                     <div className="flex-1">
-                      <p className="text-sm font-semibold text-gray-700">{d.title}</p>
-                      <p className="text-xs text-gray-400">{d.label}</p>
+                      <p className="text-sm font-semibold" style={{ color: '#1C1209' }}>{d.title}</p>
+                      <p className="text-xs" style={{ color: '#B0A090' }}>{d.label}</p>
                     </div>
-                    <div className="flex items-center gap-1 text-amber-500">
+                    <div className="flex items-center gap-1" style={{ color: '#B8820B' }}>
                       <Zap className="w-3.5 h-3.5" />
                       <span className="text-xs font-bold">+{d.pts} pts</span>
                     </div>
@@ -434,18 +476,18 @@ export default function Home() {
 
           {/* Bonus notification (desktop) */}
           {user && bonusCount > 0 && !dismissedBonus && (
-            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
+            <div className="rounded-2xl p-4"
+                 style={{ background: '#FBF3DC', border: '1px solid rgba(184,130,11,0.25)' }}>
               <div className="flex items-start gap-2">
                 <span className="text-xl shrink-0">🎁</span>
                 <div className="flex-1">
-                  <p className="text-sm font-bold text-amber-900">Nova pergunta bônus!</p>
-                  <p className="text-xs text-amber-700 mt-0.5 mb-3">
+                  <p className="text-sm font-bold" style={{ color: '#3E2705' }}>Nova pergunta bônus!</p>
+                  <p className="text-xs mt-0.5 mb-3" style={{ color: '#7A4F07' }}>
                     {bonusCount} pergunta{bonusCount > 1 ? 's' : ''} disponíve{bonusCount > 1 ? 'is' : 'l'} — ganhe pontos extras.
                   </p>
-                  <Link
-                    to="/quiz-bonus"
-                    className="block text-center bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold py-2 rounded-xl transition-colors"
-                  >
+                  <Link to="/quiz-bonus"
+                        className="block text-center text-white text-xs font-bold py-2 rounded-xl transition-colors"
+                        style={{ background: '#B8820B' }}>
                     Responder e ganhar pontos
                   </Link>
                 </div>
@@ -454,8 +496,9 @@ export default function Home() {
           )}
 
           {/* Quick nav */}
-          <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-            <h3 className="font-bold text-gray-900 text-sm mb-3">Navegar</h3>
+          <div className="bg-white rounded-2xl p-5"
+               style={{ border: '1px solid rgba(139,90,43,0.12)', boxShadow: '0 1px 4px rgba(28,18,9,0.06)' }}>
+            <h3 className="text-sm font-bold mb-3" style={{ color: '#1C1209' }}>Navegar</h3>
             <div className="space-y-0.5">
               {[
                 { to: '/explore',      label: 'Explorar coleções' },
@@ -466,7 +509,16 @@ export default function Home() {
                 <Link
                   key={to}
                   to={to}
-                  className="flex items-center justify-between py-2 px-3 rounded-xl hover:bg-purple-50 transition-colors text-sm text-gray-600 hover:text-purple-700"
+                  className="flex items-center justify-between py-2 px-3 rounded-xl transition-colors text-sm"
+                  style={{ color: '#7A6855' }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.background = '#F8EBF1';
+                    e.currentTarget.style.color = '#6B0035';
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.background = 'transparent';
+                    e.currentTarget.style.color = '#7A6855';
+                  }}
                 >
                   {label}
                   <ChevronRight className="w-4 h-4" />
@@ -492,10 +544,14 @@ function SectionHeader({ title, subtitle, linkTo, linkLabel }: {
   return (
     <div className="flex items-start justify-between mb-4">
       <div>
-        <h2 className="text-xl font-bold text-gray-900">{title}</h2>
-        {subtitle && <p className="text-xs text-gray-400 mt-0.5">{subtitle}</p>}
+        <h2 className="text-xl section-title">{title}</h2>
+        {subtitle && <p className="text-xs mt-0.5" style={{ color: '#B0A090' }}>{subtitle}</p>}
       </div>
-      <Link to={linkTo} className="text-sm text-purple-600 font-medium flex items-center gap-0.5 hover:underline shrink-0 mt-1">
+      <Link
+        to={linkTo}
+        className="text-sm font-semibold flex items-center gap-0.5 shrink-0 mt-1 transition-colors hover:underline"
+        style={{ color: '#6B0035' }}
+      >
         {linkLabel} <ChevronRight className="w-4 h-4" />
       </Link>
     </div>
@@ -505,15 +561,26 @@ function SectionHeader({ title, subtitle, linkTo, linkLabel }: {
 // ── Empty box ──────────────────────────────────────────────────────────
 function EmptyBox({ text }: { text: string }) {
   return (
-    <div className="text-center py-10 text-gray-400 text-sm bg-white rounded-2xl border border-gray-100">
+    <div className="text-center py-10 text-sm rounded-2xl bg-white"
+         style={{ color: '#B0A090', border: '1px solid rgba(139,90,43,0.10)' }}>
       {text}
     </div>
   );
 }
 
 // ── Highlight card ─────────────────────────────────────────────────────
+const HIGHLIGHT_BG: Record<string, string> = {
+  collection: '#B8820B',
+  region:     '#9B1B4D',
+  winery:     '#2D4A3E',
+  wine:       '#6B0035',
+  place:      '#1C3028',
+  experience: '#7A4F07',
+};
+
 function HighlightCard({ h, index }: { h: HighlightRow; index: number }) {
-  const t = HIGHLIGHT_TYPE[h.type] ?? { label: h.type, emoji: '✨', bg: 'bg-purple-500' };
+  const t  = HIGHLIGHT_TYPE[h.type] ?? { label: h.type, emoji: '✨', bg: 'bg-wine-700' };
+  const bg = HIGHLIGHT_BG[h.type] ?? '#6B0035';
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
@@ -521,7 +588,9 @@ function HighlightCard({ h, index }: { h: HighlightRow; index: number }) {
       transition={{ delay: 0.05 * index, duration: 0.3 }}
       className="min-w-[200px] lg:min-w-0 flex-shrink-0 lg:flex-shrink"
     >
-      <Link to={h.route} className="block group relative rounded-2xl overflow-hidden h-56 shadow-sm hover:shadow-lg transition-shadow">
+      <Link to={h.route}
+            className="block group relative rounded-2xl overflow-hidden h-56 transition-shadow hover:shadow-lg"
+            style={{ boxShadow: '0 2px 8px rgba(28,18,9,0.10)' }}>
         {h.image_url ? (
           <img
             src={h.image_url}
@@ -530,17 +599,20 @@ function HighlightCard({ h, index }: { h: HighlightRow; index: number }) {
             onError={e => { (e.target as HTMLImageElement).src = FALLBACK; }}
           />
         ) : (
-          <div className="w-full h-full bg-gradient-to-br from-purple-300 to-pink-300" />
+          <div className="w-full h-full"
+               style={{ background: `linear-gradient(135deg, ${bg} 0%, ${bg}CC 100%)` }} />
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/15 to-transparent" />
         {/* Type badge */}
         <div className="absolute top-3 left-3">
-          <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold text-white shadow-sm ${t.bg}`}>
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold text-white"
+                style={{ background: bg, boxShadow: '0 1px 3px rgba(0,0,0,0.25)' }}>
             {t.emoji} {t.label}
           </span>
         </div>
         {/* Title */}
-        <p className="absolute bottom-3 left-3 right-3 text-white font-semibold text-sm leading-snug line-clamp-2">
+        <p className="absolute bottom-3 left-3 right-3 text-white font-semibold text-sm leading-snug line-clamp-2"
+           style={{ fontFamily: '"Fraunces", Georgia, serif' }}>
           {h.label}
         </p>
       </Link>
@@ -572,11 +644,17 @@ function ProfileHero({ user, profile, levelProgress, ptsToNext, nextLevel, bonus
 
   if (!profile?.quiz_completed) {
     return (
-      <div className="bg-gradient-to-r from-purple-600 to-pink-600 rounded-3xl p-6 text-white shadow-xl">
-        <p className="text-xl font-bold mb-1">🍷 Qual é o seu perfil?</p>
-        <p className="text-purple-100 text-sm mb-1">Descubra e personalize sua experiência no Wine Gallery.</p>
-        <p className="text-purple-200 text-xs mb-4">Complete o quiz e ganhe pontos de boas-vindas!</p>
-        <Link to="/onboarding" className="block text-center bg-white/20 hover:bg-white/30 text-white font-bold py-3 rounded-xl transition-colors">
+      <div className="rounded-3xl p-6 text-white"
+           style={{ background: 'linear-gradient(135deg, #6B0035 0%, #9B1B4D 100%)', boxShadow: '0 8px 24px rgba(107,0,53,0.30)' }}>
+        <p className="text-xl font-bold mb-1"
+           style={{ fontFamily: '"Fraunces", Georgia, serif' }}>🍷 Qual é o seu perfil?</p>
+        <p className="text-sm mb-1" style={{ color: 'rgba(255,255,255,0.80)' }}>Descubra e personalize sua experiência no Wine Gallery.</p>
+        <p className="text-xs mb-4" style={{ color: 'rgba(255,255,255,0.65)' }}>Complete o quiz e ganhe pontos de boas-vindas!</p>
+        <Link to="/onboarding"
+              className="block text-center text-white font-bold py-3 rounded-xl transition-colors"
+              style={{ background: 'rgba(255,255,255,0.18)' }}
+              onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.28)')}
+              onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.18)')}>
           Fazer o quiz agora →
         </Link>
       </div>
@@ -586,67 +664,72 @@ function ProfileHero({ user, profile, levelProgress, ptsToNext, nextLevel, bonus
   return (
     <div className="space-y-3">
       {/* Profile card */}
-      <div className="bg-gradient-to-br from-purple-700 via-purple-600 to-pink-600 rounded-3xl p-5 text-white shadow-xl">
+      <div className="rounded-3xl p-5 text-white"
+           style={{ background: 'linear-gradient(135deg, #4A0024 0%, #6B0035 55%, #9B1B4D 100%)', boxShadow: '0 8px 24px rgba(107,0,53,0.30)' }}>
         {/* Top row */}
         <div className="flex items-center gap-3 mb-5">
-          <div className="w-14 h-14 rounded-2xl bg-white/15 border border-white/20 flex items-center justify-center text-3xl flex-shrink-0">
+          <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-3xl flex-shrink-0"
+               style={{ background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.18)' }}>
             {PROFILE_ICONS[profile.wine_profile]}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-xs text-purple-200 font-medium">
+            <p className="text-xs font-medium" style={{ color: 'rgba(255,255,255,0.65)' }}>
               Olá, {profile.display_name || 'Apreciador'}!
             </p>
-            <p className="text-lg font-bold leading-tight">{PROFILE_LABELS[profile.wine_profile]}</p>
-            <p className="text-xs text-purple-300">{PROFILE_ARCHETYPES[profile.wine_profile]}</p>
+            <p className="text-lg font-bold leading-tight"
+               style={{ fontFamily: '"Fraunces", Georgia, serif' }}>{PROFILE_LABELS[profile.wine_profile]}</p>
+            <p className="text-xs" style={{ color: 'rgba(255,255,255,0.55)' }}>{PROFILE_ARCHETYPES[profile.wine_profile]}</p>
           </div>
-          <Link
-            to="/profile"
-            className="shrink-0 p-2 bg-white/10 rounded-xl hover:bg-white/20 transition-colors"
-          >
+          <Link to="/profile"
+                className="shrink-0 p-2 rounded-xl transition-colors"
+                style={{ background: 'rgba(255,255,255,0.10)' }}>
             <ChevronRight className="w-4 h-4" />
           </Link>
         </div>
 
         {/* Points + level + progress */}
-        <div className="bg-black/15 rounded-2xl p-4">
+        <div className="rounded-2xl p-4" style={{ background: 'rgba(0,0,0,0.18)' }}>
           <div className="flex items-end justify-between mb-3">
             <div>
-              <p className="text-[10px] text-purple-300 uppercase tracking-widest font-semibold mb-0.5">
+              <p className="text-[10px] uppercase tracking-widest font-bold mb-0.5"
+                 style={{ color: 'rgba(255,255,255,0.55)' }}>
                 {LEVEL_LABELS[profile.user_level]}
               </p>
               <p className="text-3xl font-bold leading-none">
                 {profile.total_points}
-                <span className="text-sm font-normal text-purple-300 ml-1">pts</span>
+                <span className="text-sm font-normal ml-1" style={{ color: 'rgba(255,255,255,0.55)' }}>pts</span>
               </p>
             </div>
             {nextLevel ? (
               <div className="text-right">
-                <p className="text-[10px] text-purple-400">Próximo nível</p>
-                <p className="text-xs font-bold text-purple-200">{LEVEL_LABELS[nextLevel]}</p>
-                <p className="text-[10px] text-purple-400">{ptsToNext} pts restantes</p>
+                <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.50)' }}>Próximo nível</p>
+                <p className="text-xs font-bold" style={{ color: 'rgba(255,255,255,0.80)' }}>{LEVEL_LABELS[nextLevel]}</p>
+                <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.50)' }}>{ptsToNext} pts restantes</p>
               </div>
             ) : (
-              <span className="text-xs font-bold bg-white/15 px-2 py-1 rounded-lg">
+              <span className="text-xs font-bold px-2 py-1 rounded-lg"
+                    style={{ background: 'rgba(255,255,255,0.15)' }}>
                 Nível máximo 🏆
               </span>
             )}
           </div>
 
           {/* Progress bar */}
-          <div className="h-2 bg-white/15 rounded-full overflow-hidden">
+          <div className="h-2 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.15)' }}>
             <motion.div
               initial={{ width: 0 }}
               animate={{ width: `${levelProgress}%` }}
               transition={{ duration: 0.9, ease: 'easeOut', delay: 0.2 }}
-              className="h-full bg-white rounded-full"
+              className="h-full rounded-full"
+              style={{ background: '#D4A82A' }}
             />
           </div>
           <div className="flex justify-between mt-1">
-            <span className="text-[9px] text-purple-400">
+            <span className="text-[9px]" style={{ color: 'rgba(255,255,255,0.45)' }}>
               {LEVEL_POINTS[profile.user_level].min} pts
             </span>
             {nextLevel && (
-              <span className="text-[9px] text-purple-400">
+              <span className="text-[9px]" style={{ color: 'rgba(255,255,255,0.45)' }}>
                 {LEVEL_POINTS[profile.user_level].max} pts
               </span>
             )}
@@ -656,25 +739,24 @@ function ProfileHero({ user, profile, levelProgress, ptsToNext, nextLevel, bonus
 
       {/* Bonus notification */}
       {bonusCount > 0 && !dismissedBonus && (
-        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start gap-3">
+        <div className="rounded-2xl p-4 flex items-start gap-3"
+             style={{ background: '#FBF3DC', border: '1px solid rgba(184,130,11,0.25)' }}>
           <span className="text-xl shrink-0 mt-0.5">🎁</span>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-bold text-amber-900">Nova pergunta bônus!</p>
-            <p className="text-xs text-amber-700 mb-2.5">
+            <p className="text-sm font-bold" style={{ color: '#3E2705' }}>Nova pergunta bônus!</p>
+            <p className="text-xs mb-2.5" style={{ color: '#7A4F07' }}>
               {bonusCount} pergunta{bonusCount > 1 ? 's' : ''} disponíve{bonusCount > 1 ? 'is' : 'l'} — ganhe pontos extras.
             </p>
-            <Link
-              to="/quiz-bonus"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-xl transition-colors"
-            >
+            <Link to="/quiz-bonus"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-white text-xs font-bold rounded-xl transition-colors"
+                  style={{ background: '#B8820B' }}>
               Responder agora <ChevronRight className="w-3 h-3" />
             </Link>
           </div>
-          <button
-            onClick={onDismissBonus}
-            className="text-amber-300 hover:text-amber-500 transition-colors shrink-0 mt-0.5"
-            aria-label="Fechar"
-          >
+          <button onClick={onDismissBonus}
+                  className="shrink-0 mt-0.5 transition-colors"
+                  style={{ color: '#C8B9A8' }}
+                  aria-label="Fechar">
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
               <path d="M1 1l12 12M13 1L1 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
             </svg>
@@ -693,54 +775,59 @@ function DesktopProfileCard({ profile, levelProgress, ptsToNext, nextLevel }: {
   nextLevel: UserLevel | null;
 }) {
   return (
-    <div className="bg-gradient-to-br from-purple-700 via-purple-600 to-pink-600 rounded-2xl p-5 text-white shadow-xl">
+    <div className="rounded-2xl p-5 text-white"
+         style={{ background: 'linear-gradient(135deg, #4A0024 0%, #6B0035 55%, #9B1B4D 100%)', boxShadow: '0 8px 24px rgba(107,0,53,0.30)' }}>
       {/* Header */}
       <div className="flex items-center gap-3 mb-4">
-        <div className="w-12 h-12 rounded-xl bg-white/15 border border-white/20 flex items-center justify-center text-2xl flex-shrink-0">
+        <div className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl flex-shrink-0"
+             style={{ background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.18)' }}>
           {PROFILE_ICONS[profile.wine_profile]}
         </div>
         <div className="min-w-0">
-          <p className="text-[10px] text-purple-300 font-medium truncate">
+          <p className="text-[10px] font-medium truncate" style={{ color: 'rgba(255,255,255,0.60)' }}>
             {profile.display_name || 'Apreciador'}
           </p>
-          <p className="text-sm font-bold leading-tight">{PROFILE_LABELS[profile.wine_profile]}</p>
-          <p className="text-[10px] text-purple-300">{PROFILE_ARCHETYPES[profile.wine_profile]}</p>
+          <p className="text-sm font-bold leading-tight"
+             style={{ fontFamily: '"Fraunces", Georgia, serif' }}>{PROFILE_LABELS[profile.wine_profile]}</p>
+          <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.55)' }}>{PROFILE_ARCHETYPES[profile.wine_profile]}</p>
         </div>
       </div>
 
       {/* Points + progress */}
-      <div className="bg-black/15 rounded-xl p-3 mb-3">
+      <div className="rounded-xl p-3 mb-3" style={{ background: 'rgba(0,0,0,0.18)' }}>
         <div className="flex items-end justify-between mb-2">
           <div>
-            <p className="text-[9px] text-purple-400 uppercase tracking-widest font-semibold">
+            <p className="text-[9px] uppercase tracking-widest font-bold" style={{ color: 'rgba(255,255,255,0.55)' }}>
               {LEVEL_LABELS[profile.user_level]}
             </p>
             <p className="text-xl font-bold">
               {profile.total_points}
-              <span className="text-xs font-normal text-purple-300 ml-1">pts</span>
+              <span className="text-xs font-normal ml-1" style={{ color: 'rgba(255,255,255,0.55)' }}>pts</span>
             </p>
           </div>
           {nextLevel && (
-            <p className="text-[10px] text-purple-400 text-right leading-tight">
+            <p className="text-[10px] text-right leading-tight" style={{ color: 'rgba(255,255,255,0.55)' }}>
               {ptsToNext} pts<br />
-              <span className="text-purple-300 font-semibold">{LEVEL_LABELS[nextLevel]}</span>
+              <span className="font-semibold" style={{ color: 'rgba(255,255,255,0.80)' }}>{LEVEL_LABELS[nextLevel]}</span>
             </p>
           )}
         </div>
-        <div className="h-1.5 bg-white/15 rounded-full overflow-hidden">
+        <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.15)' }}>
           <motion.div
             initial={{ width: 0 }}
             animate={{ width: `${levelProgress}%` }}
             transition={{ duration: 0.8, ease: 'easeOut', delay: 0.3 }}
-            className="h-full bg-white rounded-full"
+            className="h-full rounded-full"
+            style={{ background: '#D4A82A' }}
           />
         </div>
       </div>
 
-      <Link
-        to="/profile"
-        className="block text-center bg-white/10 hover:bg-white/20 text-white text-xs font-semibold py-2.5 rounded-xl transition-colors"
-      >
+      <Link to="/profile"
+            className="block text-center text-white text-xs font-semibold py-2.5 rounded-xl transition-colors"
+            style={{ background: 'rgba(255,255,255,0.10)' }}
+            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.20)')}
+            onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.10)')}>
         Ver perfil completo
       </Link>
     </div>
@@ -752,10 +839,16 @@ function GuestCard({ title, text, cta, to }: {
   title: string; text: string; cta: string; to: string;
 }) {
   return (
-    <div className="bg-gradient-to-r from-purple-600 to-pink-600 rounded-3xl p-6 text-white shadow-xl">
-      <p className="text-xl font-bold mb-1">{title}</p>
-      <p className="text-purple-100 text-sm mb-4">{text}</p>
-      <Link to={to} className="block text-center bg-white/20 hover:bg-white/30 text-white font-bold py-3 rounded-xl transition-colors text-sm">
+    <div className="rounded-3xl p-6 text-white"
+         style={{ background: 'linear-gradient(135deg, #6B0035 0%, #9B1B4D 100%)', boxShadow: '0 8px 24px rgba(107,0,53,0.28)' }}>
+      <p className="text-xl font-bold mb-1"
+         style={{ fontFamily: '"Fraunces", Georgia, serif' }}>{title}</p>
+      <p className="text-sm mb-4" style={{ color: 'rgba(255,255,255,0.80)' }}>{text}</p>
+      <Link to={to}
+            className="block text-center text-white font-bold py-3 rounded-xl transition-colors text-sm"
+            style={{ background: 'rgba(255,255,255,0.18)' }}
+            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.28)')}
+            onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.18)')}>
         {cta}
       </Link>
     </div>

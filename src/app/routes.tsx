@@ -37,6 +37,7 @@ import SearchPage from "./pages/SearchPage";
 import Achievements from "./pages/Achievements";
 import WineDetail from "./pages/WineDetail";
 import WineDiary from "./pages/WineDiary";
+import Adega from "./pages/Adega";
 import WineryDetail from "./pages/WineryDetail";
 import PlaceDetail from "./pages/PlaceDetail";
 import CollectionDetail from "./pages/CollectionDetail";
@@ -94,6 +95,7 @@ export const router = createBrowserRouter([
       { path: "brotherhoods/catalog/:id", Component: BrotherhoodDetail },
       { path: "wine/:id",               Component: WineDetail        },
       { path: "wine-diary",             Component: WineDiary         },
+      { path: "adega",                  Component: Adega             },
       { path: "collection/:id",         Component: CollectionDetail  },
       { path: "experience/:id",         Component: ExperienceDetail  },
       {

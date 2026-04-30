@@ -27,16 +27,16 @@ interface CollectionRow {
 type ItemType = 'wine' | 'experience' | 'winery';
 
 interface UnifiedItem {
-  itemId: string;      // collection_items.item_id
+  itemId: string;
   itemType: ItemType;
   id: string;
   name: string;
   photo: string;
   highlight: string | null;
-  tastingNote: string | null;   // wines: tasting_note
-  subName: string | null;       // wines: winery name
-  location: string | null;      // region name
-  type: string | null;          // wine type or category
+  tastingNote: string | null;
+  subName: string | null;
+  location: string | null;
+  type: string | null;
   position: number;
 }
 
@@ -55,7 +55,7 @@ interface OtherCollection {
   totalItems: number;
 }
 
-// ── Why-label by item/collection type ─────────────────────────────────────────
+// ── Constants ──────────────────────────────────────────────────────────────────
 
 const WHY_LABEL: Record<string, string> = {
   wine:       'Por que provar?',
@@ -68,8 +68,6 @@ const WHY_EMOJI: Record<string, string> = {
   experience: '✨',
   winery:     '🏛️',
 };
-
-// ── Fallback image ─────────────────────────────────────────────────────────────
 
 const FALLBACK = 'https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=600&q=80';
 
@@ -84,13 +82,23 @@ export default function CollectionDetail() {
   const { user } = useAuth();
 
   const [collection, setCollection] = useState<CollectionRow | null>(null);
-  const [items, setItems] = useState<UnifiedItem[]>([]);
+  const [items, setItems]           = useState<UnifiedItem[]>([]);
   const [otherCollections, setOtherCollections] = useState<OtherCollection[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading]       = useState(true);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [itemStates, setItemStates] = useState<Record<string, ItemState>>({});
 
-  const [emblaRef, emblaApi] = useEmblaCarousel({ loop: false, align: 'center' });
+  // Scroll to top whenever we enter a new collection
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  }, [id]);
+
+  const [emblaRef, emblaApi] = useEmblaCarousel({
+    loop:      false,
+    align:     'center',
+    dragFree:  false,
+    watchDrag: true,
+  });
 
   const onSelect = useCallback(() => {
     if (emblaApi) setSelectedIndex(emblaApi.selectedScrollSnap());
@@ -100,13 +108,12 @@ export default function CollectionDetail() {
     if (emblaApi) emblaApi.on('select', onSelect);
   }, [emblaApi, onSelect]);
 
-  // ── Data loading ─────────────────────────────────────────────────────────────
+  // ── Data loading ──────────────────────────────────────────────────────────────
 
   useEffect(() => {
     if (!id) return;
 
     const load = async () => {
-      // 1. Collection header
       const { data: col } = await supabase
         .from('collections')
         .select('id, title, tagline, photo, content_type')
@@ -115,7 +122,6 @@ export default function CollectionDetail() {
 
       setCollection(col as CollectionRow | null);
 
-      // 2. Collection items (ordered)
       const { data: ciRows } = await supabase
         .from('collection_items')
         .select('item_id, item_type, position')
@@ -124,45 +130,26 @@ export default function CollectionDetail() {
 
       const rawItems = (ciRows ?? []) as { item_id: string; item_type: string; position: number }[];
 
-      // 3. Group by item_type
       const wineIds       = rawItems.filter(r => r.item_type === 'wine').map(r => r.item_id);
       const experienceIds = rawItems.filter(r => r.item_type === 'experience').map(r => r.item_id);
       const wineryIds     = rawItems.filter(r => r.item_type === 'winery').map(r => r.item_id);
 
-      // 4. Fetch each type in parallel
-      const [
-        { data: wineRows },
-        { data: expRows },
-        { data: wineryRows },
-      ] = await Promise.all([
+      const [{ data: wineRows }, { data: expRows }, { data: wineryRows }] = await Promise.all([
         wineIds.length
-          ? supabase
-              .from('wines')
-              .select('id, name, photo, highlight, tasting_note, type, wineries(name, region:region_id(name, level))')
-              .in('id', wineIds)
+          ? supabase.from('wines').select('id, name, photo, highlight, tasting_note, type, wineries(name, region:region_id(name, level))').in('id', wineIds)
           : Promise.resolve({ data: [] }),
-
         experienceIds.length
-          ? supabase
-              .from('experiences')
-              .select('id, name, photo, highlight, category, winery:winery_id(name), region:region_id(name)')
-              .in('id', experienceIds)
+          ? supabase.from('experiences').select('id, name, photo, highlight, category, winery:winery_id(name), region:region_id(name)').in('id', experienceIds)
           : Promise.resolve({ data: [] }),
-
         wineryIds.length
-          ? supabase
-              .from('wineries')
-              .select('id, name, photo, highlight, category, region:region_id(name)')
-              .in('id', wineryIds)
+          ? supabase.from('wineries').select('id, name, photo, highlight, category, region:region_id(name)').in('id', wineryIds)
           : Promise.resolve({ data: [] }),
       ]);
 
-      // 5. Build lookup maps
       const wineMap   = new Map((wineRows   ?? []).map((r: any) => [r.id, r]));
       const expMap    = new Map((expRows    ?? []).map((r: any) => [r.id, r]));
       const wineryMap = new Map((wineryRows ?? []).map((r: any) => [r.id, r]));
 
-      // 6. Reassemble in position order
       const unified: UnifiedItem[] = rawItems.flatMap((ci) => {
         const type = ci.item_type as ItemType;
 
@@ -170,19 +157,13 @@ export default function CollectionDetail() {
           const w = wineMap.get(ci.item_id) as any;
           if (!w) return [];
           return [{
-            itemId: ci.item_id,
-            itemType: 'wine',
-            id: w.id,
-            name: w.name,
-            photo: w.photo ?? '',
-            highlight: w.highlight ?? null,
-            tastingNote: w.tasting_note ?? null,
+            itemId: ci.item_id, itemType: 'wine',
+            id: w.id, name: w.name, photo: w.photo ?? '',
+            highlight: w.highlight ?? null, tastingNote: w.tasting_note ?? null,
             subName: w.wineries?.name ?? null,
             location: (w.wineries as any)?.region?.level !== 'country'
-              ? ((w.wineries as any)?.region?.name ?? null)
-              : null,
-            type: w.type ?? null,
-            position: ci.position,
+              ? ((w.wineries as any)?.region?.name ?? null) : null,
+            type: w.type ?? null, position: ci.position,
           }];
         }
 
@@ -190,17 +171,11 @@ export default function CollectionDetail() {
           const e = expMap.get(ci.item_id) as any;
           if (!e) return [];
           return [{
-            itemId: ci.item_id,
-            itemType: 'experience',
-            id: e.id,
-            name: e.name,
-            photo: e.photo ?? '',
-            highlight: e.highlight ?? null,
-            tastingNote: null,
-            subName: e.winery?.name ?? null,
-            location: e.region?.name ?? null,
-            type: e.category ?? null,
-            position: ci.position,
+            itemId: ci.item_id, itemType: 'experience',
+            id: e.id, name: e.name, photo: e.photo ?? '',
+            highlight: e.highlight ?? null, tastingNote: null,
+            subName: e.winery?.name ?? null, location: e.region?.name ?? null,
+            type: e.category ?? null, position: ci.position,
           }];
         }
 
@@ -208,17 +183,11 @@ export default function CollectionDetail() {
           const w = wineryMap.get(ci.item_id) as any;
           if (!w) return [];
           return [{
-            itemId: ci.item_id,
-            itemType: 'winery',
-            id: w.id,
-            name: w.name,
-            photo: w.photo ?? '',
-            highlight: w.highlight ?? null,
-            tastingNote: null,
-            subName: null,
-            location: w.region?.name ?? null,
-            type: w.category ?? null,
-            position: ci.position,
+            itemId: ci.item_id, itemType: 'winery',
+            id: w.id, name: w.name, photo: w.photo ?? '',
+            highlight: w.highlight ?? null, tastingNote: null,
+            subName: null, location: w.region?.name ?? null,
+            type: w.category ?? null, position: ci.position,
           }];
         }
 
@@ -227,7 +196,6 @@ export default function CollectionDetail() {
 
       setItems(unified);
 
-      // 7. User progress for these items
       if (user && unified.length > 0) {
         const ids = unified.map(i => i.itemId);
         const { data: progress } = await supabase
@@ -245,7 +213,6 @@ export default function CollectionDetail() {
         }
       }
 
-      // 8. Other collections for "Continue Explorando"
       const { data: otherCols } = await supabase
         .from('collections')
         .select('id, title, tagline, photo, content_type')
@@ -266,8 +233,7 @@ export default function CollectionDetail() {
         });
 
         setOtherCollections((otherCols as CollectionRow[]).map(c => ({
-          ...c,
-          totalItems: countMap[c.id] ?? 0,
+          ...c, totalItems: countMap[c.id] ?? 0,
         })));
       }
 
@@ -277,41 +243,31 @@ export default function CollectionDetail() {
     load();
   }, [id, user]);
 
-  // ── Actions ──────────────────────────────────────────────────────────────────
+  // ── Actions ───────────────────────────────────────────────────────────────────
 
-  const getItemType = (itemId: string): string => {
-    return items.find(i => i.itemId === itemId)?.itemType ?? 'wine';
-  };
+  const getItemType = (itemId: string) =>
+    items.find(i => i.itemId === itemId)?.itemType ?? 'wine';
 
   const toggleTried = async (itemId: string) => {
     if (!user) return;
     const current = itemStates[itemId] ?? { tried: false, favorite: false };
-    // Optimistic update
     setItemStates(prev => ({ ...prev, [itemId]: { ...current, tried: !current.tried } }));
-    const itemType = getItemType(itemId);
-    await psToggleTried(user.id, itemId, itemType, current.tried);
-    if (!current.tried) {
-      toast.success('+1 ponto!', { description: 'Item marcado como experimentado ✓' });
-    }
+    await psToggleTried(user.id, itemId, getItemType(itemId), current.tried);
+    if (!current.tried) toast.success('+1 ponto!', { description: 'Item marcado como experimentado ✓' });
   };
 
   const toggleFavorite = async (itemId: string) => {
     if (!user) return;
     const current = itemStates[itemId] ?? { tried: false, favorite: false };
-    // Optimistic update
     setItemStates(prev => ({ ...prev, [itemId]: { ...current, favorite: !current.favorite } }));
-    const itemType = getItemType(itemId);
-    await psToggleFavorite(user.id, itemId, itemType, current.favorite);
-    if (!current.favorite) {
-      toast.success('+1 ponto!', { description: 'Adicionado aos favoritos ❤️' });
-    }
+    await psToggleFavorite(user.id, itemId, getItemType(itemId), current.favorite);
+    if (!current.favorite) toast.success('+1 ponto!', { description: 'Adicionado aos favoritos ❤️' });
   };
 
   const addReview = async (
     itemId: string,
     review: { photo?: string; comment: string; rating: number },
   ) => {
-    // Persist state in UI
     setItemStates(prev => ({
       ...prev,
       [itemId]: { ...(prev[itemId] ?? { tried: false, favorite: false }), review },
@@ -319,137 +275,190 @@ export default function CollectionDetail() {
 
     if (!user) return;
     const itemType = getItemType(itemId);
-
-    // Calculate points: review (comment/rating) = 3 pts, photo = 3 pts
     const hasReview = review.comment.trim() || review.rating > 0;
     const hasPhoto  = !!review.photo;
     let totalPts = 0;
 
-    if (hasReview) {
-      await awardPoints({ userId: user.id, action: 'review', itemId, itemType });
-      totalPts += 3;
-    }
-    if (hasPhoto) {
-      await awardPoints({ userId: user.id, action: 'photo', itemId, itemType });
-      totalPts += 3;
-    }
+    if (hasReview) { await awardPoints({ userId: user.id, action: 'review', itemId, itemType }); totalPts += 3; }
+    if (hasPhoto)  { await awardPoints({ userId: user.id, action: 'photo',  itemId, itemType }); totalPts += 3; }
 
-    // Save to reviews table
     await supabase.from('reviews').insert({
-      user_id:      user.id,
-      item_id:      itemId,
-      item_type:    itemType,
-      rating:       review.rating,
-      comment:      review.comment || null,
-      photos:       review.photo ? [review.photo] : null,
+      user_id: user.id, item_id: itemId, item_type: itemType,
+      rating: review.rating, comment: review.comment || null,
+      photos: review.photo ? [review.photo] : null,
       points_earned: totalPts,
     });
 
-    if (totalPts > 0) {
-      toast.success(`+${totalPts} pontos!`, { description: 'Sua avaliação foi registrada 🎉' });
-    }
+    if (totalPts > 0) toast.success(`+${totalPts} pontos!`, { description: 'Sua avaliação foi registrada 🎉' });
   };
 
-  // ── Render: loading ──────────────────────────────────────────────────────────
+  // ── Loading ───────────────────────────────────────────────────────────────────
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-purple-50 via-white to-pink-50 flex items-center justify-center">
-        <div className="w-16 h-16 border-4 border-purple-600 border-t-transparent rounded-full animate-spin" />
+      <div className="min-h-screen flex items-center justify-center" style={{ background: '#F5EDE0' }}>
+        <div className="w-12 h-12 border-3 border-t-transparent rounded-full animate-spin"
+             style={{ borderColor: '#6B0035', borderTopColor: 'transparent' }} />
       </div>
     );
   }
 
   if (!collection) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center" style={{ background: '#F5EDE0' }}>
         <div className="text-center">
-          <p className="text-gray-600 mb-2">Coleção não encontrada</p>
-          <Link to="/" className="text-purple-600 hover:underline">Voltar para início</Link>
+          <p className="mb-2" style={{ color: '#7A6855' }}>Coleção não encontrada</p>
+          <Link to="/" style={{ color: '#6B0035' }} className="hover:underline">Voltar para início</Link>
         </div>
       </div>
     );
   }
 
-  const currentItem = items[selectedIndex] ?? null;
-  const currentState = currentItem
-    ? (itemStates[currentItem.itemId] ?? { tried: false, favorite: false })
-    : null;
+  const currentItem  = items[selectedIndex] ?? null;
+  const currentState = currentItem ? (itemStates[currentItem.itemId] ?? { tried: false, favorite: false }) : null;
 
-  // ── Render ───────────────────────────────────────────────────────────────────
+  // ── Render ────────────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-purple-50 via-white to-pink-50">
+    <div className="min-h-screen" style={{ background: '#F5EDE0' }}>
 
-      {/* Fixed header */}
-      <div className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-200">
-        <div className="max-w-md mx-auto px-4 py-3">
-          <div className="flex items-center justify-between">
-            <Link
-              to="/"
-              className="w-10 h-10 hover:bg-gray-100 rounded-full flex items-center justify-center transition-colors"
-            >
-              <ChevronLeft className="w-6 h-6 text-gray-900" />
-            </Link>
-            <div className="flex-1 text-center px-4">
-              <p className="text-sm font-semibold text-gray-900 truncate">{collection.title}</p>
-              {items.length > 0 && (
-                <p className="text-xs text-gray-500">{selectedIndex + 1} de {items.length}</p>
-              )}
-            </div>
-            <button className="w-10 h-10 hover:bg-gray-100 rounded-full flex items-center justify-center transition-colors">
-              <Share2 className="w-5 h-5 text-gray-900" />
-            </button>
+      {/* ── Fixed top bar ──────────────────────────────────────────────────── */}
+      <div className="fixed top-0 left-0 right-0 z-50"
+           style={{ background: 'rgba(255,255,255,0.92)', backdropFilter: 'blur(12px)', borderBottom: '1px solid rgba(139,90,43,0.12)' }}>
+        <div className="max-w-md mx-auto px-3 py-2.5 flex items-center gap-2">
+          <Link
+            to="/"
+            className="w-9 h-9 rounded-full flex items-center justify-center transition-colors flex-shrink-0"
+            style={{ background: '#F5EDE0' }}
+          >
+            <ChevronLeft className="w-5 h-5" style={{ color: '#1C1209' }} />
+          </Link>
+
+          <div className="flex-1 min-w-0 text-center">
+            <p className="text-sm font-bold truncate leading-tight"
+               style={{ color: '#1C1209', fontFamily: '"Fraunces", Georgia, serif' }}>
+              {collection.title}
+            </p>
+            {items.length > 0 && (
+              <p className="text-[11px] leading-none mt-0.5" style={{ color: '#B0A090' }}>
+                {selectedIndex + 1} de {items.length}
+              </p>
+            )}
           </div>
+
+          <button className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
+                  style={{ background: '#F5EDE0' }}>
+            <Share2 className="w-4 h-4" style={{ color: '#1C1209' }} />
+          </button>
         </div>
       </div>
 
-      <div className="pt-16">
+      {/* ── Main content ─────────────────────────────────────────────────────── */}
+      <div className="pt-14">
+
         {items.length > 0 && currentItem ? (
           <>
-            {/* ── Carousel ──────────────────────────────────────────────────── */}
-            <div className="relative">
-              <div className="overflow-hidden" ref={emblaRef}>
-                <div className="flex">
+            {/* ── Product header — ABOVE the image ─────────────────────────── */}
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={selectedIndex}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.18 }}
+                className="max-w-md mx-auto px-4 pt-4 pb-3"
+              >
+                {/* Item type label */}
+                {currentItem.type && (
+                  <div className="mb-2">
+                    <span className="chip"
+                          style={{
+                            background: currentItem.itemType === 'wine' ? '#F8EBF1' : currentItem.itemType === 'experience' ? '#FBF3DC' : '#E8F0EC',
+                            color: currentItem.itemType === 'wine' ? '#6B0035' : currentItem.itemType === 'experience' ? '#7A4F07' : '#2D4A3E',
+                          }}>
+                      {currentItem.itemType === 'experience' ? `✨ ${currentItem.type}` : currentItem.type}
+                    </span>
+                  </div>
+                )}
+
+                {/* Item name */}
+                <h1 className="text-2xl font-bold leading-tight mb-1"
+                    style={{ fontFamily: '"Fraunces", Georgia, serif', color: '#1C1209', letterSpacing: '-0.02em' }}>
+                  {currentItem.name}
+                </h1>
+
+                {/* Sub-name (winery) */}
+                {currentItem.subName && (
+                  <p className="text-base mb-1" style={{ color: '#7A6855' }}>{currentItem.subName}</p>
+                )}
+
+                {/* Location */}
+                {currentItem.location && (
+                  <div className="flex items-center gap-1.5 text-sm" style={{ color: '#B0A090' }}>
+                    <MapPin className="w-3.5 h-3.5 flex-shrink-0" style={{ color: '#9B1B4D' }} />
+                    <span>{currentItem.location}</span>
+                  </div>
+                )}
+              </motion.div>
+            </AnimatePresence>
+
+            {/* ── Image carousel ────────────────────────────────────────────── */}
+            <div className="relative select-none">
+              {/* Embla container */}
+              <div className="overflow-hidden cursor-grab active:cursor-grabbing" ref={emblaRef}>
+                <div className="flex touch-pan-y">
                   {items.map((item) => {
-                    const state = itemStates[item.itemId] ?? { tried: false, favorite: false };
+                    const state  = itemStates[item.itemId] ?? { tried: false, favorite: false };
                     const isWine = item.itemType === 'wine';
                     return (
-                      <div key={item.itemId} className="flex-[0_0_100%] min-w-0">
-                        <div className={`relative h-[55vh] ${isWine ? 'bg-gradient-to-br from-purple-100 via-pink-50 to-orange-50' : 'bg-black'}`}>
+                      <div key={item.itemId} className="flex-[0_0_100%] min-w-0 px-4">
+                        <div
+                          className="relative overflow-hidden"
+                          style={{
+                            height: '52vw',
+                            maxHeight: '340px',
+                            minHeight: '200px',
+                            borderRadius: '20px',
+                            background: isWine
+                              ? 'linear-gradient(135deg, #F8EBF1 0%, #FBF7F2 100%)'
+                              : '#1C1209',
+                          }}
+                        >
                           {isWine ? (
-                            /* Wine: centered bottle */
-                            <div className="h-full flex items-center justify-center p-8">
+                            <div className="h-full flex items-center justify-center p-6">
                               <img
                                 src={item.photo || FALLBACK}
                                 alt={item.name}
                                 className="max-h-full max-w-full object-contain drop-shadow-2xl"
                                 onError={imgFallback}
+                                draggable={false}
                               />
                             </div>
                           ) : (
-                            /* Experience / Winery: full-width cover */
                             <>
                               <img
                                 src={item.photo || FALLBACK}
                                 alt={item.name}
                                 className="w-full h-full object-cover"
                                 onError={imgFallback}
+                                draggable={false}
                               />
-                              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                              <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
                             </>
                           )}
 
                           {/* Status badges */}
-                          <div className="absolute top-4 right-4 flex gap-2">
+                          <div className="absolute top-3 right-3 flex gap-2">
                             {state.tried && (
-                              <div className="bg-green-500 text-white rounded-full p-2 shadow-lg">
-                                <CheckCircle2 className="w-5 h-5" />
+                              <div className="rounded-full p-1.5 shadow-md"
+                                   style={{ background: '#2D4A3E' }}>
+                                <CheckCircle2 className="w-4 h-4 text-white" />
                               </div>
                             )}
                             {state.favorite && (
-                              <div className="bg-red-500 text-white rounded-full p-2 shadow-lg">
-                                <Heart className="w-5 h-5 fill-white" />
+                              <div className="rounded-full p-1.5 shadow-md"
+                                   style={{ background: '#6B0035' }}>
+                                <Heart className="w-4 h-4 text-white fill-white" />
                               </div>
                             )}
                           </div>
@@ -460,89 +469,97 @@ export default function CollectionDetail() {
                 </div>
               </div>
 
-              {/* Nav arrows */}
+              {/* ── Prev arrow ─────────────────────────────────────────────── */}
               {items.length > 1 && (
                 <>
                   <button
                     onClick={() => emblaApi?.scrollPrev()}
-                    className={`absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg transition-opacity ${selectedIndex === 0 ? 'opacity-0 pointer-events-none' : ''}`}
+                    disabled={selectedIndex === 0}
+                    className="absolute left-0 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full flex items-center justify-center transition-all"
+                    style={{
+                      background: selectedIndex === 0 ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.92)',
+                      boxShadow: selectedIndex === 0 ? 'none' : '0 2px 8px rgba(28,18,9,0.15)',
+                      backdropFilter: 'blur(6px)',
+                      opacity: selectedIndex === 0 ? 0 : 1,
+                      pointerEvents: selectedIndex === 0 ? 'none' : 'auto',
+                      transition: 'opacity 0.2s',
+                    }}
                   >
-                    <ChevronLeft className="w-6 h-6 text-gray-900" />
+                    <ChevronLeft className="w-5 h-5" style={{ color: '#1C1209' }} />
                   </button>
+
                   <button
                     onClick={() => emblaApi?.scrollNext()}
-                    className={`absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg transition-opacity ${selectedIndex === items.length - 1 ? 'opacity-0 pointer-events-none' : ''}`}
+                    disabled={selectedIndex === items.length - 1}
+                    className="absolute right-0 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full flex items-center justify-center transition-all"
+                    style={{
+                      background: selectedIndex === items.length - 1 ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.92)',
+                      boxShadow: selectedIndex === items.length - 1 ? 'none' : '0 2px 8px rgba(28,18,9,0.15)',
+                      backdropFilter: 'blur(6px)',
+                      opacity: selectedIndex === items.length - 1 ? 0 : 1,
+                      pointerEvents: selectedIndex === items.length - 1 ? 'none' : 'auto',
+                      transition: 'opacity 0.2s',
+                    }}
                   >
-                    <ChevronRight className="w-6 h-6 text-gray-900" />
+                    <ChevronRight className="w-5 h-5" style={{ color: '#1C1209' }} />
                   </button>
                 </>
               )}
+            </div>
 
-              {/* Dot indicators */}
-              <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2">
+            {/* ── Dot indicators + swipe hint ──────────────────────────────── */}
+            {items.length > 1 && (
+              <div className="flex items-center justify-center gap-2 mt-3 mb-1">
                 {items.map((_, i) => (
                   <button
                     key={i}
                     onClick={() => emblaApi?.scrollTo(i)}
-                    className={`h-2 rounded-full transition-all ${i === selectedIndex ? 'w-8 bg-white shadow-lg' : 'w-2 bg-white/50'}`}
+                    className="rounded-full transition-all duration-200"
+                    style={{
+                      height: '6px',
+                      width: i === selectedIndex ? '24px' : '6px',
+                      background: i === selectedIndex ? '#6B0035' : 'rgba(139,90,43,0.25)',
+                    }}
                   />
                 ))}
               </div>
-            </div>
+            )}
 
-            {/* ── Item details ─────────────────────────────────────────────── */}
-            <div className="max-w-md mx-auto px-4 py-6">
+            {/* ── Actions + details ────────────────────────────────────────── */}
+            <div className="max-w-md mx-auto px-4 pt-5 pb-8">
 
-              {/* Name + sub-info */}
-              <div className="mb-6">
-                <h1 className="text-2xl font-bold text-gray-900 mb-1">{currentItem.name}</h1>
-                {currentItem.subName && (
-                  <p className="text-lg text-gray-600 mb-1">{currentItem.subName}</p>
-                )}
-                {currentItem.location && (
-                  <div className="flex items-center gap-1.5 text-gray-500 text-sm mt-1">
-                    <MapPin className="w-4 h-4 shrink-0" />
-                    <span>{currentItem.location}, Brasil</span>
-                  </div>
-                )}
-                {currentItem.type && (
-                  <div className="flex flex-wrap gap-2 mt-3">
-                    <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm font-medium">
-                      {currentItem.itemType === 'experience' ? `✨ ${currentItem.type}` : currentItem.type}
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              {/* Tried / Favorite — only for logged-in users */}
+              {/* Tried / Favorite */}
               {user && currentState && (
                 <div className="grid grid-cols-2 gap-3 mb-6">
                   <button
                     onClick={() => toggleTried(currentItem.itemId)}
-                    className={`py-4 rounded-xl font-semibold transition-all flex items-center justify-center gap-2 ${
-                      currentState.tried
-                        ? 'bg-green-500 text-white shadow-lg'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
+                    className="py-3.5 rounded-2xl font-semibold transition-all flex items-center justify-center gap-2 text-sm"
+                    style={{
+                      background: currentState.tried ? '#2D4A3E' : '#EDE4D6',
+                      color:      currentState.tried ? '#FFFFFF' : '#7A6855',
+                      boxShadow:  currentState.tried ? '0 2px 8px rgba(45,74,62,0.30)' : 'none',
+                    }}
                   >
-                    <CheckCircle2 className={`w-5 h-5 ${currentState.tried ? 'fill-white' : ''}`} />
-                    <span className="text-sm">{currentState.tried ? 'Experimentado' : 'Marcar'}</span>
+                    <CheckCircle2 className="w-4 h-4" style={{ fill: currentState.tried ? 'white' : 'none' }} />
+                    {currentState.tried ? 'Experimentado' : 'Marcar'}
                   </button>
+
                   <button
                     onClick={() => toggleFavorite(currentItem.itemId)}
-                    className={`py-4 rounded-xl font-semibold transition-all flex items-center justify-center gap-2 ${
-                      currentState.favorite
-                        ? 'bg-red-500 text-white shadow-lg'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
+                    className="py-3.5 rounded-2xl font-semibold transition-all flex items-center justify-center gap-2 text-sm"
+                    style={{
+                      background: currentState.favorite ? '#6B0035' : '#EDE4D6',
+                      color:      currentState.favorite ? '#FFFFFF' : '#7A6855',
+                      boxShadow:  currentState.favorite ? '0 2px 8px rgba(107,0,53,0.30)' : 'none',
+                    }}
                   >
-                    <Heart className={`w-5 h-5 ${currentState.favorite ? 'fill-white' : ''}`} />
-                    <span className="text-sm">{currentState.favorite ? 'Favoritado' : 'Favoritar'}</span>
+                    <Heart className="w-4 h-4" style={{ fill: currentState.favorite ? 'white' : 'none' }} />
+                    {currentState.favorite ? 'Favoritado' : 'Favoritar'}
                   </button>
                 </div>
               )}
 
-              {/* Review section — appears after marking tried */}
+              {/* Review section */}
               <AnimatePresence>
                 {user && currentState?.tried && !currentState.review && (
                   <motion.div
@@ -563,57 +580,64 @@ export default function CollectionDetail() {
               {/* Existing review */}
               {currentState?.review && (
                 <motion.div
-                  initial={{ opacity: 0, y: 20 }}
+                  initial={{ opacity: 0, y: 16 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="bg-white rounded-2xl p-6 shadow-lg mb-6"
+                  className="rounded-2xl p-5 mb-6"
+                  style={{ background: '#FFFFFF', border: '1px solid rgba(139,90,43,0.12)', boxShadow: '0 2px 8px rgba(28,18,9,0.07)' }}
                 >
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-bold text-gray-900">Sua Avaliação</h3>
-                    <span className="text-sm text-green-600 font-medium">✓ Pontos ganhos</span>
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="font-bold" style={{ color: '#1C1209', fontFamily: '"Fraunces", Georgia, serif' }}>Sua Avaliação</h3>
+                    <span className="text-xs font-semibold" style={{ color: '#2D4A3E' }}>✓ Pontos ganhos</span>
                   </div>
                   {currentState.review.rating > 0 && (
-                    <div className="flex gap-1 mb-3">
+                    <div className="flex gap-0.5 mb-3">
                       {[1,2,3,4,5].map(s => (
-                        <span key={s} className={`text-xl ${s <= currentState.review!.rating ? 'text-yellow-400' : 'text-gray-200'}`}>★</span>
+                        <span key={s} className="text-xl"
+                              style={{ color: s <= currentState.review!.rating ? '#B8820B' : '#EDE4D6' }}>★</span>
                       ))}
                     </div>
                   )}
                   {currentState.review.photo && (
-                    <img src={currentState.review.photo} alt="Review" className="w-full h-48 object-cover rounded-xl mb-3" />
+                    <img src={currentState.review.photo} alt="Review"
+                         className="w-full h-44 object-cover rounded-xl mb-3" />
                   )}
                   {currentState.review.comment && (
-                    <p className="text-gray-700 leading-relaxed">{currentState.review.comment}</p>
+                    <p className="leading-relaxed" style={{ color: '#7A6855' }}>{currentState.review.comment}</p>
                   )}
                 </motion.div>
               )}
 
-              {/* "Por que beber/viver/visitar?" */}
+              {/* "Por que...?" */}
               {currentItem.highlight && (
-                <div className="bg-white rounded-2xl p-6 shadow-lg mb-6">
+                <div className="rounded-2xl p-5 mb-5"
+                     style={{ background: '#FFFFFF', border: '1px solid rgba(139,90,43,0.12)', boxShadow: '0 2px 8px rgba(28,18,9,0.07)' }}>
                   <div className="flex items-center gap-2 mb-3">
                     <span className="text-2xl">{WHY_EMOJI[currentItem.itemType]}</span>
-                    <h2 className="text-lg font-bold text-gray-900">
+                    <h2 className="text-base font-bold"
+                        style={{ color: '#1C1209', fontFamily: '"Fraunces", Georgia, serif' }}>
                       {WHY_LABEL[currentItem.itemType]}
                     </h2>
                   </div>
-                  <p className="text-gray-700 leading-relaxed">{currentItem.highlight}</p>
+                  <p className="leading-relaxed text-sm" style={{ color: '#7A6855' }}>{currentItem.highlight}</p>
                 </div>
               )}
 
-              {/* Descrição — wines: tasting_note */}
+              {/* Tasting note */}
               {currentItem.tastingNote && (
-                <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl p-6 mb-8">
-                  <h2 className="text-lg font-bold text-gray-900 mb-3">Descrição</h2>
-                  <p className="text-gray-700 leading-relaxed">{currentItem.tastingNote}</p>
+                <div className="rounded-2xl p-5 mb-6"
+                     style={{ background: '#FBF7F2', border: '1px solid rgba(139,90,43,0.10)' }}>
+                  <h2 className="text-base font-bold mb-3"
+                      style={{ color: '#1C1209', fontFamily: '"Fraunces", Georgia, serif' }}>Descrição</h2>
+                  <p className="leading-relaxed text-sm" style={{ color: '#7A6855' }}>{currentItem.tastingNote}</p>
                 </div>
               )}
 
               {/* Continue Explorando */}
               {otherCollections.length > 0 && (
-                <div className="border-t border-gray-200 pt-8 pb-8">
-                  <h2 className="text-2xl font-bold text-gray-900 mb-2">Continue Explorando</h2>
-                  <p className="text-gray-600 mb-6 text-sm">Descubra outras coleções que você vai adorar</p>
-                  <div className="space-y-0">
+                <div className="pt-6 border-t pb-8" style={{ borderColor: 'rgba(139,90,43,0.12)' }}>
+                  <h2 className="text-xl font-bold mb-1 section-title">Continue Explorando</h2>
+                  <p className="text-sm mb-5" style={{ color: '#B0A090' }}>Descubra outras coleções que você vai adorar</p>
+                  <div>
                     {otherCollections.map(c => (
                       <CollectionCard
                         key={c.id}
@@ -633,22 +657,22 @@ export default function CollectionDetail() {
             </div>
           </>
         ) : (
-          /* Empty collection fallback */
+          /* Empty collection */
           <div className="max-w-md mx-auto px-4 py-6">
-            <div className="relative h-64 rounded-3xl overflow-hidden mb-6 shadow-xl">
-              <img
-                src={collection.photo || FALLBACK}
-                alt={collection.title}
-                className="w-full h-full object-cover"
-                onError={imgFallback}
-              />
+            <div className="relative h-64 rounded-3xl overflow-hidden mb-6"
+                 style={{ boxShadow: '0 8px 24px rgba(28,18,9,0.12)' }}>
+              <img src={collection.photo || FALLBACK} alt={collection.title}
+                   className="w-full h-full object-cover" onError={imgFallback} />
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
               <div className="absolute bottom-6 left-6 right-6">
-                <h1 className="text-2xl font-bold text-white mb-1">{collection.title}</h1>
-                {collection.tagline && <p className="text-white/80 text-sm">{collection.tagline}</p>}
+                <h1 className="text-2xl font-bold text-white mb-1"
+                    style={{ fontFamily: '"Fraunces", Georgia, serif' }}>{collection.title}</h1>
+                {collection.tagline && (
+                  <p className="text-sm" style={{ color: 'rgba(255,255,255,0.80)' }}>{collection.tagline}</p>
+                )}
               </div>
             </div>
-            <p className="text-center text-gray-500">Esta coleção ainda não tem itens.</p>
+            <p className="text-center" style={{ color: '#B0A090' }}>Esta coleção ainda não tem itens.</p>
           </div>
         )}
       </div>
