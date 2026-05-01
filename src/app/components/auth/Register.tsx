@@ -62,7 +62,14 @@ export default function Register() {
     setError('');
     if (password.length < 6) { setError('A senha deve ter pelo menos 6 caracteres.'); return; }
     setLoading(true);
-    const { data, error } = await supabase.auth.signUp({ email, password, options: { data: { name } } });
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { name },
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
+      },
+    });
     if (error) {
       if (error.message.includes('already registered')) {
         setError('Este email já está cadastrado. Faça login.');
