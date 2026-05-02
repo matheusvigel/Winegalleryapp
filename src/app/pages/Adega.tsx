@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
-import { Link } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import {
   Camera, Search, CheckCircle2, X, Wine, Plus, ChevronRight,
-  Loader2, Send, Hourglass,
+  Loader2, Send, Hourglass, FolderOpen,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
@@ -51,16 +51,15 @@ interface CellarEntry {
 
 type Step = 'cellar' | 'scan' | 'search' | 'submit';
 type Intent = 'drank' | 'cellar' | 'wishlist';
-type Tab = 'cellar' | 'drank' | 'wishlist';
-
-const ANTHROPIC_KEY = import.meta.env.VITE_ANTHROPIC_KEY as string | undefined;
+type Tab = 'cellar' | 'drank' | 'wishlist' | 'collections';
 
 const FALLBACK = 'https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=400&q=80';
 
 const TABS: { key: Tab; label: string; emoji: string }[] = [
-  { key: 'cellar',   label: 'Adega',        emoji: '🏠' },
-  { key: 'drank',    label: 'Bebidos',       emoji: '🍷' },
-  { key: 'wishlist', label: 'Quero Provar',  emoji: '❤️' },
+  { key: 'cellar',      label: 'Adega',      emoji: '🏠' },
+  { key: 'drank',       label: 'Bebidos',    emoji: '🍷' },
+  { key: 'wishlist',    label: 'Wishlist',   emoji: '❤️' },
+  { key: 'collections', label: 'Coleções',   emoji: '📚' },
 ];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -85,11 +84,16 @@ function entryCurated(e: CellarEntry) {
 
 export default function Adega() {
   const { user } = useAuth();
+  const navigate  = useNavigate();
 
   const [step, setStep]         = useState<Step>('cellar');
   const [tab, setTab]           = useState<Tab>('cellar');
   const [entries, setEntries]   = useState<CellarEntry[]>([]);
   const [loading, setLoading]   = useState(true);
+
+  // Collections tab
+  const [collections, setCollections]   = useState<{ id: string; name: string; count: number }[]>([]);
+  const [colsLoading, setColsLoading]   = useState(false);
 
   // Search state
   const [query, setQuery]         = useState('');
@@ -115,6 +119,26 @@ export default function Adega() {
   useEffect(() => {
     if (user) loadCellar();
   }, [user]);
+
+  useEffect(() => {
+    if (user && tab === 'collections') loadCollections();
+  }, [user, tab]);
+
+  const loadCollections = async () => {
+    if (!user) return;
+    setColsLoading(true);
+    const { data } = await supabase
+      .from('user_collections')
+      .select('id, name, user_collection_items(count)')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+    setCollections((data ?? []).map((c: any) => ({
+      id:    c.id,
+      name:  c.name,
+      count: c.user_collection_items?.[0]?.count ?? 0,
+    })));
+    setColsLoading(false);
+  };
 
   const loadCellar = async () => {
     if (!user) return;
@@ -320,9 +344,10 @@ export default function Adega() {
   };
 
   const tabEntries = entries.filter(e =>
-    tab === 'cellar'   ? e.intent === 'cellar' :
-    tab === 'drank'    ? e.intent === 'drank'  :
-                         e.intent === 'wishlist',
+    tab === 'cellar'   ? e.intent === 'cellar'   :
+    tab === 'drank'    ? e.intent === 'drank'    :
+    tab === 'wishlist' ? e.intent === 'wishlist' :
+    false,
   );
 
   if (!user) {
@@ -365,7 +390,7 @@ export default function Adega() {
                   Minha Adega
                 </h1>
                 <button
-                  onClick={() => setStep('scan')}
+                  onClick={() => navigate('/add-wine')}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-semibold text-white"
                   style={{ background: '#6B0035' }}
                 >
@@ -427,12 +452,57 @@ export default function Adega() {
             exit={{ opacity: 0 }}
             className="max-w-lg mx-auto px-4 py-5"
           >
-            {loading ? (
+            {tab === 'collections' ? (
+              /* ── Collections tab ───────────────────────────────────────── */
+              colsLoading ? (
+                <div className="flex items-center justify-center py-20">
+                  <Loader2 className="w-7 h-7 animate-spin" style={{ color: '#6B0035' }} />
+                </div>
+              ) : collections.length === 0 ? (
+                <div className="text-center py-16 px-4">
+                  <div className="text-5xl mb-4">📚</div>
+                  <h2 className="text-lg font-bold mb-2"
+                      style={{ fontFamily: '"Fraunces", Georgia, serif', color: '#1C1209' }}>
+                    Nenhuma coleção ainda
+                  </h2>
+                  <p className="text-sm mb-6 max-w-xs mx-auto" style={{ color: '#7A6855' }}>
+                    Adicione um vinho e crie sua primeira coleção personalizada.
+                  </p>
+                  <button onClick={() => navigate('/add-wine')}
+                          className="flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-white mx-auto"
+                          style={{ background: '#6B0035' }}>
+                    <Plus className="w-5 h-5" /> Adicionar vinho
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <p className="text-xs font-medium mb-3" style={{ color: '#B0A090' }}>
+                    {collections.length} {collections.length === 1 ? 'coleção' : 'coleções'}
+                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    {collections.map(col => (
+                      <button key={col.id}
+                              className="flex flex-col items-start p-4 rounded-2xl text-left transition-all active:scale-[0.97]"
+                              style={{ background: '#fff', border: '1px solid rgba(139,90,43,0.12)', boxShadow: '0 1px 4px rgba(28,18,9,0.05)' }}>
+                        <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-3"
+                             style={{ background: 'rgba(107,0,53,0.08)' }}>
+                          <FolderOpen className="w-5 h-5" style={{ color: '#6B0035' }} />
+                        </div>
+                        <p className="font-bold text-sm leading-tight mb-1" style={{ color: '#1C1209' }}>{col.name}</p>
+                        <p className="text-xs" style={{ color: '#B0A090' }}>
+                          {col.count} {col.count === 1 ? 'vinho' : 'vinhos'}
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )
+            ) : loading ? (
               <div className="flex items-center justify-center py-20">
                 <Loader2 className="w-7 h-7 animate-spin" style={{ color: '#6B0035' }} />
               </div>
             ) : tabEntries.length === 0 ? (
-              <EmptyState tab={tab} onAdd={() => setStep('scan')} />
+              <EmptyState tab={tab} onAdd={() => navigate('/add-wine')} />
             ) : (
               <>
                 <p className="text-xs font-medium mb-3" style={{ color: '#B0A090' }}>
