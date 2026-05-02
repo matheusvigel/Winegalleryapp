@@ -38,6 +38,7 @@ import Achievements from "./pages/Achievements";
 import WineDetail from "./pages/WineDetail";
 import WineDiary from "./pages/WineDiary";
 import Adega from "./pages/Adega";
+import AddWine from "./pages/AddWine";
 import AuthCallback from "./pages/AuthCallback";
 import WineryDetail from "./pages/WineryDetail";
 import PlaceDetail from "./pages/PlaceDetail";
@@ -98,6 +99,7 @@ export const router = createBrowserRouter([
       { path: "wine/:id",               Component: WineDetail        },
       { path: "wine-diary",             Component: WineDiary         },
       { path: "adega",                  Component: Adega             },
+      { path: "add-wine",               Component: AddWine           },
       { path: "collection/:id",         Component: CollectionDetail  },
       { path: "experience/:id",         Component: ExperienceDetail  },
       {

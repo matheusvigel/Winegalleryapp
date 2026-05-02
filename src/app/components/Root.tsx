@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router';
-import { Home, Compass, Users, Trophy, User, Search, GlassWater } from 'lucide-react';
+import { Home, Compass, Users, Trophy, User, Search, GlassWater, Plus } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 const NAV_LINKS = [
@@ -9,12 +9,13 @@ const NAV_LINKS = [
   { path: '/achievements', label: 'Conquistas', Icon: Trophy  },
 ];
 
-const MOBILE_NAV = [
-  { path: '/',             label: 'Início',     Icon: Home        },
-  { path: '/explore',      label: 'Explorar',   Icon: Compass     },
-  { path: '/adega',        label: 'Adega',      Icon: GlassWater  },
-  { path: '/brotherhoods', label: 'Confrarias', Icon: Users       },
-  { path: '/profile',      label: 'Perfil',     Icon: User        },
+const MOBILE_NAV_LEFT = [
+  { path: '/',        label: 'Início',   Icon: Home       },
+  { path: '/explore', label: 'Explorar', Icon: Compass    },
+];
+const MOBILE_NAV_RIGHT = [
+  { path: '/adega',   label: 'Adega',   Icon: GlassWater },
+  { path: '/profile', label: 'Perfil',  Icon: User       },
 ];
 
 function WineArchIcon({ size = 28, color = '#6B0035' }: { size?: number; color?: string }) {
@@ -184,24 +185,56 @@ export default function Root() {
           ═══════════════════════════════════════════════════════ */}
       <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white pb-safe"
            style={{ borderTop: '1px solid rgba(139,90,43,0.12)' }}>
-        <div className="flex justify-around items-center h-16">
-          {MOBILE_NAV.map(({ path, label, Icon }) => {
+        <div className="flex items-end h-16 max-w-md mx-auto">
+
+          {/* Left links */}
+          {MOBILE_NAV_LEFT.map(({ path, label, Icon }) => {
             const active = isActive(path);
             return (
-              <Link
-                key={path}
-                to={path}
-                className="flex flex-col items-center justify-center flex-1 h-full transition-colors no-underline"
-                style={{ color: active ? '#6B0035' : '#B0A090' }}
-              >
+              <Link key={path} to={path}
+                    className="flex flex-col items-center justify-center flex-1 h-full transition-colors no-underline"
+                    style={{ color: active ? '#6B0035' : '#B0A090' }}>
                 <div className="flex items-center justify-center w-10 h-6 rounded-full mb-0.5 transition-colors"
                      style={{ background: active ? 'rgba(107,0,53,0.08)' : 'transparent' }}>
                   <Icon className="w-5 h-5" strokeWidth={active ? 2.5 : 1.75} />
                 </div>
                 <span className="text-[10px] font-semibold tracking-wide"
-                      style={{ fontFamily: '"DM Sans", sans-serif' }}>
-                  {label}
-                </span>
+                      style={{ fontFamily: '"DM Sans", sans-serif' }}>{label}</span>
+              </Link>
+            );
+          })}
+
+          {/* FAB — center "+" button */}
+          <div className="flex flex-col items-center justify-end flex-1 pb-2">
+            <button
+              onClick={() => navigate('/add-wine')}
+              className="flex items-center justify-center rounded-full shadow-lg active:scale-95 transition-transform"
+              style={{
+                width: 52,
+                height: 52,
+                background: 'linear-gradient(135deg, #6B0035 0%, #9B1B4D 100%)',
+                boxShadow: '0 4px 16px rgba(107,0,53,0.45)',
+                marginBottom: 2,
+              }}
+              aria-label="Adicionar vinho"
+            >
+              <Plus className="w-6 h-6 text-white" strokeWidth={2.5} />
+            </button>
+          </div>
+
+          {/* Right links */}
+          {MOBILE_NAV_RIGHT.map(({ path, label, Icon }) => {
+            const active = isActive(path);
+            return (
+              <Link key={path} to={path}
+                    className="flex flex-col items-center justify-center flex-1 h-full transition-colors no-underline"
+                    style={{ color: active ? '#6B0035' : '#B0A090' }}>
+                <div className="flex items-center justify-center w-10 h-6 rounded-full mb-0.5 transition-colors"
+                     style={{ background: active ? 'rgba(107,0,53,0.08)' : 'transparent' }}>
+                  <Icon className="w-5 h-5" strokeWidth={active ? 2.5 : 1.75} />
+                </div>
+                <span className="text-[10px] font-semibold tracking-wide"
+                      style={{ fontFamily: '"DM Sans", sans-serif' }}>{label}</span>
               </Link>
             );
           })}
