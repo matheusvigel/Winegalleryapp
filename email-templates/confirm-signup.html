@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <title>Confirme sua conta — wine gallery</title>
+  <!--[if mso]>
+  <noscript>
+    <xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml>
+  </noscript>
+  <![endif]-->
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@700&family=DM+Sans:wght@400;500;600&display=swap');
+    body, table, td, p, a { -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
+    table, td { mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
+    img { -ms-interpolation-mode: bicubic; border: 0; outline: none; }
+    a { text-decoration: none; }
+  </style>
+</head>
+<body style="margin:0; padding:0; background-color:#E9E3D9; font-family:'DM Sans', system-ui, -apple-system, sans-serif;">
+
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color:#E9E3D9;">
+    <tr>
+      <td align="center" style="padding:48px 16px 32px;">
+
+        <!-- Logo block -->
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:32px;">
+          <tr>
+            <td align="center">
+              <!-- Wine arch icon (SVG, renders in Gmail/Apple Mail; Outlook shows nothing — acceptable) -->
+              <img src="https://winegalleryapp.vercel.app/icon-192.png" width="48" height="48" alt="wine gallery" style="display:block; margin:0 auto 12px; border-radius:12px;" />
+              <div style="font-family:Georgia, 'Times New Roman', serif; font-size:26px; font-weight:700; color:#1C1B1F; letter-spacing:-0.02em; line-height:1;">
+                wine gallery
+              </div>
+              <div style="font-family:'DM Sans', system-ui, sans-serif; font-size:12px; color:#9B9B9B; margin-top:4px; letter-spacing:0.02em;">
+                Sua jornada pelo mundo do vinho
+              </div>
+            </td>
+          </tr>
+        </table>
+
+        <!-- Card -->
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="max-width:480px; background-color:#FFFFFF; border-radius:16px; border:1px solid rgba(0,0,0,0.08); box-shadow:0 2px 16px rgba(0,0,0,0.06);">
+          <tr>
+            <td style="padding:36px 32px 28px;">
+
+              <!-- Icon badge -->
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:20px;">
+                <tr>
+                  <td style="width:48px; height:48px; background:rgba(105,0,55,0.08); border-radius:12px; text-align:center; vertical-align:middle;">
+                    <!-- Envelope icon approximation for email clients -->
+                    <img src="https://img.icons8.com/ios/48/690037/secured-letter--v1.png" width="24" height="24" alt="" style="display:inline-block; vertical-align:middle;" />
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Headline -->
+              <p style="margin:0 0 8px; font-family:Georgia, 'Times New Roman', serif; font-size:22px; font-weight:700; color:#1C1B1F; line-height:1.2;">
+                Confirme seu email
+              </p>
+              <p style="margin:0 0 28px; font-family:'DM Sans', system-ui, sans-serif; font-size:14px; color:#9B9B9B; line-height:1.6;">
+                Olá! Para ativar sua conta e começar a explorar o universo dos vinhos, clique no botão abaixo para confirmar seu endereço de email.
+              </p>
+
+              <!-- CTA button -->
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tr>
+                  <td align="center">
+                    <!--[if mso]>
+                    <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word"
+                      href="{{ .ConfirmationURL }}" style="height:48px;v-text-anchor:middle;width:280px;" arcsize="17%"
+                      fillcolor="#690037" strokecolor="#690037">
+                      <w:anchorlock/>
+                      <center style="color:#fff;font-family:sans-serif;font-size:15px;font-weight:600;">Confirmar email</center>
+                    </v:roundrect>
+                    <![endif]-->
+                    <!--[if !mso]><!-->
+                    <a href="{{ .ConfirmationURL }}"
+                       style="display:inline-block; background-color:#690037; color:#FFFFFF; font-family:'DM Sans', system-ui, sans-serif; font-size:15px; font-weight:600; letter-spacing:0.01em; text-decoration:none; padding:14px 40px; border-radius:8px; line-height:1;">
+                      Confirmar email
+                    </a>
+                    <!--<![endif]-->
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Divider -->
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:28px 0;">
+                <tr>
+                  <td style="border-top:1px solid rgba(0,0,0,0.07);"></td>
+                </tr>
+              </table>
+
+              <!-- Fallback link -->
+              <p style="margin:0 0 6px; font-family:'DM Sans', system-ui, sans-serif; font-size:12px; color:#9B9B9B; line-height:1.5;">
+                Se o botão não funcionar, copie e cole este link no navegador:
+              </p>
+              <p style="margin:0; font-family:'DM Sans', system-ui, sans-serif; font-size:11px; color:#690037; word-break:break-all; line-height:1.5;">
+                <a href="{{ .ConfirmationURL }}" style="color:#690037;">{{ .ConfirmationURL }}</a>
+              </p>
+
+              <!-- Expiry note -->
+              <p style="margin:20px 0 0; font-family:'DM Sans', system-ui, sans-serif; font-size:12px; color:#C0B8B0; line-height:1.5;">
+                Este link expira em 24 horas. Se você não criou esta conta, ignore este email.
+              </p>
+
+            </td>
+          </tr>
+        </table>
+
+        <!-- Footer -->
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-top:28px;">
+          <tr>
+            <td align="center">
+              <p style="margin:0 0 6px; font-family:'DM Sans', system-ui, sans-serif; font-size:11px; color:#B0A898; letter-spacing:0.08em; text-transform:uppercase;">
+                Beba com moderação
+              </p>
+              <p style="margin:0; font-family:'DM Sans', system-ui, sans-serif; font-size:11px; color:#C8C0B8;">
+                © 2025 Wine Gallery · Todos os direitos reservados
+              </p>
+            </td>
+          </tr>
+        </table>
+
+      </td>
+    </tr>
+  </table>
+
+</body>
+</html>

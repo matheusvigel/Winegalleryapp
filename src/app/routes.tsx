@@ -10,6 +10,8 @@ import Profile from "./components/Profile";
 import Login from "./components/auth/Login";
 import Register from "./components/auth/Register";
 import Onboarding from "./components/auth/Onboarding";
+import ForgotPassword from "./components/auth/ForgotPassword";
+import ResetPassword from "./components/auth/ResetPassword";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 import AdminGuard from "./backoffice/AdminGuard";
 import BackofficeLayout from "./backoffice/BackofficeLayout";
@@ -50,10 +52,12 @@ import BrotherhoodDetail from "./pages/BrotherhoodDetail";
 
 export const router = createBrowserRouter([
   // ── Auth (standalone, no shell) ───────────────────────────
-  { path: "/login",          Component: Login        },
-  { path: "/register",       Component: Register     },
-  { path: "/onboarding",     Component: Onboarding   },
-  { path: "/auth/callback",  Component: AuthCallback },
+  { path: "/login",            Component: Login           },
+  { path: "/register",         Component: Register        },
+  { path: "/onboarding",       Component: Onboarding      },
+  { path: "/auth/callback",    Component: AuthCallback    },
+  { path: "/forgot-password",  Component: ForgotPassword  },
+  { path: "/reset-password",   Component: ResetPassword   },
 
   // ── Admin ─────────────────────────────────────────────────
   {

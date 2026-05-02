@@ -44,6 +44,13 @@ export default function AuthCallback() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (handled.current) return;
+
+        if (event === 'PASSWORD_RECOVERY') {
+          handled.current = true;
+          navigate('/reset-password', { replace: true });
+          return;
+        }
+
         if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session) {
           handled.current = true;
 
