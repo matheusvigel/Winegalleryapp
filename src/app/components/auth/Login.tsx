@@ -220,7 +220,13 @@ export default function Login() {
             </button>
           </form>
 
-          <div style={{ marginTop: 20, textAlign: 'center' }}>
+          <div style={{ marginTop: 16, textAlign: 'center' }}>
+            <Link to="/forgot-password" style={{ fontFamily: "'DM Sans'", fontSize: '0.78rem', color: MUTED, textDecoration: 'none', fontWeight: 500 }}>
+              Esqueceu a senha?
+            </Link>
+          </div>
+
+          <div style={{ marginTop: 12, textAlign: 'center' }}>
             <p style={{ margin: 0, fontFamily: "'DM Sans'", fontSize: '0.78rem', color: MUTED }}>
               Não tem conta?{' '}
               <Link to="/register" style={{ color: WINE, fontWeight: 600, textDecoration: 'none' }}>
