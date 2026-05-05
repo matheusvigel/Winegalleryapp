@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router';
-import { ChevronLeft, Share2, Heart, CheckCircle2, MapPin } from 'lucide-react';
+import { ChevronLeft, Share2, Heart, CheckCircle2, MapPin, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
 import { AddReviewSection } from '../components/AddReviewSection';
@@ -70,17 +70,11 @@ const WHY_EMOJI: Record<string, string> = {
   winery:     '🏛️',
 };
 
-const TYPE_CHIP_STYLE: Record<ItemType, { bg: string; color: string }> = {
-  wine:       { bg: '#F5EEF4', color: '#7B1E5C' },
-  experience: { bg: '#FBF3DC', color: '#7A4F07' },
-  winery:     { bg: '#E8F0EC', color: '#2D4A3E' },
-};
-
 function imgFallback(e: React.SyntheticEvent<HTMLImageElement>) {
   (e.target as HTMLImageElement).src = FALLBACK;
 }
 
-// ── Item card ─────────────────────────────────────────────────────────────────
+// ── Item Card ─────────────────────────────────────────────────────────────────
 
 function ItemCard({
   item,
@@ -97,43 +91,41 @@ function ItemCard({
   onToggleFavorite: (id: string) => void;
   onAddReview: (id: string, review: { photo?: string; comment: string; rating: number }) => void;
 }) {
-  const [expandReview, setExpandReview] = useState(false);
   const isWine = item.itemType === 'wine';
-  const chipStyle = TYPE_CHIP_STYLE[item.itemType];
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 12 }}
+      initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.22 }}
+      transition={{ duration: 0.25 }}
       className="bg-white overflow-hidden"
       style={{
-        borderRadius: 16,
+        borderRadius: 18,
         border: '1px solid rgba(139,90,43,0.10)',
-        boxShadow: '0 1px 6px rgba(28,18,9,0.06)',
+        boxShadow: '0 2px 12px rgba(28,18,9,0.07)',
       }}
     >
-      {/* ── Image area ───────────────────────────────────────────── */}
+      {/* ── Image — tall, dominant ────────────────────────────────── */}
       <div
         className="relative overflow-hidden"
         style={{
-          height: isWine ? 220 : 200,
-          background: isWine ? '#F8F5F0' : '#1C1209',
+          /* ~60vw height so image dominates on mobile, capped for desktop */
+          height: 'min(60vw, 360px)',
+          background: isWine ? '#F9F6F1' : '#1A1209',
         }}
       >
         {isWine ? (
-          /* Wine bottle: white/cream bg, object-contain */
-          <div className="h-full flex items-center justify-center px-8 py-4">
+          /* Wine bottle: cream background, bottle centred, fully visible */
+          <div className="absolute inset-0 flex items-center justify-center px-12 py-6">
             <img
               src={item.photo || FALLBACK}
               alt={item.name}
               className="max-h-full max-w-full object-contain"
-              style={{ filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.15))' }}
+              style={{ filter: 'drop-shadow(0 8px 24px rgba(0,0,0,0.18))' }}
               onError={imgFallback}
             />
           </div>
         ) : (
-          /* Experience / Winery: cover photo with gradient */
           <>
             <img
               src={item.photo || FALLBACK}
@@ -141,52 +133,66 @@ function ItemCard({
               className="w-full h-full object-cover"
               onError={imgFallback}
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/10 to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/10 to-transparent" />
           </>
         )}
 
-        {/* Status badges — top right */}
-        <div className="absolute top-3 right-3 flex gap-1.5">
-          {state.tried && (
-            <div
-              className="rounded-full p-1.5 shadow"
-              style={{ background: 'rgba(45,74,62,0.92)', backdropFilter: 'blur(6px)' }}
-            >
-              <CheckCircle2 className="w-4 h-4 text-white" />
-            </div>
-          )}
-          {state.favorite && (
-            <div
-              className="rounded-full p-1.5 shadow"
-              style={{ background: 'rgba(107,0,53,0.92)', backdropFilter: 'blur(6px)' }}
-            >
-              <Heart className="w-4 h-4 text-white fill-white" />
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* ── Content ──────────────────────────────────────────────── */}
-      <div className="px-4 pt-3 pb-4">
-
-        {/* Type chip */}
+        {/* Category badge — top left (like "Achados" in the reference) */}
         {item.type && (
-          <div className="mb-2">
+          <div className="absolute top-3 left-3">
             <span
-              className="inline-block text-[10px] font-bold tracking-widest uppercase px-2.5 py-1 rounded-full"
-              style={{ background: chipStyle.bg, color: chipStyle.color }}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-full"
+              style={{
+                background: 'rgba(255,255,255,0.93)',
+                color: '#1C1209',
+                backdropFilter: 'blur(6px)',
+                boxShadow: '0 1px 4px rgba(0,0,0,0.10)',
+              }}
             >
               {item.type}
             </span>
           </div>
         )}
 
-        {/* Name */}
+        {/* Tried checkmark — top right (like the ✓ circle in the reference) */}
+        <div className="absolute top-3 right-3">
+          <button
+            onClick={() => onToggleTried(item.itemId)}
+            className="w-9 h-9 rounded-full flex items-center justify-center transition-all"
+            style={{
+              background: state.tried
+                ? 'rgba(45,74,62,0.92)'
+                : 'rgba(255,255,255,0.85)',
+              backdropFilter: 'blur(6px)',
+              boxShadow: '0 1px 6px rgba(0,0,0,0.15)',
+            }}
+          >
+            <Check
+              className="w-4 h-4"
+              style={{ color: state.tried ? '#fff' : 'rgba(28,18,9,0.35)' }}
+              strokeWidth={2.5}
+            />
+          </button>
+        </div>
+      </div>
+
+      {/* ── Content ──────────────────────────────────────────────── */}
+      <div className="px-4 pt-3.5 pb-4">
+
+        {/* Item type — uppercase label like "RESTAURANTE" in the reference */}
+        <p
+          className="text-[10px] font-bold tracking-widest uppercase mb-1"
+          style={{ color: '#B0906A' }}
+        >
+          {item.itemType === 'wine' ? 'Vinho' : item.itemType === 'experience' ? 'Experiência' : 'Vinícola'}
+        </p>
+
+        {/* Name — large serif */}
         <h2
-          className="font-bold leading-snug mb-0.5"
+          className="font-bold leading-tight mb-1"
           style={{
             fontFamily: '"Fraunces", Georgia, serif',
-            fontSize: '1.15rem',
+            fontSize: '1.25rem',
             color: '#1C1209',
             letterSpacing: '-0.01em',
           }}
@@ -194,78 +200,68 @@ function ItemCard({
           {item.name}
         </h2>
 
-        {/* Sub-name (winery) */}
+        {/* Sub-name (winery for wines) */}
         {item.subName && (
           <p className="text-sm mb-1" style={{ color: '#7A6855' }}>{item.subName}</p>
         )}
 
         {/* Location */}
         {item.location && (
-          <div className="flex items-center gap-1 text-xs mb-2.5" style={{ color: '#B0A090' }}>
-            <MapPin className="w-3 h-3 shrink-0" style={{ color: '#9B1B4D' }} />
-            <span>{item.location}</span>
-          </div>
-        )}
-
-        {/* Highlight / "Por que...?" */}
-        {item.highlight && (
-          <p className="text-sm leading-relaxed line-clamp-2 mb-3" style={{ color: '#7A6855' }}>
-            {item.highlight}
-          </p>
-        )}
-
-        {/* Tasting note (wines) */}
-        {item.tastingNote && !item.highlight && (
-          <p className="text-sm leading-relaxed line-clamp-2 mb-3" style={{ color: '#7A6855' }}>
-            {item.tastingNote}
-          </p>
-        )}
-
-        {/* Divider */}
-        <div style={{ height: 1, background: 'rgba(139,90,43,0.08)', marginBottom: 12 }} />
-
-        {/* Action buttons */}
-        {user ? (
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              onClick={() => onToggleTried(item.itemId)}
-              className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-semibold transition-all"
-              style={{
-                background: state.tried ? '#2D4A3E' : '#F0EAE2',
-                color:      state.tried ? '#FFFFFF' : '#7A6855',
-                boxShadow:  state.tried ? '0 2px 8px rgba(45,74,62,0.25)' : 'none',
-              }}
-            >
-              <CheckCircle2 className="w-4 h-4" strokeWidth={2} />
-              {state.tried ? 'Provado' : 'Já provei'}
-            </button>
-
-            <button
-              onClick={() => onToggleFavorite(item.itemId)}
-              className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-semibold transition-all"
-              style={{
-                background: state.favorite ? '#6B0035' : '#F0EAE2',
-                color:      state.favorite ? '#FFFFFF' : '#7A6855',
-                boxShadow:  state.favorite ? '0 2px 8px rgba(107,0,53,0.25)' : 'none',
-              }}
-            >
-              <Heart
-                className="w-4 h-4"
-                strokeWidth={2}
-                style={{ fill: state.favorite ? 'white' : 'none' }}
-              />
-              {state.favorite ? 'Favoritado' : 'Favoritar'}
-            </button>
-          </div>
-        ) : (
-          <Link
-            to="/login"
-            className="block text-center py-2.5 rounded-xl text-sm font-semibold"
-            style={{ background: '#F0EAE2', color: '#7A6855' }}
+          <div
+            className="inline-flex items-center gap-1 text-xs mb-2.5 cursor-pointer"
+            style={{ color: '#9B1B4D' }}
           >
-            Entre para interagir
-          </Link>
+            <MapPin className="w-3 h-3 shrink-0" />
+            <span className="font-medium">{item.location}</span>
+          </div>
         )}
+
+        {/* Description / highlight */}
+        {(item.highlight || item.tastingNote) && (
+          <p
+            className="text-sm leading-relaxed mb-3.5"
+            style={{ color: '#5C5048', lineHeight: 1.65 }}
+          >
+            {item.highlight || item.tastingNote}
+          </p>
+        )}
+
+        {/* ── Action buttons — like "Quero ir" + "Reservar" ── */}
+        <div className="grid grid-cols-2 gap-2.5">
+          <button
+            onClick={() => onToggleTried(item.itemId)}
+            className="flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-semibold transition-all active:scale-95"
+            style={{
+              background: state.tried ? '#2D4A3E' : '#F0EAE1',
+              color:      state.tried ? '#FFFFFF' : '#5C5048',
+              boxShadow:  state.tried ? '0 3px 10px rgba(45,74,62,0.28)' : 'none',
+            }}
+          >
+            <CheckCircle2
+              className="w-4 h-4"
+              strokeWidth={2}
+              style={{ fill: state.tried ? 'rgba(255,255,255,0.25)' : 'none' }}
+            />
+            {state.tried ? 'Provado' : 'Já provei'}
+          </button>
+
+          <button
+            onClick={() => onToggleFavorite(item.itemId)}
+            className="flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-semibold transition-all active:scale-95"
+            style={{
+              background: state.favorite ? '#6B0035' : '#F0EAE1',
+              color:      state.favorite ? '#FFFFFF' : '#5C5048',
+              boxShadow:  state.favorite ? '0 3px 10px rgba(107,0,53,0.28)' : 'none',
+            }}
+          >
+            <Heart
+              className="w-4 h-4"
+              strokeWidth={2}
+              style={{ fill: state.favorite ? 'white' : 'none' }}
+            />
+            {state.favorite ? 'Favoritado' : 'Favoritar'}
+          </button>
+        </div>
 
         {/* Review section */}
         <AnimatePresence>
@@ -288,22 +284,24 @@ function ItemCard({
         {/* Existing review */}
         {state.review && (
           <div
-            className="mt-3 rounded-xl p-4"
+            className="mt-3 rounded-2xl p-4"
             style={{ background: '#F8F4EF', border: '1px solid rgba(139,90,43,0.10)' }}
           >
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-bold" style={{ color: '#1C1209', fontFamily: '"Fraunces", Georgia, serif' }}>Sua Avaliação</span>
+              <span className="text-xs font-bold" style={{ color: '#1C1209', fontFamily: '"Fraunces",Georgia,serif' }}>
+                Sua Avaliação
+              </span>
               <span className="text-xs font-semibold" style={{ color: '#2D4A3E' }}>✓ Pontos ganhos</span>
             </div>
             {state.review.rating > 0 && (
               <div className="flex gap-0.5 mb-2">
                 {[1,2,3,4,5].map(s => (
-                  <span key={s} className="text-base" style={{ color: s <= state.review!.rating ? '#B8820B' : '#DDD0C0' }}>★</span>
+                  <span key={s} className="text-lg" style={{ color: s <= state.review!.rating ? '#B8820B' : '#DDD0C0' }}>★</span>
                 ))}
               </div>
             )}
             {state.review.photo && (
-              <img src={state.review.photo} alt="Review" className="w-full h-36 object-cover rounded-lg mb-2" />
+              <img src={state.review.photo} alt="Review" className="w-full h-40 object-cover rounded-xl mb-2" />
             )}
             {state.review.comment && (
               <p className="text-sm leading-relaxed" style={{ color: '#7A6855' }}>{state.review.comment}</p>
@@ -311,14 +309,14 @@ function ItemCard({
           </div>
         )}
 
-        {/* Why label (expanded detail) */}
+        {/* Why section */}
         {item.highlight && (
           <div
-            className="mt-3 rounded-xl p-4"
+            className="mt-3 rounded-2xl p-4"
             style={{ background: '#F8F4EF', border: '1px solid rgba(139,90,43,0.08)' }}
           >
             <div className="flex items-center gap-2 mb-1.5">
-              <span className="text-lg">{WHY_EMOJI[item.itemType]}</span>
+              <span className="text-xl">{WHY_EMOJI[item.itemType]}</span>
               <span className="text-xs font-bold uppercase tracking-wide" style={{ color: '#7A6855' }}>
                 {WHY_LABEL[item.itemType]}
               </span>
@@ -327,14 +325,14 @@ function ItemCard({
           </div>
         )}
 
-        {/* Tasting note (wines, if also has highlight) */}
+        {/* Tasting note (only if also has highlight) */}
         {item.tastingNote && item.highlight && (
           <div
-            className="mt-2 rounded-xl p-4"
+            className="mt-2 rounded-2xl p-4"
             style={{ background: '#F8F4EF', border: '1px solid rgba(139,90,43,0.08)' }}
           >
             <span className="text-xs font-bold uppercase tracking-wide block mb-1.5" style={{ color: '#7A6855' }}>
-              Notas de Degustação
+              Degustação
             </span>
             <p className="text-sm leading-relaxed" style={{ color: '#7A6855' }}>{item.tastingNote}</p>
           </div>
@@ -344,17 +342,17 @@ function ItemCard({
   );
 }
 
-// ── Main component ─────────────────────────────────────────────────────────────
+// ── Main Component ─────────────────────────────────────────────────────────────
 
 export default function CollectionDetail() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
 
-  const [collection, setCollection]         = useState<CollectionRow | null>(null);
-  const [items, setItems]                   = useState<UnifiedItem[]>([]);
+  const [collection, setCollection]             = useState<CollectionRow | null>(null);
+  const [items, setItems]                       = useState<UnifiedItem[]>([]);
   const [otherCollections, setOtherCollections] = useState<OtherCollection[]>([]);
-  const [loading, setLoading]               = useState(true);
-  const [itemStates, setItemStates]         = useState<Record<string, ItemState>>({});
+  const [loading, setLoading]                   = useState(true);
+  const [itemStates, setItemStates]             = useState<Record<string, ItemState>>({});
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'instant' });
@@ -364,7 +362,6 @@ export default function CollectionDetail() {
 
   useEffect(() => {
     if (!id) return;
-
     const load = async () => {
       const { data: col } = await supabase
         .from('collections')
@@ -404,7 +401,6 @@ export default function CollectionDetail() {
 
       const unified: UnifiedItem[] = rawItems.flatMap((ci) => {
         const type = ci.item_type as ItemType;
-
         if (type === 'wine') {
           const w = wineMap.get(ci.item_id) as any;
           if (!w) return [];
@@ -418,7 +414,6 @@ export default function CollectionDetail() {
             type: w.type ?? null, position: ci.position,
           }];
         }
-
         if (type === 'experience') {
           const e = expMap.get(ci.item_id) as any;
           if (!e) return [];
@@ -430,7 +425,6 @@ export default function CollectionDetail() {
             type: e.category ?? null, position: ci.position,
           }];
         }
-
         if (type === 'winery') {
           const w = wineryMap.get(ci.item_id) as any;
           if (!w) return [];
@@ -442,7 +436,6 @@ export default function CollectionDetail() {
             type: w.category ?? null, position: ci.position,
           }];
         }
-
         return [];
       });
 
@@ -455,7 +448,6 @@ export default function CollectionDetail() {
           .select('item_id, completed, is_favorite')
           .eq('user_id', user.id)
           .in('item_id', ids);
-
         if (progress) {
           const states: Record<string, ItemState> = {};
           (progress as any[]).forEach(p => {
@@ -478,12 +470,10 @@ export default function CollectionDetail() {
           .from('collection_items')
           .select('collection_id')
           .in('collection_id', otherIds);
-
         const countMap: Record<string, number> = {};
         (itemCounts ?? []).forEach((r: any) => {
           countMap[r.collection_id] = (countMap[r.collection_id] ?? 0) + 1;
         });
-
         setOtherCollections((otherCols as CollectionRow[]).map(c => ({
           ...c, totalItems: countMap[c.id] ?? 0,
         })));
@@ -501,7 +491,7 @@ export default function CollectionDetail() {
     items.find(i => i.itemId === itemId)?.itemType ?? 'wine';
 
   const toggleTried = async (itemId: string) => {
-    if (!user) return;
+    if (!user) { toast.error('Entre para marcar itens'); return; }
     const current = itemStates[itemId] ?? { tried: false, favorite: false };
     setItemStates(prev => ({ ...prev, [itemId]: { ...current, tried: !current.tried } }));
     await psToggleTried(user.id, itemId, getItemType(itemId), current.tried);
@@ -509,7 +499,7 @@ export default function CollectionDetail() {
   };
 
   const toggleFavorite = async (itemId: string) => {
-    if (!user) return;
+    if (!user) { toast.error('Entre para favoritar'); return; }
     const current = itemStates[itemId] ?? { tried: false, favorite: false };
     setItemStates(prev => ({ ...prev, [itemId]: { ...current, favorite: !current.favorite } }));
     await psToggleFavorite(user.id, itemId, getItemType(itemId), current.favorite);
@@ -540,25 +530,23 @@ export default function CollectionDetail() {
     if (totalPts > 0) toast.success(`+${totalPts} pontos!`, { description: 'Sua avaliação foi registrada 🎉' });
   };
 
-  // ── Loading ───────────────────────────────────────────────────────────────────
+  // ── States ────────────────────────────────────────────────────────────────────
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: '#F5EDE0' }}>
-        <div
-          className="w-10 h-10 rounded-full border-2 animate-spin"
-          style={{ borderColor: 'rgba(107,0,53,0.15)', borderTopColor: '#6B0035' }}
-        />
+      <div className="min-h-screen flex items-center justify-center" style={{ background: '#F2EBE1' }}>
+        <div className="w-10 h-10 rounded-full border-2 animate-spin"
+             style={{ borderColor: 'rgba(107,0,53,0.15)', borderTopColor: '#6B0035' }} />
       </div>
     );
   }
 
   if (!collection) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: '#F5EDE0' }}>
+      <div className="min-h-screen flex items-center justify-center" style={{ background: '#F2EBE1' }}>
         <div className="text-center">
           <p className="mb-2" style={{ color: '#7A6855' }}>Coleção não encontrada</p>
-          <Link to="/" style={{ color: '#6B0035' }} className="hover:underline">Voltar para início</Link>
+          <Link to="/" style={{ color: '#6B0035' }}>Voltar para início</Link>
         </div>
       </div>
     );
@@ -571,101 +559,84 @@ export default function CollectionDetail() {
   return (
     <div className="min-h-screen" style={{ background: '#F2EBE1' }}>
 
-      {/* ── Top bar ──────────────────────────────────────────────────────────── */}
-      <div
-        className="sticky top-0 z-50"
-        style={{
-          background: 'rgba(255,255,255,0.94)',
-          backdropFilter: 'blur(12px)',
-          borderBottom: '1px solid rgba(139,90,43,0.10)',
-        }}
-      >
-        <div className="max-w-2xl mx-auto px-3 py-2.5 flex items-center gap-2">
-          <Link
-            to="/"
-            className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 transition-colors"
-            style={{ background: '#F2EBE1' }}
-          >
+      {/* ── Sticky top bar ───────────────────────────────────────────────────── */}
+      <div className="sticky top-0 z-50"
+           style={{ background: 'rgba(255,255,255,0.94)', backdropFilter: 'blur(12px)', borderBottom: '1px solid rgba(139,90,43,0.10)' }}>
+        <div className="max-w-3xl mx-auto px-3 py-2.5 flex items-center gap-2">
+          <Link to="/" className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
+                style={{ background: '#F2EBE1' }}>
             <ChevronLeft className="w-5 h-5" style={{ color: '#1C1209' }} />
           </Link>
-
           <div className="flex-1 min-w-0 text-center">
-            <p
-              className="text-sm font-bold truncate leading-tight"
-              style={{ color: '#1C1209', fontFamily: '"Fraunces", Georgia, serif' }}
-            >
+            <p className="text-sm font-bold truncate"
+               style={{ color: '#1C1209', fontFamily: '"Fraunces", Georgia, serif' }}>
               {collection.title}
             </p>
           </div>
-
-          <button
-            className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
-            style={{ background: '#F2EBE1' }}
-          >
+          <button className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
+                  style={{ background: '#F2EBE1' }}>
             <Share2 className="w-4 h-4" style={{ color: '#1C1209' }} />
           </button>
         </div>
       </div>
 
-      <div className="max-w-2xl mx-auto">
+      <div className="max-w-3xl mx-auto">
 
-        {/* ── Hero banner ──────────────────────────────────────────────────────── */}
-        <div className="relative overflow-hidden" style={{ height: 220 }}>
+        {/* ── Hero — big banner like the reference left panel ───────────────── */}
+        <div className="relative overflow-hidden" style={{ height: 'min(56vw, 340px)' }}>
           <img
             src={collection.photo || FALLBACK}
             alt={collection.title}
             className="w-full h-full object-cover"
             onError={imgFallback}
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/25 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/30 to-black/10" />
 
-          {/* Progress badge */}
+          {/* "Já vivi X/N" badge — top right, like the reference */}
           {items.length > 0 && (
             <div className="absolute top-4 right-4">
-              <div
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-white text-sm font-bold"
-                style={{ background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(8px)' }}
-              >
-                <CheckCircle2 className="w-4 h-4" />
-                {triedCount}/{items.length}
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-white text-sm font-bold"
+                   style={{ background: 'rgba(0,0,0,0.50)', backdropFilter: 'blur(8px)' }}>
+                <span style={{ opacity: 0.7 }}>Já provei</span>
+                <span style={{ background: 'rgba(255,255,255,0.15)', borderRadius: 8, padding: '1px 8px' }}>
+                  {triedCount}/{items.length}
+                </span>
               </div>
             </div>
           )}
 
-          {/* Title overlay */}
-          <div className="absolute bottom-0 left-0 right-0 px-5 pb-5">
-            <h1
-              className="text-2xl font-bold text-white leading-tight mb-1"
-              style={{ fontFamily: '"Fraunces", Georgia, serif', letterSpacing: '-0.02em' }}
-            >
+          {/* Title + tagline at the bottom */}
+          <div className="absolute bottom-0 left-0 right-0 px-5 pb-6">
+            <h1 className="text-2xl font-bold text-white leading-tight mb-1"
+                style={{ fontFamily: '"Fraunces", Georgia, serif', letterSpacing: '-0.02em' }}>
               {collection.title}
             </h1>
             {collection.tagline && (
-              <p className="text-sm leading-relaxed" style={{ color: 'rgba(255,255,255,0.82)' }}>
+              <p className="text-sm" style={{ color: 'rgba(255,255,255,0.80)', lineHeight: 1.55 }}>
                 {collection.tagline}
               </p>
             )}
           </div>
         </div>
 
-        {/* ── Items list ───────────────────────────────────────────────────────── */}
-        <div className="px-4 pt-4 pb-8 flex flex-col gap-4">
+        {/* ── Items ────────────────────────────────────────────────────────── */}
+        <div className="px-4 pt-5 pb-10 flex flex-col gap-5">
 
           {items.length > 0 ? (
             <>
-              {/* Item count header */}
+              {/* Count bar */}
               <div className="flex items-center justify-between">
-                <p className="text-xs font-bold uppercase tracking-widest" style={{ color: '#B0906A' }}>
+                <span className="text-xs font-bold uppercase tracking-widest" style={{ color: '#B0906A' }}>
                   {items.length} {items.length === 1 ? 'item' : 'itens'}
-                </p>
+                </span>
                 {triedCount > 0 && (
-                  <p className="text-xs font-semibold" style={{ color: '#2D4A3E' }}>
-                    ✓ {triedCount} explorado{triedCount > 1 ? 's' : ''}
-                  </p>
+                  <span className="text-xs font-semibold" style={{ color: '#2D4A3E' }}>
+                    ✓ {triedCount} provado{triedCount > 1 ? 's' : ''}
+                  </span>
                 )}
               </div>
 
-              {items.map((item) => (
+              {items.map(item => (
                 <ItemCard
                   key={item.itemId}
                   item={item}
@@ -678,18 +649,16 @@ export default function CollectionDetail() {
               ))}
             </>
           ) : (
-            <div className="text-center py-12">
+            <div className="text-center py-16">
               <p style={{ color: '#B0A090' }}>Esta coleção ainda não tem itens.</p>
             </div>
           )}
 
-          {/* ── Continue Explorando ───────────────────────────────────────────── */}
+          {/* ── Continue Explorando ───────────────────────────────────────── */}
           {otherCollections.length > 0 && (
-            <div className="pt-4 mt-2" style={{ borderTop: '1px solid rgba(139,90,43,0.10)' }}>
-              <h2
-                className="text-lg font-bold mb-1"
-                style={{ fontFamily: '"Fraunces", Georgia, serif', color: '#1C1209' }}
-              >
+            <div className="pt-5 mt-2" style={{ borderTop: '1px solid rgba(139,90,43,0.10)' }}>
+              <h2 className="text-xl font-bold mb-1"
+                  style={{ fontFamily: '"Fraunces", Georgia, serif', color: '#1C1209' }}>
                 Continue Explorando
               </h2>
               <p className="text-sm mb-4" style={{ color: '#B0A090' }}>
