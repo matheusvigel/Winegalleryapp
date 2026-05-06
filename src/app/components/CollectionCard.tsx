@@ -57,8 +57,8 @@ export function CollectionCard({
     return (
       <Link
         to={`/collection/${id}`}
-        className="block flex-shrink-0 group"
-        style={{ width: 220, textDecoration: 'none' }}
+        className="block w-full group"
+        style={{ textDecoration: 'none' }}
       >
         <div
           className="relative overflow-hidden"

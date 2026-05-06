@@ -172,12 +172,7 @@ export default function Root() {
           Content
           ═══════════════════════════════════════════════════════ */}
       <main className="lg:pb-0 pb-20">
-        <div className="hidden lg:block">
-          <Outlet />
-        </div>
-        <div className="lg:hidden">
-          <Outlet />
-        </div>
+        <Outlet />
       </main>
 
       {/* ═══════════════════════════════════════════════════════
