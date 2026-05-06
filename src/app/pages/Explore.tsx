@@ -523,9 +523,10 @@ export default function Explore() {
           )}
 
           {loading ? (
-            <div className="space-y-4">
-              {[1, 2, 3].map(i => (
-                <div key={i} className="rounded-3xl animate-pulse h-64" style={{ background: '#EDE4D6' }} />
+            <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide -mx-4 px-4">
+              {[1, 2, 3, 4].map(i => (
+                <div key={i} className="flex-shrink-0 rounded-[18px] animate-pulse"
+                     style={{ width: 220, height: 300, background: '#EDE4D6' }} />
               ))}
             </div>
           ) : viewMode === 'items' && selectedFilter !== 'all' ? (
@@ -545,21 +546,24 @@ export default function Explore() {
               </div>
             )
           ) : filtered.length > 0 ? (
-            filtered.map(col => (
-              <CollectionCard
-                key={col.id}
-                id={col.id}
-                title={col.title}
-                coverImage={col.photo}
-                description={col.tagline ?? ''}
-                contentType={col.content_type}
-                category={col.category}
-                country={(col.country as any)?.name}
-                region={(col.region as any)?.name}
-                subRegion={(col.sub_region as any)?.name}
-                previewPhotos={previewPhotosMap[col.id]}
-              />
-            ))
+            <div className="flex gap-4 overflow-x-auto pb-3 scrollbar-hide -mx-4 px-4">
+              {filtered.map(col => (
+                <CollectionCard
+                  key={col.id}
+                  id={col.id}
+                  title={col.title}
+                  coverImage={col.photo}
+                  description={col.tagline ?? ''}
+                  contentType={col.content_type}
+                  category={col.category}
+                  country={(col.country as any)?.name}
+                  region={(col.region as any)?.name}
+                  subRegion={(col.sub_region as any)?.name}
+                  previewPhotos={previewPhotosMap[col.id]}
+                  variant="portrait"
+                />
+              ))}
+            </div>
           ) : (
             <div className="text-center py-12">
               <div className="text-6xl mb-4">🔍</div>

@@ -824,7 +824,8 @@ export default function CollectionDetail() {
                   {otherCollections.map(c => (
                     <CollectionCard key={c.id} id={c.id} title={c.title} coverImage={c.photo}
                       description={c.tagline ?? ''} contentType={c.content_type}
-                      totalItems={c.totalItems} completedItems={0} progress={0} />
+                      totalItems={c.totalItems} completedItems={0} progress={0}
+                      variant="landscape" />
                   ))}
                 </div>
               </div>

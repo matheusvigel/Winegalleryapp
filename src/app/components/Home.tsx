@@ -355,42 +355,39 @@ export default function Home() {
               linkLabel="Ver todas"
             />
             {loading ? (
-              <div className="space-y-3">
-                {[1,2,3].map(i => (
-                  <div key={i} className="h-28 rounded-2xl animate-pulse" style={{ background: '#EDE4D6' }} />
+              <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide -mx-4 px-4">
+                {[1,2,3,4].map(i => (
+                  <div key={i} className="flex-shrink-0 rounded-[18px] animate-pulse"
+                       style={{ width: 220, height: 300, background: '#EDE4D6' }} />
                 ))}
               </div>
             ) : personalizedCollections.length > 0 ? (
-              <div>
-                {personalizedCollections.slice(0, visibleCount).map((col) => {
-                  const prog = getProgress(col.id);
-                  return (
-                    <CollectionCard
-                      key={col.id}
-                      id={col.id}
-                      title={col.title}
-                      coverImage={col.photo}
-                      description={col.tagline ?? ''}
-                      contentType={col.content_type}
-                      category={col.category}
-                      country={(col.country as any)?.name}
-                      region={(col.region as any)?.name}
-                      subRegion={(col.sub_region as any)?.name}
-                      progress={prog.pct}
-                      totalItems={prog.total}
-                      completedItems={prog.done}
-                      previewPhotos={previewPhotosMap[col.id]}
-                    />
-                  );
-                })}
-                {/* Sentinel for infinite scroll */}
-                <div ref={sentinelRef} />
-                {hasMore && (
-                  <div className="flex justify-center py-4">
-                    <span className="text-sm text-gray-400">Carregando...</span>
-                  </div>
-                )}
-              </div>
+              <>
+                <div className="flex gap-4 overflow-x-auto pb-3 scrollbar-hide -mx-4 px-4">
+                  {personalizedCollections.map((col) => {
+                    const prog = getProgress(col.id);
+                    return (
+                      <CollectionCard
+                        key={col.id}
+                        id={col.id}
+                        title={col.title}
+                        coverImage={col.photo}
+                        description={col.tagline ?? ''}
+                        contentType={col.content_type}
+                        category={col.category}
+                        country={(col.country as any)?.name}
+                        region={(col.region as any)?.name}
+                        subRegion={(col.sub_region as any)?.name}
+                        progress={prog.pct}
+                        totalItems={prog.total}
+                        completedItems={prog.done}
+                        previewPhotos={previewPhotosMap[col.id]}
+                        variant="portrait"
+                      />
+                    );
+                  })}
+                </div>
+              </>
             ) : (
               <EmptyBox text="Nenhuma coleção disponível." />
             )}
