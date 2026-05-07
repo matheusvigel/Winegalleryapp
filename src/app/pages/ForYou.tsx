@@ -587,14 +587,15 @@ function ReelSlide({
   );
 
   // ── Item card (shared by both layouts) ────────────────────────────────────
-  const ItemCard = ({ item, idx, cardW, photoH }: { item: UnifiedItem; idx: number; cardW: number; photoH: number }) => {
+  const ItemCard = ({ item, idx, cardW, photoH }: { item: UnifiedItem; idx: number; cardW?: number; photoH: number }) => {
     const state  = itemStates[item.itemId] ?? { tried: false, favorite: false };
     const isWine = item.itemType === 'wine';
     return (
       <div
         onClick={() => onItemClick(items, idx)}
         style={{
-          width: cardW, flexShrink: 0, borderRadius: 16, overflow: 'hidden',
+          ...(cardW ? { width: cardW, flexShrink: 0 } : {}),
+          borderRadius: 16, overflow: 'hidden',
           cursor: 'pointer', background: '#fff',
           boxShadow: '0 2px 12px rgba(28,18,9,0.10)',
           outline: !isDesktop && idx === itemIndex ? '2px solid rgba(255,255,255,0.75)' : 'none',
@@ -672,7 +673,7 @@ function ReelSlide({
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))', gap: 16 }}>
               {items.map((item, i) => (
-                <ItemCard key={item.itemId} item={item} idx={i} cardW={0} photoH={230} />
+                <ItemCard key={item.itemId} item={item} idx={i} photoH={230} />
               ))}
             </div>
           )}
