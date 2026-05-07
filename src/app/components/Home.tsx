@@ -106,20 +106,27 @@ export default function Home() {
   const [dismissedBonus, setDismissedBonus]         = useState(false);
   const [loading, setLoading]                       = useState(true);
   const [visibleCount, setVisibleCount]             = useState(6);
+  const [countries, setCountries]                   = useState<{ id: string; name: string; photo: string | null }[]>([]);
+  const [regions, setRegions]                       = useState<{ id: string; name: string; photo: string | null; parent?: { name: string } | null }[]>([]);
+  const [triedCount, setTriedCount]                 = useState(0);
 
   const sentinelRef = useRef<HTMLDivElement>(null);
 
   // ── Load global data ─────────────────────────────────────────
   useEffect(() => {
     const load = async () => {
-      const [{ data: cols }, { data: hls }, { data: colItems }] = await Promise.all([
+      const [{ data: cols }, { data: hls }, { data: colItems }, { data: ctrs }, { data: regs }] = await Promise.all([
         supabase
           .from('collections')
           .select('id, title, tagline, photo, content_type, category, country:country_id(name), region:region_id(name), sub_region:sub_region_id(name)')
           .order('title'),
         supabase.from('highlights').select('id, type, entity_id, label').eq('active', true).order('position').limit(8),
         supabase.from('collection_items').select('collection_id, item_id, item_type, position').order('collection_id').order('position').limit(1000),
+        supabase.from('regions').select('id, name, photo').eq('level', 'country').order('name').limit(20),
+        supabase.from('regions').select('id, name, photo, parent:parent_id(name)').eq('level', 'region').order('name').limit(20),
       ]);
+      setCountries((ctrs as any[]) ?? []);
+      setRegions((regs as any[]) ?? []);
 
       setCollections((cols as CollectionRow[]) ?? []);
 
@@ -206,9 +213,9 @@ export default function Home() {
       ]);
 
       setProfile(prof as UserProfileData ?? null);
-      setCompletedIds(new Set(
-        (progress ?? []).filter((p: any) => p.completed).map((p: any) => p.item_id as string)
-      ));
+      const completed = (progress ?? []).filter((p: any) => p.completed);
+      setCompletedIds(new Set(completed.map((p: any) => p.item_id as string)));
+      setTriedCount(completed.length);
 
       if (prof?.wine_profile) {
         const { data: rules } = await supabase
@@ -283,201 +290,58 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-background">
 
-      {/* ── Mobile top bar ──────────────────────────────────────── */}
-      <header className="lg:hidden sticky top-0 z-40"
-              style={{ background: '#FFFFFF', borderBottom: '1px solid rgba(139,90,43,0.12)' }}>
-        <div className="px-4 py-3 flex items-center justify-between">
-          <h1 className="text-lg font-bold"
-              style={{ fontFamily: '"Fraunces", Georgia, serif', color: '#6B0035', letterSpacing: '-0.02em' }}>
-            Wine Gallery
-          </h1>
-          {profile && (
-            <Link to="/profile" className="flex items-center gap-2">
-              <div className="text-right">
-                <p className="text-xs font-bold leading-none" style={{ color: '#1C1209' }}>{profile.total_points} pts</p>
-                <p className="text-[10px] leading-none mt-0.5" style={{ color: '#B0A090' }}>{LEVEL_LABELS[profile.user_level]}</p>
-              </div>
-              <div className="w-9 h-9 rounded-full flex items-center justify-center text-lg"
-                   style={{ background: '#F8EBF1', border: '2px solid rgba(107,0,53,0.20)' }}>
-                {PROFILE_ICONS[profile.wine_profile]}
-              </div>
-            </Link>
-          )}
-        </div>
-      </header>
-
-      <div className="max-w-screen-xl mx-auto px-4 py-6 lg:px-8 lg:py-8 lg:grid lg:grid-cols-[1fr_300px] lg:gap-10 lg:items-start">
+      <div className="max-w-screen-xl mx-auto px-4 py-4 lg:px-8 lg:py-8 lg:grid lg:grid-cols-[1fr_300px] lg:gap-10 lg:items-start">
 
         {/* ══ MAIN COLUMN ══════════════════════════════════════════ */}
-        <div className="space-y-8">
+        <div className="space-y-6">
 
-          {/* ── 1. Compact profile strip (mobile) ────────────────── */}
-          <div className="lg:hidden">
-            {user && profile && profile.quiz_completed ? (
-              <Link to="/minha" style={{ textDecoration: 'none' }}>
-                <div
-                  className="rounded-2xl px-4 py-3 flex items-center gap-3"
-                  style={{ background: 'linear-gradient(135deg, #4A0024 0%, #6B0035 100%)', marginBottom: 0 }}
-                >
-                  {/* Avatar */}
-                  <div
-                    className="w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0"
-                    style={{ background: 'rgba(255,255,255,0.12)' }}
-                  >
-                    {PROFILE_ICONS[profile.wine_profile]}
-                  </div>
-                  {/* Text */}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium" style={{ color: 'rgba(255,255,255,0.65)' }}>
-                      {getGreeting()}, {profile.display_name || 'Apreciador'}
-                    </p>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      <span
-                        className="text-[10px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-md"
-                        style={{ background: 'rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.85)' }}
-                      >
-                        {LEVEL_LABELS[profile.user_level]}
+          {/* ── 1. Compact profile strip ─────────────────────────── */}
+          {user && profile && profile.quiz_completed ? (
+            <Link to="/minha" style={{ textDecoration: 'none' }}>
+              <div className="rounded-2xl px-4 py-3 flex items-center gap-3"
+                   style={{ background: 'linear-gradient(135deg, #4A0024 0%, #6B0035 100%)' }}>
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0"
+                     style={{ background: 'rgba(255,255,255,0.12)' }}>
+                  {PROFILE_ICONS[profile.wine_profile]}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium" style={{ color: 'rgba(255,255,255,0.65)' }}>
+                    {getGreeting()}, {profile.display_name || 'Apreciador'}
+                  </p>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className="text-[10px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-md"
+                          style={{ background: 'rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.85)' }}>
+                      {LEVEL_LABELS[profile.user_level]}
+                    </span>
+                    <span className="text-xs font-bold text-white">{profile.total_points} pts</span>
+                    {triedCount > 0 && (
+                      <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.55)' }}>
+                        · {triedCount} {triedCount === 1 ? 'item provado' : 'itens provados'}
                       </span>
-                      <span className="text-xs font-bold text-white">{profile.total_points} pts</span>
-                    </div>
-                  </div>
-                  {/* Progress bar mini */}
-                  <div className="flex-shrink-0 w-16">
-                    <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.15)' }}>
-                      <div
-                        className="h-full rounded-full"
-                        style={{ width: `${levelProgress}%`, background: '#D4A82A' }}
-                      />
-                    </div>
-                    <p className="text-[9px] mt-0.5 text-right" style={{ color: 'rgba(255,255,255,0.45)' }}>
-                      {levelProgress}%
-                    </p>
+                    )}
                   </div>
                 </div>
-              </Link>
-            ) : user && !profile?.quiz_completed ? (
-              <Link to="/onboarding" style={{ textDecoration: 'none' }}>
-                <div className="rounded-2xl px-4 py-3 text-white"
-                     style={{ background: 'linear-gradient(135deg, #6B0035 0%, #9B1B4D 100%)' }}>
-                  <p className="text-sm font-bold">🍷 Qual é o seu perfil de vinho?</p>
-                  <p className="text-xs mt-0.5" style={{ color: 'rgba(255,255,255,0.70)' }}>Faça o quiz e personalize sua experiência →</p>
+                <div className="flex-shrink-0 w-14">
+                  <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.15)' }}>
+                    <div className="h-full rounded-full" style={{ width: `${levelProgress}%`, background: '#D4A82A' }} />
+                  </div>
+                  <p className="text-[9px] mt-0.5 text-right" style={{ color: 'rgba(255,255,255,0.45)' }}>
+                    {levelProgress}%
+                  </p>
                 </div>
-              </Link>
-            ) : null}
-          </div>
-
-          {/* ── 2. Destaques do Wine Gallery ──────────────────────── */}
-          <section>
-            <SectionHeader
-              title="Destaques do Wine Gallery"
-              subtitle="Seleção especial deste período"
-              linkTo="/explore"
-              linkLabel="Ver tudo"
-            />
-            {loading ? (
-              <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
-                {[1,2,3,4].map(i => (
-                  <div key={i} className="min-w-[200px] h-56 rounded-2xl animate-pulse flex-shrink-0"
-                       style={{ background: '#EDE4D6' }} />
-                ))}
               </div>
-            ) : highlights.length > 0 ? (
-              <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide lg:grid lg:grid-cols-3 lg:overflow-visible">
-                {highlights.map((h, i) => <HighlightCard key={h.id} h={h} index={i} />)}
+            </Link>
+          ) : user && !profile?.quiz_completed ? (
+            <Link to="/onboarding" style={{ textDecoration: 'none' }}>
+              <div className="rounded-2xl px-4 py-3 text-white"
+                   style={{ background: 'linear-gradient(135deg, #6B0035 0%, #9B1B4D 100%)' }}>
+                <p className="text-sm font-bold">🍷 Qual é o seu perfil de vinho?</p>
+                <p className="text-xs mt-0.5" style={{ color: 'rgba(255,255,255,0.70)' }}>Faça o quiz e personalize sua experiência →</p>
               </div>
-            ) : (
-              <EmptyBox text="Nenhum destaque configurado ainda." />
-            )}
-          </section>
+            </Link>
+          ) : null}
 
-          {/* ── 3. Feito para você ────────────────────────────────── */}
-          <section>
-            <SectionHeader
-              title={user && profile?.quiz_completed ? 'Feito para você' : 'Explorar coleções'}
-              subtitle={
-                user && profile?.quiz_completed
-                  ? `Curado para o perfil ${PROFILE_LABELS[profile!.wine_profile]}`
-                  : 'Descubra vinhos, experiências e muito mais'
-              }
-              linkTo="/for-you"
-              linkLabel="Ver todas"
-            />
-            {loading ? (
-              <>
-                {/* Mobile skeleton */}
-                <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide lg:hidden">
-                  {[1,2,3].map(i => (
-                    <div key={i} className="flex-shrink-0 rounded-[18px] animate-pulse"
-                         style={{ width: 200, height: 300, background: '#EDE4D6' }} />
-                  ))}
-                </div>
-                {/* Desktop skeleton */}
-                <div className="hidden lg:grid grid-cols-3 xl:grid-cols-4 gap-4">
-                  {[1,2,3,4].map(i => (
-                    <div key={i} className="rounded-[18px] animate-pulse" style={{ height: 300, background: '#EDE4D6' }} />
-                  ))}
-                </div>
-              </>
-            ) : personalizedCollections.length > 0 ? (
-              <>
-                {/* Mobile: horizontal scroll carousel */}
-                <div className="flex gap-4 overflow-x-auto pb-3 scrollbar-hide lg:hidden">
-                  {personalizedCollections.map((col) => {
-                    const prog = getProgress(col.id);
-                    return (
-                      <div key={col.id} className="flex-shrink-0" style={{ width: 200 }}>
-                        <CollectionCard
-                          id={col.id}
-                          title={col.title}
-                          coverImage={col.photo}
-                          description={col.tagline ?? ''}
-                          contentType={col.content_type}
-                          category={col.category}
-                          country={(col.country as any)?.name}
-                          region={(col.region as any)?.name}
-                          subRegion={(col.sub_region as any)?.name}
-                          progress={prog.pct}
-                          totalItems={prog.total}
-                          completedItems={prog.done}
-                          previewPhotos={previewPhotosMap[col.id]}
-                          variant="portrait"
-                        />
-                      </div>
-                    );
-                  })}
-                </div>
-                {/* Desktop: CSS grid */}
-                <div className="hidden lg:grid grid-cols-3 xl:grid-cols-4 gap-4">
-                  {personalizedCollections.map((col) => {
-                    const prog = getProgress(col.id);
-                    return (
-                      <CollectionCard
-                        key={col.id}
-                        id={col.id}
-                        title={col.title}
-                        coverImage={col.photo}
-                        description={col.tagline ?? ''}
-                        contentType={col.content_type}
-                        category={col.category}
-                        country={(col.country as any)?.name}
-                        region={(col.region as any)?.name}
-                        subRegion={(col.sub_region as any)?.name}
-                        progress={prog.pct}
-                        totalItems={prog.total}
-                        completedItems={prog.done}
-                        previewPhotos={previewPhotosMap[col.id]}
-                        variant="portrait"
-                      />
-                    );
-                  })}
-                </div>
-              </>
-            ) : (
-              <EmptyBox text="Nenhuma coleção disponível." />
-            )}
-          </section>
-
-          {/* ── 4. Continue sua jornada (challenges preview) ─────── */}
+          {/* ── 2. Continue sua jornada (desafios placeholder) ────── */}
           <section>
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
@@ -491,12 +355,12 @@ export default function Home() {
             </div>
             <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
               {[
-                { emoji: '🍷', label: 'COLEÇÃO',   title: 'Provar 10 Pinots',       sub: '★ 7 de 10',     color: '#6B0035' },
-                { emoji: '🧪', label: 'QUIZ',      title: 'Identifique a uva',      sub: '★ +80 XP',      color: '#4A0060' },
-                { emoji: '📍', label: 'MAPA',      title: 'Explore nova região',    sub: '★ Nova região',  color: '#1C3028' },
+                { label: 'COLEÇÃO', title: 'Provar 10 Pinots',     sub: '★ 7 de 10',     color: '#6B0035' },
+                { label: 'QUIZ',    title: 'Identifique a uva',    sub: '★ +80 XP',      color: '#4A0060' },
+                { label: 'MAPA',    title: 'Explore nova região',  sub: '★ Nova região', color: '#1C3028' },
               ].map((c, i) => (
                 <div key={i} className="flex-shrink-0 rounded-2xl p-3 text-white"
-                     style={{ width: 140, background: c.color, opacity: 0.82 }}>
+                     style={{ width: 140, background: c.color, opacity: 0.85 }}>
                   <span className="text-[9px] font-bold tracking-widest opacity-70">{c.label}</span>
                   <p className="text-sm font-bold leading-snug mt-1"
                      style={{ fontFamily: '"Fraunces", Georgia, serif' }}>{c.title}</p>
@@ -505,6 +369,172 @@ export default function Home() {
               ))}
             </div>
           </section>
+
+          {/* ── 3. Por País ───────────────────────────────────────── */}
+          <section>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-base font-bold" style={{ fontFamily: '"Fraunces", Georgia, serif', color: '#1C1209' }}>
+                🌍 Por País
+              </h2>
+              <Link to="/regions" className="text-xs font-semibold flex items-center gap-0.5 no-underline"
+                    style={{ color: '#6B0035' }}>
+                Ver todos <ChevronRight className="w-3.5 h-3.5" />
+              </Link>
+            </div>
+            {loading ? (
+              <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+                {[1,2,3,4,5].map(i => (
+                  <div key={i} className="flex-shrink-0 rounded-2xl animate-pulse"
+                       style={{ width: 80, height: 80, background: '#D5CFC5' }} />
+                ))}
+              </div>
+            ) : countries.length > 0 ? (
+              <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+                {countries.map(c => (
+                  <Link key={c.id} to={`/country/${c.id}`}
+                        className="flex-shrink-0 relative rounded-2xl overflow-hidden no-underline"
+                        style={{ width: 80, height: 80 }}>
+                    {c.photo
+                      ? <img src={c.photo} alt={c.name} className="w-full h-full object-cover"
+                             onError={e => { (e.target as HTMLImageElement).src = FALLBACK; }} />
+                      : <div className="w-full h-full" style={{ background: '#6B0035' }} />
+                    }
+                    <div className="absolute inset-0"
+                         style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.68) 0%, rgba(0,0,0,0.08) 60%)' }} />
+                    <p className="absolute bottom-1.5 left-1 right-1 text-white font-semibold text-[9px] text-center leading-tight line-clamp-2">
+                      {c.name}
+                    </p>
+                  </Link>
+                ))}
+              </div>
+            ) : null}
+          </section>
+
+          {/* ── 4. Por Região ─────────────────────────────────────── */}
+          <section>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-base font-bold" style={{ fontFamily: '"Fraunces", Georgia, serif', color: '#1C1209' }}>
+                📍 Explorar por Região
+              </h2>
+              <Link to="/regions" className="text-xs font-semibold flex items-center gap-0.5 no-underline"
+                    style={{ color: '#6B0035' }}>
+                Ver todas <ChevronRight className="w-3.5 h-3.5" />
+              </Link>
+            </div>
+            {loading ? (
+              <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+                {[1,2,3,4].map(i => (
+                  <div key={i} className="flex-shrink-0 rounded-2xl animate-pulse"
+                       style={{ width: 120, height: 90, background: '#D5CFC5' }} />
+                ))}
+              </div>
+            ) : regions.length > 0 ? (
+              <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+                {regions.map(r => (
+                  <Link key={r.id} to={`/region/${r.id}`}
+                        className="flex-shrink-0 relative rounded-2xl overflow-hidden no-underline"
+                        style={{ width: 120, height: 90 }}>
+                    {r.photo
+                      ? <img src={r.photo} alt={r.name} className="w-full h-full object-cover"
+                             onError={e => { (e.target as HTMLImageElement).src = FALLBACK; }} />
+                      : <div className="w-full h-full" style={{ background: '#4A0024' }} />
+                    }
+                    <div className="absolute inset-0"
+                         style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.10) 60%)' }} />
+                    <div className="absolute bottom-1.5 left-2 right-2">
+                      <p className="text-white font-semibold text-[10px] leading-tight line-clamp-1">{r.name}</p>
+                      {(r.parent as any)?.name && (
+                        <p className="text-[9px] leading-tight" style={{ color: 'rgba(255,255,255,0.60)' }}>
+                          {(r.parent as any).name}
+                        </p>
+                      )}
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            ) : null}
+          </section>
+
+          {/* ── 5. Feito para você — coleções ─────────────────────── */}
+          <section>
+            <SectionHeader
+              title={user && profile?.quiz_completed ? 'Feito para você' : 'Coleções'}
+              subtitle={
+                user && profile?.quiz_completed
+                  ? `Curado para o perfil ${PROFILE_LABELS[profile!.wine_profile]}`
+                  : 'Descubra vinhos, experiências e muito mais'
+              }
+              linkTo="/for-you"
+              linkLabel="Ver todas"
+            />
+            {loading ? (
+              <>
+                <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide lg:hidden">
+                  {[1,2,3].map(i => (
+                    <div key={i} className="flex-shrink-0 rounded-[18px] animate-pulse"
+                         style={{ width: 200, height: 300, background: '#EDE4D6' }} />
+                  ))}
+                </div>
+                <div className="hidden lg:grid grid-cols-3 xl:grid-cols-4 gap-4">
+                  {[1,2,3,4].map(i => (
+                    <div key={i} className="rounded-[18px] animate-pulse" style={{ height: 300, background: '#EDE4D6' }} />
+                  ))}
+                </div>
+              </>
+            ) : personalizedCollections.length > 0 ? (
+              <>
+                <div className="flex gap-4 overflow-x-auto pb-3 scrollbar-hide lg:hidden">
+                  {personalizedCollections.map((col) => {
+                    const prog = getProgress(col.id);
+                    return (
+                      <div key={col.id} className="flex-shrink-0" style={{ width: 200 }}>
+                        <CollectionCard
+                          id={col.id} title={col.title} coverImage={col.photo}
+                          description={col.tagline ?? ''} contentType={col.content_type}
+                          category={col.category} country={(col.country as any)?.name}
+                          region={(col.region as any)?.name} subRegion={(col.sub_region as any)?.name}
+                          progress={prog.pct} totalItems={prog.total} completedItems={prog.done}
+                          previewPhotos={previewPhotosMap[col.id]} variant="portrait"
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="hidden lg:grid grid-cols-3 xl:grid-cols-4 gap-4">
+                  {personalizedCollections.map((col) => {
+                    const prog = getProgress(col.id);
+                    return (
+                      <CollectionCard
+                        key={col.id} id={col.id} title={col.title} coverImage={col.photo}
+                        description={col.tagline ?? ''} contentType={col.content_type}
+                        category={col.category} country={(col.country as any)?.name}
+                        region={(col.region as any)?.name} subRegion={(col.sub_region as any)?.name}
+                        progress={prog.pct} totalItems={prog.total} completedItems={prog.done}
+                        previewPhotos={previewPhotosMap[col.id]} variant="portrait"
+                      />
+                    );
+                  })}
+                </div>
+              </>
+            ) : (
+              <EmptyBox text="Nenhuma coleção disponível." />
+            )}
+          </section>
+
+          {/* ── 6. Destaques ──────────────────────────────────────── */}
+          {highlights.length > 0 && (
+            <section>
+              <SectionHeader
+                title="Destaques"
+                subtitle="Seleção especial deste período"
+                linkTo="/explore"
+                linkLabel="Ver tudo"
+              />
+              <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide lg:grid lg:grid-cols-3 lg:overflow-visible">
+                {highlights.map((h, i) => <HighlightCard key={h.id} h={h} index={i} />)}
+              </div>
+            </section>
+          )}
 
         </div>
 
