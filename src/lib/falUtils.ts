@@ -29,40 +29,32 @@ const BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 
 // ── Watercolor prompt ─────────────────────────────────────────────────────────
 //
-// Size & background rules:
-//   • Portrait ratio — the canvas must be tall and narrow, like a wine bottle
-//     standing upright (roughly 2:5 width-to-height, e.g. 800 × 2000 px).
-//   • Strictly transparent (alpha-channel) background — no white paper, no
-//     cream wash, no shadow fill, no vignette. Pure transparency everywhere
-//     the bottle is not painted so the platform can composite it on any bg.
-//   • Output must be PNG with alpha channel.
+// Rules:
+//   • Portrait canvas — tall and narrow like a standing wine bottle (~2:5 ratio).
+//   • Bottle must be fully visible, never cropped. Small equal margins top/bottom.
+//   • Pure flat white (#FFFFFF) background — no gradients, no paper texture,
+//     no shadows, no vignette, no checkered pattern, no cream tint. Just white.
 //
 const WATERCOLOR_PROMPT =
   'Transform this wine bottle photo into an elegant watercolor illustration. ' +
 
-  // ── Canvas / size ──────────────────────────────────────────────────────────
-  'The output canvas must be tall and narrow in portrait orientation — ' +
-  'approximately 800 pixels wide by 2000 pixels tall (2:5 aspect ratio), ' +
-  'perfectly suited for a standing wine bottle. ' +
-  'Center the bottle vertically and horizontally, leaving a small margin at ' +
-  'top and bottom (about 5% each side). Do NOT crop the bottle. ' +
+  // ── Canvas / composition ───────────────────────────────────────────────────
+  'Output a tall portrait image (approximately 2:5 width-to-height ratio, like 800×2000 px). ' +
+  'The full bottle — from base to cork — must be completely visible with a small ' +
+  'equal margin (≈5%) at the top and bottom. Do NOT crop any part of the bottle. ' +
+  'Center the bottle horizontally. ' +
 
   // ── Background ─────────────────────────────────────────────────────────────
-  'CRITICAL: The background must be 100% transparent (PNG alpha channel). ' +
-  'Remove every trace of background — no white paper, no cream wash, no soft ' +
-  'gradient, no shadow beneath the bottle, no vignette, no floor reflection. ' +
-  'Only the bottle illustration itself should be visible; all surrounding ' +
-  'pixels must be fully transparent. ' +
+  'The background must be a single, flat, pure white color (#FFFFFF). ' +
+  'No paper texture, no cream or off-white tint, no soft gradient, ' +
+  'no vignette, no drop shadow, no checkered pattern, no noise. ' +
+  'Just a clean, bright, neutral white — like a product photo studio background. ' +
 
   // ── Style ──────────────────────────────────────────────────────────────────
   'Apply expressive, loose watercolor brushstrokes with soft painterly texture ' +
   'and translucent color layers. Preserve the bottle silhouette, label ' +
   'typography, brand name, and all label details accurately. ' +
-  'Romantic, sophisticated fine-art wine illustration — the same bottle ' +
-  'reimagined as a hand-painted watercolor on transparent paper. ' +
-
-  // ── Format reminder ────────────────────────────────────────────────────────
-  'Return the image as PNG with a transparent alpha-channel background.';
+  'Romantic, sophisticated fine-art wine illustration style.';
 
 // ── Helper: fetch any URL and return base64 + mimeType ───────────────────────
 async function imageUrlToBase64(url: string): Promise<{ base64: string; mimeType: string }> {
@@ -194,15 +186,15 @@ export async function transformToWatercolor(
   }
 
   // 3. base64 → Blob → upload to Supabase Storage
-  //    Always store as PNG to preserve the transparent background.
   onStatus?.('Salvando versão aquarela…');
-  const mime      = 'image/png';           // force PNG for alpha transparency
+  const mime      = imagePart.mime.includes('jpeg') ? 'image/jpeg' : 'image/png';
+  const ext       = mime === 'image/jpeg' ? 'jpg' : 'png';
   const byteChars = atob(imagePart.base64);
   const byteArr   = new Uint8Array(byteChars.length);
   for (let i = 0; i < byteChars.length; i++) byteArr[i] = byteChars.charCodeAt(i);
   const blob = new Blob([byteArr], { type: mime });
 
-  const path = `${crypto.randomUUID()}/watercolor.png`;
+  const path = `${crypto.randomUUID()}/watercolor.${ext}`;
   const { error: uploadErr } = await supabase.storage
     .from('wine-images')
     .upload(path, blob, { contentType: mime });
