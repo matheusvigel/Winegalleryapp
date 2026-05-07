@@ -197,11 +197,14 @@ export default function Wines() {
     }
 
     // Sync grape composition
-    await supabase.from('wine_grapes').delete().eq('wine_id', wineId);
+    const { error: delErr } = await supabase.from('wine_grapes').delete().eq('wine_id', wineId);
+    if (delErr) { setError('Erro ao atualizar uvas: ' + delErr.message); setSaving(false); return; }
+
     if (composition.length > 0) {
-      await supabase.from('wine_grapes').insert(
+      const { error: insErr } = await supabase.from('wine_grapes').insert(
         composition.map(c => ({ wine_id: wineId, grape_id: c.grape_id, percentage: c.percentage ?? null }))
       );
+      if (insErr) { setError('Erro ao salvar uvas: ' + insErr.message); setSaving(false); return; }
     }
 
     setModalOpen(false); load();
@@ -263,7 +266,7 @@ export default function Wines() {
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-neutral-50 border-b border-neutral-200 text-left">
-                <th className="px-4 py-3 text-xs font-semibold text-neutral-500 uppercase tracking-wide w-14 hidden sm:table-cell">Foto</th>
+                <th className="px-4 py-3 text-xs font-semibold text-neutral-500 uppercase tracking-wide w-16 hidden sm:table-cell">Foto</th>
                 <th className="px-4 py-3 text-xs font-semibold text-neutral-500 uppercase tracking-wide">Nome</th>
                 <th className="px-4 py-3 text-xs font-semibold text-neutral-500 uppercase tracking-wide hidden sm:table-cell">Tipo</th>
                 <th className="px-4 py-3 text-xs font-semibold text-neutral-500 uppercase tracking-wide hidden md:table-cell">Categoria</th>
@@ -275,11 +278,13 @@ export default function Wines() {
             <tbody>
               {filteredRows.map((r, i) => (
                 <tr key={r.id} className={`border-b border-neutral-100 last:border-0 ${i % 2 ? 'bg-neutral-50/50' : ''}`}>
-                  <td className="px-4 py-3 hidden sm:table-cell">
+                  <td className="px-4 py-2 hidden sm:table-cell">
                     {r.photo ? (
-                      <img src={r.photo} alt={r.name} className="w-10 h-10 rounded-lg object-cover border border-neutral-200" />
+                      <div className="w-10 h-16 rounded-lg border border-neutral-200 overflow-hidden flex items-center justify-center" style={{ background: '#F5F0E8' }}>
+                        <img src={r.photo} alt={r.name} className="w-full h-full object-contain" style={{ padding: '4px 6px' }} />
+                      </div>
                     ) : (
-                      <div className="w-10 h-10 rounded-lg bg-neutral-100 border border-neutral-200 flex items-center justify-center text-neutral-300 text-xs">—</div>
+                      <div className="w-10 h-16 rounded-lg bg-neutral-100 border border-neutral-200 flex items-center justify-center text-neutral-300 text-xs">—</div>
                     )}
                   </td>
                   <td className="px-4 py-3 font-medium text-neutral-900">{r.name}</td>
