@@ -586,63 +586,18 @@ function ReelSlide({
     </div>
   );
 
-  // ── Item card (shared by both layouts) ────────────────────────────────────
-  const ItemCard = ({ item, idx, cardW, photoH }: { item: UnifiedItem; idx: number; cardW?: number; photoH: number }) => {
-    const state  = itemStates[item.itemId] ?? { tried: false, favorite: false };
-    const isWine = item.itemType === 'wine';
+  // ── Shared: status badges overlay ────────────────────────────────────────
+  const StatusBadges = ({ itemId }: { itemId: string }) => {
+    const state = itemStates[itemId] ?? { tried: false, favorite: false };
+    if (!state.tried && !state.favorite) return null;
     return (
-      <div
-        onClick={() => onItemClick(items, idx)}
-        style={{
-          ...(cardW ? { width: cardW, flexShrink: 0 } : {}),
-          borderRadius: 16, overflow: 'hidden',
-          cursor: 'pointer', background: '#fff',
-          boxShadow: '0 2px 12px rgba(28,18,9,0.10)',
-          outline: !isDesktop && idx === itemIndex ? '2px solid rgba(255,255,255,0.75)' : 'none',
-          transition: 'transform 0.15s, box-shadow 0.15s',
-        }}
-        className="active:scale-95 hover:shadow-lg"
-      >
-        {/* Photo area */}
-        <div style={{ height: photoH, background: isWine ? '#F5F0E8' : '#1C1209', position: 'relative', overflow: 'hidden' }}>
-          <img
-            src={item.photo || FALLBACK} alt={item.name}
-            style={{ width: '100%', height: '100%', objectFit: isWine ? 'contain' : 'cover', padding: isWine ? '10px 14px' : 0 }}
-            onError={imgFallback}
-          />
-          {/* Status badges */}
-          <div style={{ position: 'absolute', top: 6, right: 6, display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-end' }}>
-            {state.tried && (
-              <span style={{
-                background: '#2D4A3E', color: '#fff',
-                fontSize: 9, fontWeight: 700, padding: '2px 7px', borderRadius: 99,
-              }}>✓ Vivido</span>
-            )}
-            {state.favorite && (
-              <span style={{
-                background: '#6B0035', color: '#fff',
-                fontSize: 9, fontWeight: 700, padding: '2px 7px', borderRadius: 99,
-              }}>♡ Salvo</span>
-            )}
-          </div>
-        </div>
-        {/* Info area */}
-        <div style={{ padding: isDesktop ? '10px 14px 14px' : '6px 9px 10px' }}>
-          <p style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.10em', textTransform: 'uppercase', color: '#B0906A', marginBottom: 3 }}>
-            {itemLabel(item)}
-          </p>
-          <p style={{
-            fontFamily: '"Fraunces",Georgia,serif',
-            fontSize: isDesktop ? 13 : 11, fontWeight: 700, color: '#1C1209',
-            display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', lineHeight: 1.3,
-            marginBottom: item.subName ? 2 : 0,
-          }}>{item.name}</p>
-          {item.subName && (
-            <p style={{ fontSize: isDesktop ? 11 : 10, color: '#7A6855', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {item.subName}
-            </p>
-          )}
-        </div>
+      <div style={{ position: 'absolute', top: 8, right: 8, display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-end' }}>
+        {state.tried && (
+          <span style={{ background: '#2D4A3E', color: '#fff', fontSize: 9, fontWeight: 700, padding: '2px 8px', borderRadius: 99 }}>✓ Vivido</span>
+        )}
+        {state.favorite && (
+          <span style={{ background: '#6B0035', color: '#fff', fontSize: 9, fontWeight: 700, padding: '2px 8px', borderRadius: 99 }}>♡ Salvo</span>
+        )}
       </div>
     );
   };
@@ -655,26 +610,77 @@ function ReelSlide({
         scrollSnapAlign: 'start', flexShrink: 0,
         display: 'flex', overflow: 'hidden',
       }}>
-        {/* Left: info panel */}
-        <div style={{ width: '38%', flexShrink: 0, position: 'relative' }}>
-          <InfoPanel padding="0 36px 44px" />
+        {/* Left: info panel — 40% */}
+        <div style={{ width: '40%', flexShrink: 0, position: 'relative' }}>
+          <InfoPanel padding="0 44px 52px" />
         </div>
 
-        {/* Right: card grid */}
+        {/* Right: card grid — 60% */}
         <div style={{
-          flex: 1, overflowY: 'auto', background: '#F5F0E8',
-          padding: '28px 28px',
-          scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,90,43,0.25) transparent',
+          flex: 1, overflowY: 'auto',
+          background: 'linear-gradient(135deg, #EDE4D6 0%, #E6DAC8 100%)',
+          padding: '32px 32px 40px',
+          scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,90,43,0.20) transparent',
         }}>
+          {/* Header */}
+          <div style={{ marginBottom: 24, paddingBottom: 16, borderBottom: '1px solid rgba(139,90,43,0.15)' }}>
+            <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#8B6840', marginBottom: 4 }}>
+              {typeLabel} · {col.category}
+            </p>
+            <p style={{ fontSize: 13, color: '#7A6855' }}>
+              {items.length} {items.length === 1 ? 'item' : 'itens'} nesta coleção
+            </p>
+          </div>
+
           {items.length === 0 ? (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 200 }}>
               <p style={{ color: '#B0A090', fontSize: 14 }}>Nenhum item nesta coleção.</p>
             </div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))', gap: 16 }}>
-              {items.map((item, i) => (
-                <ItemCard key={item.itemId} item={item} idx={i} photoH={230} />
-              ))}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 20 }}>
+              {items.map((item, i) => {
+                const isWine = item.itemType === 'wine';
+                return (
+                  <div
+                    key={item.itemId}
+                    onClick={() => onItemClick(items, i)}
+                    style={{
+                      borderRadius: 20, overflow: 'hidden', cursor: 'pointer',
+                      background: '#fff',
+                      boxShadow: '0 4px 20px rgba(28,18,9,0.10)',
+                      transition: 'transform 0.18s, box-shadow 0.18s',
+                    }}
+                    className="hover:scale-[1.02] hover:shadow-xl active:scale-[0.99]"
+                  >
+                    {/* Photo */}
+                    <div style={{ height: 260, background: isWine ? '#F5F0E8' : '#1C1209', position: 'relative', overflow: 'hidden' }}>
+                      <img
+                        src={item.photo || FALLBACK} alt={item.name}
+                        style={{ width: '100%', height: '100%', objectFit: isWine ? 'contain' : 'cover', padding: isWine ? '14px 24px' : 0 }}
+                        onError={imgFallback}
+                      />
+                      <StatusBadges itemId={item.itemId} />
+                    </div>
+                    {/* Info */}
+                    <div style={{ padding: '14px 18px 18px' }}>
+                      <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#B0906A', marginBottom: 5 }}>
+                        {itemLabel(item)}
+                      </p>
+                      <p style={{
+                        fontFamily: '"Fraunces",Georgia,serif', fontSize: 15, fontWeight: 700,
+                        color: '#1C1209', lineHeight: 1.25,
+                        display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
+                        marginBottom: item.subName ? 4 : 0,
+                      }}>{item.name}</p>
+                      {item.subName && (
+                        <p style={{ fontSize: 12, color: '#7A6855', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {item.subName}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
@@ -689,25 +695,68 @@ function ReelSlide({
       scrollSnapAlign: 'start', flexShrink: 0,
       display: 'flex', flexDirection: 'column', overflow: 'hidden',
     }}>
-      {/* Hero — 50% */}
-      <div style={{ height: '50%', position: 'relative', flexShrink: 0 }}>
+      {/* Hero — 46% */}
+      <div style={{ height: '46%', position: 'relative', flexShrink: 0 }}>
         <InfoPanel padding="0 18px 14px" />
       </div>
 
-      {/* Cards carousel — 50% */}
+      {/* Cards carousel — fills remaining space, cards stretch to full height */}
       <div style={{
-        flex: 1,
-        background: 'linear-gradient(to bottom, rgba(10,6,3,0.94) 0%, rgba(10,6,3,0.99) 100%)',
+        flex: 1, minHeight: 0,
+        background: 'linear-gradient(to bottom, rgba(10,6,3,0.95) 0%, #0A0603 100%)',
         overflowX: 'auto', display: 'flex', gap: 10,
-        padding: '12px 14px', scrollbarWidth: 'none', alignItems: 'flex-start',
+        padding: '10px 14px 12px', scrollbarWidth: 'none',
+        alignItems: 'stretch',          /* ← cards fill full height */
       }}>
         {items.length === 0 ? (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1 }}>
             <p style={{ color: 'rgba(255,255,255,0.38)', fontSize: 13 }}>Nenhum item ainda</p>
           </div>
-        ) : items.map((item, i) => (
-          <ItemCard key={item.itemId} item={item} idx={i} cardW={136} photoH={158} />
-        ))}
+        ) : items.map((item, i) => {
+          const isWine = item.itemType === 'wine';
+          return (
+            <div
+              key={item.itemId}
+              onClick={() => onItemClick(items, i)}
+              style={{
+                width: 148, flexShrink: 0,
+                borderRadius: 16, overflow: 'hidden', cursor: 'pointer',
+                background: '#fff',
+                boxShadow: '0 2px 12px rgba(0,0,0,0.25)',
+                outline: i === itemIndex ? '2px solid rgba(255,255,255,0.80)' : 'none',
+                display: 'flex', flexDirection: 'column',   /* ← flex column */
+                transition: 'transform 0.15s',
+              }}
+              className="active:scale-95"
+            >
+              {/* Photo — grows to fill */}
+              <div style={{ flex: 1, minHeight: 140, background: isWine ? '#F5F0E8' : '#1C1209', position: 'relative', overflow: 'hidden' }}>
+                <img
+                  src={item.photo || FALLBACK} alt={item.name}
+                  style={{ width: '100%', height: '100%', objectFit: isWine ? 'contain' : 'cover', padding: isWine ? '10px 14px' : 0 }}
+                  onError={imgFallback}
+                />
+                <StatusBadges itemId={item.itemId} />
+              </div>
+              {/* Info — fixed at bottom */}
+              <div style={{ padding: '7px 10px 10px', flexShrink: 0 }}>
+                <p style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.10em', textTransform: 'uppercase', color: '#B0906A', marginBottom: 3 }}>
+                  {itemLabel(item)}
+                </p>
+                <p style={{
+                  fontFamily: '"Fraunces",Georgia,serif', fontSize: 11, fontWeight: 700, color: '#1C1209',
+                  display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', lineHeight: 1.3,
+                  marginBottom: item.subName ? 2 : 0,
+                }}>{item.name}</p>
+                {item.subName && (
+                  <p style={{ fontSize: 10, color: '#7A6855', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {item.subName}
+                  </p>
+                )}
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
