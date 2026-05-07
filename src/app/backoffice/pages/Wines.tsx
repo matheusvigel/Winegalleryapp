@@ -18,7 +18,7 @@ type Wine = {
 
 type Winery = { id: string; name: string };
 type Grape  = { id: string; name: string; type: string };
-type WineGrape = { grape_id: string; percentage: number | null };
+type WineGrape = { grape_id: string };
 
 const CATEGORIES = ['Essencial', 'Fugir do óbvio', 'Ícones'];
 const TYPES = ['Tinto', 'Branco', 'Rosé', 'Espumante', 'Fortificado', 'Laranja', 'Sobremesa'];
@@ -47,17 +47,12 @@ function GrapeComposition({
     ), [allGrapes, composition, search]);
 
   const addGrape = (grape_id: string) => {
-    onChange([...composition, { grape_id, percentage: null }]);
+    onChange([...composition, { grape_id }]);
     setSearch('');
   };
 
   const removeGrape = (grape_id: string) =>
     onChange(composition.filter(c => c.grape_id !== grape_id));
-
-  const setPct = (grape_id: string, pct: string) =>
-    onChange(composition.map(c =>
-      c.grape_id === grape_id ? { ...c, percentage: pct ? Number(pct) : null } : c
-    ));
 
   return (
     <div className="space-y-2">
@@ -71,13 +66,6 @@ function GrapeComposition({
               🍇 {grape.name}
               <span className="text-xs text-neutral-500 ml-1">· {grape.type}</span>
             </span>
-            <input
-              type="number" min={1} max={100}
-              value={c.percentage ?? ''}
-              onChange={e => setPct(c.grape_id, e.target.value)}
-              placeholder="%" className="w-16 h-8 px-2 text-sm border border-neutral-200 rounded-lg outline-none focus:border-purple-500 text-center"
-            />
-            <span className="text-xs text-neutral-400">%</span>
             <button type="button" onClick={() => removeGrape(c.grape_id)}
               className="p-1 text-neutral-400 hover:text-red-500 transition-colors">
               <X size={14} />
@@ -160,7 +148,7 @@ export default function Wines() {
       .from('wine_grapes')
       .select('grape_id, percentage')
       .eq('wine_id', r.id);
-    setComposition((wg ?? []).map((x: any) => ({ grape_id: x.grape_id, percentage: x.percentage })));
+    setComposition((wg ?? []).map((x: any) => ({ grape_id: x.grape_id })));
     setError(''); setModalOpen(true);
   };
 
@@ -202,7 +190,7 @@ export default function Wines() {
 
     if (composition.length > 0) {
       const { error: insErr } = await supabase.from('wine_grapes').insert(
-        composition.map(c => ({ wine_id: wineId, grape_id: c.grape_id, percentage: c.percentage ?? null }))
+        composition.map(c => ({ wine_id: wineId, grape_id: c.grape_id }))
       );
       if (insErr) { setError('Erro ao salvar uvas: ' + insErr.message); setSaving(false); return; }
     }

@@ -2,9 +2,8 @@
 -- Run this in Supabase SQL Editor: https://supabase.com/dashboard/project/hdnbnkcoyeehjhrqcuyi/sql
 
 CREATE TABLE IF NOT EXISTS wine_grapes (
-  wine_id     text NOT NULL REFERENCES wines(id) ON DELETE CASCADE,
-  grape_id    text NOT NULL REFERENCES grapes(id) ON DELETE CASCADE,
-  percentage  integer CHECK (percentage BETWEEN 1 AND 100),
+  wine_id   text NOT NULL REFERENCES wines(id)   ON DELETE CASCADE,
+  grape_id  text NOT NULL REFERENCES grapes(id)  ON DELETE CASCADE,
   PRIMARY KEY (wine_id, grape_id)
 );
 
