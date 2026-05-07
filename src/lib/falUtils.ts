@@ -28,13 +28,41 @@ const MODELS_TO_TRY = [
 const BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 
 // ── Watercolor prompt ─────────────────────────────────────────────────────────
+//
+// Size & background rules:
+//   • Portrait ratio — the canvas must be tall and narrow, like a wine bottle
+//     standing upright (roughly 2:5 width-to-height, e.g. 800 × 2000 px).
+//   • Strictly transparent (alpha-channel) background — no white paper, no
+//     cream wash, no shadow fill, no vignette. Pure transparency everywhere
+//     the bottle is not painted so the platform can composite it on any bg.
+//   • Output must be PNG with alpha channel.
+//
 const WATERCOLOR_PROMPT =
-  'Transform this wine bottle into an elegant watercolor illustration art. ' +
-  'Use a light, clean white or off-white background — do NOT use dark or black backgrounds. ' +
-  'Apply expressive, loose watercolor brushstrokes with soft painterly texture and translucent color layers. ' +
-  'Preserve the bottle shape, label typography, brand name, and all label details accurately. ' +
-  'Romantic, sophisticated fine-art wine illustration style — the same bottle, ' +
-  'reimagined as a hand-painted watercolor artwork on bright white paper.';
+  'Transform this wine bottle photo into an elegant watercolor illustration. ' +
+
+  // ── Canvas / size ──────────────────────────────────────────────────────────
+  'The output canvas must be tall and narrow in portrait orientation — ' +
+  'approximately 800 pixels wide by 2000 pixels tall (2:5 aspect ratio), ' +
+  'perfectly suited for a standing wine bottle. ' +
+  'Center the bottle vertically and horizontally, leaving a small margin at ' +
+  'top and bottom (about 5% each side). Do NOT crop the bottle. ' +
+
+  // ── Background ─────────────────────────────────────────────────────────────
+  'CRITICAL: The background must be 100% transparent (PNG alpha channel). ' +
+  'Remove every trace of background — no white paper, no cream wash, no soft ' +
+  'gradient, no shadow beneath the bottle, no vignette, no floor reflection. ' +
+  'Only the bottle illustration itself should be visible; all surrounding ' +
+  'pixels must be fully transparent. ' +
+
+  // ── Style ──────────────────────────────────────────────────────────────────
+  'Apply expressive, loose watercolor brushstrokes with soft painterly texture ' +
+  'and translucent color layers. Preserve the bottle silhouette, label ' +
+  'typography, brand name, and all label details accurately. ' +
+  'Romantic, sophisticated fine-art wine illustration — the same bottle ' +
+  'reimagined as a hand-painted watercolor on transparent paper. ' +
+
+  // ── Format reminder ────────────────────────────────────────────────────────
+  'Return the image as PNG with a transparent alpha-channel background.';
 
 // ── Helper: fetch any URL and return base64 + mimeType ───────────────────────
 async function imageUrlToBase64(url: string): Promise<{ base64: string; mimeType: string }> {
@@ -166,20 +194,21 @@ export async function transformToWatercolor(
   }
 
   // 3. base64 → Blob → upload to Supabase Storage
+  //    Always store as PNG to preserve the transparent background.
   onStatus?.('Salvando versão aquarela…');
-  const ext       = imagePart.mime.includes('jpeg') ? 'jpg' : 'png';
+  const mime      = 'image/png';           // force PNG for alpha transparency
   const byteChars = atob(imagePart.base64);
   const byteArr   = new Uint8Array(byteChars.length);
   for (let i = 0; i < byteChars.length; i++) byteArr[i] = byteChars.charCodeAt(i);
-  const blob = new Blob([byteArr], { type: imagePart.mime });
+  const blob = new Blob([byteArr], { type: mime });
 
-  const path = `${crypto.randomUUID()}/watercolor.${ext}`;
+  const path = `${crypto.randomUUID()}/watercolor.png`;
   const { error: uploadErr } = await supabase.storage
     .from('wine-images')
-    .upload(path, blob, { contentType: imagePart.mime });
+    .upload(path, blob, { contentType: mime });
 
   if (uploadErr) throw new Error(`Erro ao salvar: ${uploadErr.message}`);
 
-  const { data } = supabase.storage.from('wine-images').getPublicUrl(path);
-  return data.publicUrl;
+  const { data: urlData } = supabase.storage.from('wine-images').getPublicUrl(path);
+  return urlData.publicUrl;
 }
