@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { Link } from 'react-router';
 import { motion } from 'motion/react';
-import { ChevronRight, Lock, Trophy, Zap } from 'lucide-react';
+import { ChevronRight, Trophy } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import {
@@ -69,6 +69,13 @@ const NEXT_LEVEL: Record<UserLevel, UserLevel | null> = {
 };
 
 // ── Helpers ────────────────────────────────────────────────────────────
+
+function getGreeting() {
+  const h = new Date().getHours();
+  if (h >= 5 && h < 12) return 'Bom dia';
+  if (h >= 12 && h < 18) return 'Boa tarde';
+  return 'Boa noite';
+}
 
 function getLevelProgress(pts: number, level: UserLevel) {
   const { min, max } = LEVEL_POINTS[level];
@@ -304,18 +311,59 @@ export default function Home() {
         {/* ══ MAIN COLUMN ══════════════════════════════════════════ */}
         <div className="space-y-8">
 
-          {/* ── 1. Profile Hero (mobile) ──────────────────────────── */}
+          {/* ── 1. Compact profile strip (mobile) ────────────────── */}
           <div className="lg:hidden">
-            <ProfileHero
-              user={user}
-              profile={profile}
-              levelProgress={levelProgress}
-              ptsToNext={ptsToNext}
-              nextLevel={nextLevel}
-              bonusCount={bonusCount}
-              dismissedBonus={dismissedBonus}
-              onDismissBonus={() => setDismissedBonus(true)}
-            />
+            {user && profile && profile.quiz_completed ? (
+              <Link to="/minha" style={{ textDecoration: 'none' }}>
+                <div
+                  className="rounded-2xl px-4 py-3 flex items-center gap-3"
+                  style={{ background: 'linear-gradient(135deg, #4A0024 0%, #6B0035 100%)', marginBottom: 0 }}
+                >
+                  {/* Avatar */}
+                  <div
+                    className="w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0"
+                    style={{ background: 'rgba(255,255,255,0.12)' }}
+                  >
+                    {PROFILE_ICONS[profile.wine_profile]}
+                  </div>
+                  {/* Text */}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium" style={{ color: 'rgba(255,255,255,0.65)' }}>
+                      {getGreeting()}, {profile.display_name || 'Apreciador'}
+                    </p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span
+                        className="text-[10px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-md"
+                        style={{ background: 'rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.85)' }}
+                      >
+                        {LEVEL_LABELS[profile.user_level]}
+                      </span>
+                      <span className="text-xs font-bold text-white">{profile.total_points} pts</span>
+                    </div>
+                  </div>
+                  {/* Progress bar mini */}
+                  <div className="flex-shrink-0 w-16">
+                    <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.15)' }}>
+                      <div
+                        className="h-full rounded-full"
+                        style={{ width: `${levelProgress}%`, background: '#D4A82A' }}
+                      />
+                    </div>
+                    <p className="text-[9px] mt-0.5 text-right" style={{ color: 'rgba(255,255,255,0.45)' }}>
+                      {levelProgress}%
+                    </p>
+                  </div>
+                </div>
+              </Link>
+            ) : user && !profile?.quiz_completed ? (
+              <Link to="/onboarding" style={{ textDecoration: 'none' }}>
+                <div className="rounded-2xl px-4 py-3 text-white"
+                     style={{ background: 'linear-gradient(135deg, #6B0035 0%, #9B1B4D 100%)' }}>
+                  <p className="text-sm font-bold">🍷 Qual é o seu perfil de vinho?</p>
+                  <p className="text-xs mt-0.5" style={{ color: 'rgba(255,255,255,0.70)' }}>Faça o quiz e personalize sua experiência →</p>
+                </div>
+              </Link>
+            ) : null}
           </div>
 
           {/* ── 2. Destaques do Wine Gallery ──────────────────────── */}
@@ -351,7 +399,7 @@ export default function Home() {
                   ? `Curado para o perfil ${PROFILE_LABELS[profile!.wine_profile]}`
                   : 'Descubra vinhos, experiências e muito mais'
               }
-              linkTo="/explore"
+              linkTo="/for-you"
               linkLabel="Ver todas"
             />
             {loading ? (
@@ -429,52 +477,32 @@ export default function Home() {
             )}
           </section>
 
-          {/* ── 4. Desafios — Em breve ────────────────────────────── */}
+          {/* ── 4. Continue sua jornada (challenges preview) ─────── */}
           <section>
-            <div className="flex items-center gap-2.5 mb-4">
-              <Trophy className="w-5 h-5" style={{ color: '#C8B9A8' }} />
-              <h2 className="text-xl font-bold section-title" style={{ color: '#C8B9A8' }}>Desafios</h2>
-              <span className="chip chip-cream" style={{ opacity: 0.8 }}>Em breve</span>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Trophy className="w-4 h-4" style={{ color: '#D4A82A' }} />
+                <h2 className="text-base font-bold" style={{ fontFamily: '"Fraunces", Georgia, serif', color: '#1C1209' }}>
+                  Continue sua jornada
+                </h2>
+              </div>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                    style={{ background: '#FBF3DC', color: '#B8820B' }}>Em breve</span>
             </div>
-
-            <div className="relative rounded-2xl overflow-hidden bg-white"
-                 style={{ border: '1px solid rgba(139,90,43,0.12)' }}>
-              {/* Frosted overlay */}
-              <div className="absolute inset-0 backdrop-blur-[3px] z-10 flex flex-col items-center justify-center gap-3 p-6"
-                   style={{ background: 'rgba(255,255,255,0.88)' }}>
-                <div className="w-12 h-12 rounded-2xl flex items-center justify-center"
-                     style={{ background: '#EDE4D6' }}>
-                  <Lock className="w-6 h-6" style={{ color: '#C8B9A8' }} />
+            <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+              {[
+                { emoji: '🍷', label: 'COLEÇÃO',   title: 'Provar 10 Pinots',       sub: '★ 7 de 10',     color: '#6B0035' },
+                { emoji: '🧪', label: 'QUIZ',      title: 'Identifique a uva',      sub: '★ +80 XP',      color: '#4A0060' },
+                { emoji: '📍', label: 'MAPA',      title: 'Explore nova região',    sub: '★ Nova região',  color: '#1C3028' },
+              ].map((c, i) => (
+                <div key={i} className="flex-shrink-0 rounded-2xl p-3 text-white"
+                     style={{ width: 140, background: c.color, opacity: 0.82 }}>
+                  <span className="text-[9px] font-bold tracking-widest opacity-70">{c.label}</span>
+                  <p className="text-sm font-bold leading-snug mt-1"
+                     style={{ fontFamily: '"Fraunces", Georgia, serif' }}>{c.title}</p>
+                  <p className="text-[10px] mt-2 opacity-70">{c.sub}</p>
                 </div>
-                <p className="font-bold text-center" style={{ color: '#7A6855' }}>Desafios chegando em breve</p>
-                <p className="text-sm text-center max-w-xs leading-relaxed" style={{ color: '#B0A090' }}>
-                  Challenges semanais, conquistas exclusivas e rankings entre amigos.
-                </p>
-              </div>
-              {/* Blurred preview cards */}
-              <div className="p-4 space-y-3 pointer-events-none select-none" aria-hidden>
-                {[
-                  { emoji: '🍷', title: 'Do Novato ao Curioso',    pts: 50,  label: 'Iniciante'  },
-                  { emoji: '🗺️', title: 'Explorador de Regiões',   pts: 100, label: 'Aventura'   },
-                  { emoji: '⭐', title: 'Semana do Expert',         pts: 200, label: 'Avançado'   },
-                ].map((d, i) => (
-                  <div key={i} className="flex items-center gap-3 rounded-xl p-3"
-                       style={{ background: '#FBF7F2' }}>
-                    <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-xl"
-                         style={{ boxShadow: '0 1px 3px rgba(28,18,9,0.08)' }}>
-                      {d.emoji}
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-semibold" style={{ color: '#1C1209' }}>{d.title}</p>
-                      <p className="text-xs" style={{ color: '#B0A090' }}>{d.label}</p>
-                    </div>
-                    <div className="flex items-center gap-1" style={{ color: '#B8820B' }}>
-                      <Zap className="w-3.5 h-3.5" />
-                      <span className="text-xs font-bold">+{d.pts} pts</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              ))}
             </div>
           </section>
 
