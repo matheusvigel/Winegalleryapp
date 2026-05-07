@@ -689,24 +689,30 @@ function ReelSlide({
   }
 
   // ── MOBILE layout ─────────────────────────────────────────────────────────
+  // Card proportions: ~9:16 feel — 144px wide × 232px tall
+  const CARD_W   = 144;
+  const CARD_H   = 232;   // ≈ 9:14 — feels like a story card
+  const PHOTO_H  = CARD_H - 64; // 168px photo, 64px info footer
+
   return (
     <div style={{
       height: 'calc(100svh - 56px - 64px)',
       scrollSnapAlign: 'start', flexShrink: 0,
       display: 'flex', flexDirection: 'column', overflow: 'hidden',
     }}>
-      {/* Hero — 46% */}
-      <div style={{ height: '46%', position: 'relative', flexShrink: 0 }}>
+      {/* Hero — 44% */}
+      <div style={{ height: '44%', position: 'relative', flexShrink: 0 }}>
         <InfoPanel padding="0 18px 14px" />
       </div>
 
-      {/* Cards carousel — fills remaining space, cards stretch to full height */}
+      {/* Cards carousel — fixed-size cards, vertically centered */}
       <div style={{
         flex: 1, minHeight: 0,
         background: 'linear-gradient(to bottom, rgba(10,6,3,0.95) 0%, #0A0603 100%)',
         overflowX: 'auto', display: 'flex', gap: 10,
-        padding: '10px 14px 12px', scrollbarWidth: 'none',
-        alignItems: 'stretch',          /* ← cards fill full height */
+        padding: `0 14px`,
+        scrollbarWidth: 'none',
+        alignItems: 'center',   /* vertically center the fixed-height cards */
       }}>
         {items.length === 0 ? (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1 }}>
@@ -719,37 +725,42 @@ function ReelSlide({
               key={item.itemId}
               onClick={() => onItemClick(items, i)}
               style={{
-                width: 148, flexShrink: 0,
+                width: CARD_W, height: CARD_H, flexShrink: 0,
                 borderRadius: 16, overflow: 'hidden', cursor: 'pointer',
                 background: '#fff',
-                boxShadow: '0 2px 12px rgba(0,0,0,0.25)',
-                outline: i === itemIndex ? '2px solid rgba(255,255,255,0.80)' : 'none',
-                display: 'flex', flexDirection: 'column',   /* ← flex column */
-                transition: 'transform 0.15s',
+                boxShadow: i === itemIndex
+                  ? '0 0 0 2px #fff, 0 4px 20px rgba(0,0,0,0.40)'
+                  : '0 4px 16px rgba(0,0,0,0.30)',
+                display: 'flex', flexDirection: 'column',
+                transition: 'box-shadow 0.2s, transform 0.15s',
               }}
               className="active:scale-95"
             >
-              {/* Photo — grows to fill */}
-              <div style={{ flex: 1, minHeight: 140, background: isWine ? '#F5F0E8' : '#1C1209', position: 'relative', overflow: 'hidden' }}>
+              {/* Photo — object-cover fills the entire space */}
+              <div style={{ height: PHOTO_H, flexShrink: 0, background: isWine ? '#F5F0E8' : '#1C1209', position: 'relative', overflow: 'hidden' }}>
                 <img
                   src={item.photo || FALLBACK} alt={item.name}
-                  style={{ width: '100%', height: '100%', objectFit: isWine ? 'contain' : 'cover', padding: isWine ? '10px 14px' : 0 }}
+                  style={{
+                    width: '100%', height: '100%',
+                    objectFit: 'cover',   /* always fill — no empty space */
+                    objectPosition: 'center top',
+                  }}
                   onError={imgFallback}
                 />
                 <StatusBadges itemId={item.itemId} />
               </div>
-              {/* Info — fixed at bottom */}
-              <div style={{ padding: '7px 10px 10px', flexShrink: 0 }}>
-                <p style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.10em', textTransform: 'uppercase', color: '#B0906A', marginBottom: 3 }}>
+              {/* Info footer — fixed 64px */}
+              <div style={{ flex: 1, padding: '7px 10px 8px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                <p style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.10em', textTransform: 'uppercase', color: '#B0906A', marginBottom: 2 }}>
                   {itemLabel(item)}
                 </p>
                 <p style={{
                   fontFamily: '"Fraunces",Georgia,serif', fontSize: 11, fontWeight: 700, color: '#1C1209',
-                  display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', lineHeight: 1.3,
-                  marginBottom: item.subName ? 2 : 0,
+                  display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', lineHeight: 1.25,
+                  marginBottom: item.subName ? 1 : 0,
                 }}>{item.name}</p>
                 {item.subName && (
-                  <p style={{ fontSize: 10, color: '#7A6855', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <p style={{ fontSize: 9, color: '#7A6855', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {item.subName}
                   </p>
                 )}
