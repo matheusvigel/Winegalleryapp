@@ -29,7 +29,6 @@ interface CollectionRow {
   category: string;
   country: { name: string } | null;
   region: { name: string } | null;
-  sponsor_logo?: string | null;
 }
 
 interface ProfileRule {
@@ -650,7 +649,7 @@ export default function ForYou() {
       const [{ data: cols }, { data: colItems }] = await Promise.all([
         supabase
           .from('collections')
-          .select('id, title, tagline, photo, content_type, category, country:country_id(name), region:region_id(name), sponsor_logo')
+          .select('id, title, tagline, photo, content_type, category, country:country_id(name), region:region_id(name)')
           .order('title'),
         supabase
           .from('collection_items')
