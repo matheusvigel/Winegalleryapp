@@ -69,7 +69,7 @@ function ItemModal({
   onAddReview: (id: string, r: { photo?: string; comment: string; rating: number }) => void;
 }) {
   const [index, setIndex] = useState(initialIndex);
-  const [sheetOpen, setSheetOpen] = useState(false);
+  const [level, setLevel] = useState<0 | 1>(0);
   const touchStartX = useRef<number | null>(null);
 
   const item  = items[index];
@@ -82,6 +82,9 @@ function ItemModal({
     return () => { document.body.style.overflow = ''; };
   }, []);
 
+  const prev = useCallback(() => { setIndex(i => Math.max(0, i - 1)); setLevel(0); }, []);
+  const next = useCallback(() => { setIndex(i => Math.min(items.length - 1, i + 1)); setLevel(0); }, [items.length]);
+
   // Keyboard navigation
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -91,21 +94,19 @@ function ItemModal({
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [index]);
-
-  const prev = useCallback(() => setIndex(i => Math.max(0, i - 1)), []);
-  const next = useCallback(() => setIndex(i => Math.min(items.length - 1, i + 1)), [items.length]);
+  }, [next, prev, onClose]);
 
   // Touch swipe
-  const onTouchStart = (e: React.TouchEvent) => {
-    touchStartX.current = e.touches[0].clientX;
-  };
+  const onTouchStart = (e: React.TouchEvent) => { touchStartX.current = e.touches[0].clientX; };
   const onTouchEnd = (e: React.TouchEvent) => {
     if (touchStartX.current === null) return;
     const dx = e.changedTouches[0].clientX - touchStartX.current;
-    if (Math.abs(dx) > 48) dx < 0 ? next() : prev();
+    if (Math.abs(dx) > 48) { dx < 0 ? next() : prev(); setLevel(0); }
     touchStartX.current = null;
   };
+
+  const photoHeight = level === 0 ? '60vh' : '38vh';
+  const sheetHeight = level === 0 ? '40vh' : '62vh';
 
   return (
     <motion.div
@@ -113,331 +114,224 @@ function ItemModal({
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.2 }}
-      className="fixed inset-0 z-[100] flex flex-col"
-      style={{ background: isWine ? '#F5F0E8' : '#0D0905' }}
+      style={{ position: 'fixed', inset: 0, zIndex: 100, background: '#000' }}
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
     >
       {/* ── Top bar ────────────────────────────────────────────────── */}
-      <div
-        className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between px-4 pt-4 pb-3"
-        style={{ background: isWine ? 'rgba(245,240,232,0.92)' : 'rgba(0,0,0,0.55)', backdropFilter: 'blur(8px)' }}
-      >
-        <button
-          onClick={onClose}
-          className="w-9 h-9 rounded-full flex items-center justify-center"
-          style={{ background: isWine ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.15)' }}
-        >
-          <X className="w-5 h-5" style={{ color: isWine ? '#1C1209' : '#fff' }} strokeWidth={2} />
-        </button>
-
-        <div className="text-center">
-          <p className="text-sm font-bold leading-tight"
-             style={{ fontFamily: '"Fraunces", Georgia, serif', color: isWine ? '#1C1209' : '#fff' }}>
-            {collectionTitle}
-          </p>
-          <p className="text-xs" style={{ color: isWine ? '#9B8060' : 'rgba(255,255,255,0.65)' }}>
-            {index + 1} de {items.length}
-          </p>
-        </div>
-
-        <button
-          className="w-9 h-9 rounded-full flex items-center justify-center"
-          style={{ background: isWine ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.15)' }}
-        >
-          <Share2 className="w-4 h-4" style={{ color: isWine ? '#1C1209' : '#fff' }} />
-        </button>
-      </div>
-
-      {/* ── Progress segments ──────────────────────────────────────── */}
-      <div className="absolute top-[68px] left-0 right-0 z-10 flex gap-1.5 px-4">
-        {items.map((_, i) => (
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 20, padding: '16px 16px 8px' }}>
+        <div className="flex items-center justify-between">
           <button
-            key={i}
-            onClick={() => setIndex(i)}
-            className="flex-1 rounded-full transition-all duration-300"
-            style={{
-              height: 3,
-              background: i === index
-                ? (isWine ? '#690037' : '#fff')
-                : (isWine ? 'rgba(105,0,55,0.20)' : 'rgba(255,255,255,0.30)'),
-            }}
-          />
-        ))}
+            onClick={onClose}
+            style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(0,0,0,0.35)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          >
+            <X className="w-4 h-4" style={{ color: '#fff' }} />
+          </button>
+          <div className="text-center">
+            <p style={{ fontFamily: '"DM Sans",system-ui,sans-serif', fontSize: 12, fontWeight: 700, color: '#fff' }}>{collectionTitle}</p>
+            <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.65)' }}>{index + 1} de {items.length}</p>
+          </div>
+          <button style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(0,0,0,0.35)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Share2 className="w-4 h-4" style={{ color: '#fff' }} />
+          </button>
+        </div>
+        {/* Progress segments */}
+        <div className="flex gap-1.5 mt-3">
+          {items.map((_, i) => (
+            <button
+              key={i}
+              onClick={() => { setIndex(i); setLevel(0); }}
+              style={{ flex: 1, height: 2, borderRadius: 99, background: i === index ? '#fff' : 'rgba(255,255,255,0.30)' }}
+            />
+          ))}
+        </div>
       </div>
 
-      {/* ── Main image ─────────────────────────────────────────────── */}
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={item.itemId}
-          initial={{ opacity: 0, x: 40 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: -40 }}
-          transition={{ duration: 0.22, ease: 'easeOut' }}
-          className="flex-1 flex items-center justify-center"
-          style={{ paddingTop: 88, paddingBottom: sheetOpen ? 0 : 88 }}
-        >
-          {isWine ? (
-            <div className="h-full w-full flex items-center justify-center px-12 py-4">
+      {/* ── Photo (animates height by level) ──────────────────────── */}
+      <motion.div
+        animate={{ height: photoHeight }}
+        transition={{ type: 'spring', damping: 28, stiffness: 260 }}
+        style={{ position: 'absolute', top: 0, left: 0, right: 0, overflow: 'hidden', cursor: 'pointer' }}
+        onClick={() => setLevel(l => l === 0 ? 1 : 0)}
+      >
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={item.itemId}
+            initial={{ opacity: 0, x: 40 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -40 }}
+            transition={{ duration: 0.22, ease: 'easeOut' }}
+            style={{ width: '100%', height: '100%' }}
+          >
+            {isWine ? (
+              <div style={{ width: '100%', height: '100%', background: '#F5F0E8', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '48px 48px 16px' }}>
+                <img
+                  src={item.photo || FALLBACK}
+                  alt={item.name}
+                  style={{ maxHeight: '100%', maxWidth: '100%', objectFit: 'contain', filter: 'drop-shadow(0 16px 40px rgba(0,0,0,0.22))' }}
+                  onError={imgFallback}
+                />
+              </div>
+            ) : (
               <img
                 src={item.photo || FALLBACK}
                 alt={item.name}
-                className="max-h-full max-w-full object-contain"
-                style={{ filter: 'drop-shadow(0 16px 40px rgba(0,0,0,0.22))' }}
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                 onError={imgFallback}
               />
-            </div>
-          ) : (
-            <img
-              src={item.photo || FALLBACK}
-              alt={item.name}
-              className="w-full h-full object-cover"
-              onError={imgFallback}
-            />
-          )}
-        </motion.div>
-      </AnimatePresence>
+            )}
+          </motion.div>
+        </AnimatePresence>
+      </motion.div>
 
       {/* ── Prev / Next arrows ─────────────────────────────────────── */}
       {items.length > 1 && (
         <>
           <button
             onClick={prev}
-            className="absolute left-3 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full flex items-center justify-center transition-all"
-            style={{
-              background: isWine ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.18)',
-              backdropFilter: 'blur(6px)',
-              opacity: index === 0 ? 0 : 1,
-              pointerEvents: index === 0 ? 'none' : 'auto',
-            }}
+            style={{ position: 'absolute', left: 12, top: '30vh', transform: 'translateY(-50%)', width: 44, height: 44, borderRadius: '50%', background: 'rgba(255,255,255,0.18)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: index === 0 ? 0 : 1, pointerEvents: index === 0 ? 'none' : 'auto', zIndex: 15 }}
           >
-            <ChevronLeft className="w-5 h-5" style={{ color: isWine ? '#1C1209' : '#fff' }} />
+            <ChevronLeft className="w-5 h-5" style={{ color: '#fff' }} />
           </button>
           <button
             onClick={next}
-            className="absolute right-3 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full flex items-center justify-center transition-all"
-            style={{
-              background: isWine ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.18)',
-              backdropFilter: 'blur(6px)',
-              opacity: index === items.length - 1 ? 0 : 1,
-              pointerEvents: index === items.length - 1 ? 'none' : 'auto',
-            }}
+            style={{ position: 'absolute', right: 12, top: '30vh', transform: 'translateY(-50%)', width: 44, height: 44, borderRadius: '50%', background: 'rgba(255,255,255,0.18)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: index === items.length - 1 ? 0 : 1, pointerEvents: index === items.length - 1 ? 'none' : 'auto', zIndex: 15 }}
           >
-            <ChevronRight className="w-5 h-5" style={{ color: isWine ? '#1C1209' : '#fff' }} />
+            <ChevronRight className="w-5 h-5" style={{ color: '#fff' }} />
           </button>
         </>
       )}
 
-      {/* ── Bottom action bar (collapsed) ──────────────────────────── */}
-      <AnimatePresence>
-        {!sheetOpen && (
-          <motion.div
-            initial={{ y: 80, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: 80, opacity: 0 }}
-            transition={{ duration: 0.22 }}
-            className="absolute bottom-0 left-0 right-0 flex items-center justify-between px-5 py-5"
-            style={{
-              background: isWine
-                ? 'linear-gradient(to top, rgba(245,240,232,1) 70%, rgba(245,240,232,0))'
-                : 'linear-gradient(to top, rgba(0,0,0,0.80) 50%, rgba(0,0,0,0))',
-            }}
-          >
-            {/* Bookmark */}
-            <button
-              onClick={() => onToggleFavorite(item.itemId)}
-              className="w-12 h-12 rounded-full flex items-center justify-center transition-all"
-              style={{
-                background: state.favorite
-                  ? '#690037'
-                  : isWine ? 'rgba(0,0,0,0.10)' : 'rgba(255,255,255,0.18)',
-                backdropFilter: 'blur(6px)',
-              }}
-            >
-              <Bookmark
-                className="w-5 h-5"
-                style={{ color: state.favorite ? '#fff' : isWine ? '#1C1209' : '#fff' }}
-                fill={state.favorite ? 'white' : 'none'}
-              />
-            </button>
+      {/* ── Bottom sheet (two levels) ──────────────────────────────── */}
+      <motion.div
+        animate={{ height: sheetHeight }}
+        transition={{ type: 'spring', damping: 28, stiffness: 260 }}
+        style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: '#FFFFFF', borderRadius: '20px 20px 0 0', boxShadow: '0 -4px 32px rgba(0,0,0,0.18)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
+      >
+        {/* Handle */}
+        <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 12, paddingBottom: 4, flexShrink: 0 }}>
+          <div style={{ width: 40, height: 4, borderRadius: 99, background: 'rgba(0,0,0,0.12)' }} />
+        </div>
 
-            {/* Open detail sheet */}
-            <button
-              onClick={() => setSheetOpen(true)}
-              className="flex-1 ml-3 py-3.5 rounded-2xl font-bold text-sm transition-all"
-              style={{
-                background: state.tried ? '#2D4A3E' : '#690037',
-                color: '#fff',
-                boxShadow: state.tried
-                  ? '0 4px 16px rgba(45,74,62,0.40)'
-                  : '0 4px 16px rgba(105,0,55,0.45)',
-              }}
-            >
-              {state.tried ? '✓ Já provei · Ver detalhes' : 'Ver detalhes'}
-            </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* ── Detail sheet (slides up) ───────────────────────────────── */}
-      <AnimatePresence>
-        {sheetOpen && (
-          <motion.div
-            initial={{ y: '100%' }}
-            animate={{ y: 0 }}
-            exit={{ y: '100%' }}
-            transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-            className="absolute bottom-0 left-0 right-0 overflow-y-auto"
-            style={{
-              maxHeight: '72vh',
-              background: '#fff',
-              borderRadius: '20px 20px 0 0',
-              boxShadow: '0 -4px 32px rgba(0,0,0,0.18)',
-            }}
-          >
-            {/* Sheet handle */}
-            <div className="flex justify-center pt-3 pb-1">
-              <div className="w-10 h-1 rounded-full" style={{ background: 'rgba(0,0,0,0.12)' }} />
-            </div>
-
-            {/* Sheet close */}
-            <div className="flex items-center justify-between px-5 pt-1 pb-2">
-              <span className="text-xs font-bold uppercase tracking-widest" style={{ color: '#B0906A' }}>
-                {item.itemType === 'wine' ? 'Vinho' : item.itemType === 'experience' ? 'Experiência' : 'Vinícola'}
-              </span>
-              <button onClick={() => setSheetOpen(false)} className="p-1">
-                <X className="w-4 h-4" style={{ color: '#B0A090' }} />
-              </button>
-            </div>
-
-            <div className="px-5 pb-8">
-              {/* Name */}
-              <h2
-                className="font-bold leading-tight mb-1"
-                style={{ fontFamily: '"Fraunces", Georgia, serif', fontSize: '1.5rem', color: '#1C1209', letterSpacing: '-0.02em' }}
-              >
-                {item.name}
-              </h2>
-
-              {item.subName && (
-                <p className="text-base mb-1" style={{ color: '#7A6855' }}>{item.subName}</p>
-              )}
-
-              {item.location && (
-                <div className="flex items-center gap-1.5 text-sm mb-4" style={{ color: '#9B1B4D' }}>
-                  <MapPin className="w-3.5 h-3.5 shrink-0" />
-                  <span className="font-medium">{item.location}</span>
-                </div>
-              )}
-
-              {/* Type badge */}
-              {item.type && (
-                <div className="mb-3">
-                  <span className="inline-block px-3 py-1 rounded-full text-xs font-bold"
-                        style={{ background: '#F5EEF4', color: '#7B1E5C' }}>
-                    {item.type}
-                  </span>
-                </div>
-              )}
-
-              {/* Description */}
-              {(item.highlight || item.tastingNote) && (
-                <p className="text-sm leading-relaxed mb-5" style={{ color: '#5C5048', lineHeight: 1.7 }}>
-                  {item.highlight || item.tastingNote}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '8px 20px 24px' }}>
+          <AnimatePresence mode="wait">
+            {level === 0 ? (
+              <motion.div key="level0" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
+                {/* Type */}
+                <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#B0906A', marginBottom: 4 }}>
+                  {item.type ?? (item.itemType === 'wine' ? 'Vinho' : item.itemType === 'experience' ? 'Experiência' : 'Vinícola')}
                 </p>
-              )}
-
-              {/* Tasting note (if both exist) */}
-              {item.tastingNote && item.highlight && (
-                <div className="rounded-2xl p-4 mb-4" style={{ background: '#F8F4EF', border: '1px solid rgba(139,90,43,0.08)' }}>
-                  <p className="text-xs font-bold uppercase tracking-wide mb-1.5" style={{ color: '#9B8060' }}>Degustação</p>
-                  <p className="text-sm leading-relaxed" style={{ color: '#7A6855' }}>{item.tastingNote}</p>
-                </div>
-              )}
-
-              {/* Why label */}
-              {item.highlight && (
-                <div className="rounded-2xl p-4 mb-5" style={{ background: '#F8F4EF', border: '1px solid rgba(139,90,43,0.08)' }}>
-                  <p className="text-xs font-bold uppercase tracking-wide mb-1.5" style={{ color: '#9B8060' }}>
-                    {WHY_LABEL[item.itemType]}
-                  </p>
-                  <p className="text-sm leading-relaxed" style={{ color: '#7A6855' }}>{item.highlight}</p>
-                </div>
-              )}
-
-              {/* Actions */}
-              <div className="grid grid-cols-2 gap-3 mb-4">
-                <button
-                  onClick={() => onToggleTried(item.itemId)}
-                  className="flex items-center justify-center gap-2 py-3.5 rounded-2xl font-semibold text-sm transition-all active:scale-95"
-                  style={{
-                    background: state.tried ? '#2D4A3E' : '#F0EAE1',
-                    color:      state.tried ? '#fff' : '#5C5048',
-                    boxShadow:  state.tried ? '0 3px 12px rgba(45,74,62,0.30)' : 'none',
-                  }}
-                >
-                  <CheckCircle2 className="w-4 h-4" strokeWidth={2} />
-                  {state.tried ? 'Provado' : 'Já provei'}
-                </button>
-
-                <button
-                  onClick={() => onToggleFavorite(item.itemId)}
-                  className="flex items-center justify-center gap-2 py-3.5 rounded-2xl font-semibold text-sm transition-all active:scale-95"
-                  style={{
-                    background: state.favorite ? '#690037' : '#F0EAE1',
-                    color:      state.favorite ? '#fff' : '#5C5048',
-                    boxShadow:  state.favorite ? '0 3px 12px rgba(105,0,55,0.30)' : 'none',
-                  }}
-                >
-                  <Heart className="w-4 h-4" strokeWidth={2} fill={state.favorite ? 'white' : 'none'} />
-                  {state.favorite ? 'Favoritado' : 'Favoritar'}
-                </button>
-              </div>
-
-              {/* Review section */}
-              <AnimatePresence>
-                {user && state.tried && !state.review && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    exit={{ opacity: 0, height: 0 }}
-                    className="overflow-hidden"
-                  >
-                    <AddReviewSection
-                      itemId={item.itemId}
-                      itemName={item.name}
-                      onAddReview={onAddReview}
-                    />
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
-              {/* Existing review */}
-              {state.review && (
-                <div className="rounded-2xl p-4" style={{ background: '#F8F4EF', border: '1px solid rgba(139,90,43,0.10)' }}>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-bold" style={{ color: '#1C1209', fontFamily: '"Fraunces",Georgia,serif' }}>Sua Avaliação</span>
-                    <span className="text-xs font-semibold" style={{ color: '#2D4A3E' }}>✓ Pontos ganhos</span>
+                {/* Name */}
+                <h2 style={{ fontFamily: '"Fraunces",Georgia,serif', fontSize: '1.375rem', fontWeight: 700, color: '#1C1209', lineHeight: 1.2, marginBottom: 4 }}>
+                  {item.name}
+                </h2>
+                {/* SubName */}
+                {item.subName && <p style={{ fontSize: 13, color: '#7A6855', marginBottom: 6 }}>{item.subName}</p>}
+                {/* Location */}
+                {item.location && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 14 }}>
+                    <MapPin style={{ width: 12, height: 12, color: '#9B1B4D', flexShrink: 0 }} />
+                    <span style={{ fontSize: 12, color: '#9B1B4D', fontWeight: 500 }}>{item.location}</span>
                   </div>
-                  {state.review.rating > 0 && (
-                    <div className="flex gap-0.5 mb-2">
-                      {[1,2,3,4,5].map(s => (
-                        <span key={s} className="text-lg" style={{ color: s <= state.review!.rating ? '#B8820B' : '#DDD0C0' }}>★</span>
-                      ))}
-                    </div>
-                  )}
-                  {state.review.photo && (
-                    <img src={state.review.photo} alt="Review" className="w-full h-40 object-cover rounded-xl mb-2" />
-                  )}
-                  {state.review.comment && (
-                    <p className="text-sm leading-relaxed" style={{ color: '#7A6855' }}>{state.review.comment}</p>
+                )}
+                {/* Actions */}
+                <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+                  <button
+                    onClick={() => onToggleFavorite(item.itemId)}
+                    style={{ width: 44, height: 44, borderRadius: '50%', flexShrink: 0, border: `2px solid ${state.favorite ? '#6B0035' : 'rgba(107,0,53,0.30)'}`, background: state.favorite ? '#6B0035' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                  >
+                    <Bookmark style={{ width: 18, height: 18, color: state.favorite ? '#fff' : '#6B0035' }} fill={state.favorite ? 'white' : 'none'} />
+                  </button>
+                  <button
+                    onClick={() => onToggleTried(item.itemId)}
+                    style={{ flex: 1, borderRadius: 16, background: state.tried ? '#2D4A3E' : '#1F3B36', color: '#fff', fontWeight: 700, fontSize: 14, paddingTop: 14, paddingBottom: 14, boxShadow: '0 4px 16px rgba(31,59,54,0.35)' }}
+                  >
+                    {state.tried ? '✓ Adicionado à adega' : 'Adicionar à adega'}
+                  </button>
+                </div>
+              </motion.div>
+            ) : (
+              <motion.div key="level1" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
+                {/* Tags */}
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
+                  {item.type && <span style={{ fontSize: 11, background: '#F5EEF4', color: '#7B1E5C', borderRadius: 99, padding: '3px 10px', fontWeight: 600 }}>{item.type}</span>}
+                  {item.itemType === 'wine' && item.tastingNote && (
+                    <span style={{ fontSize: 11, background: '#FFF8EC', color: '#B8820B', borderRadius: 99, padding: '3px 10px', fontWeight: 600 }}>★ Selecionado</span>
                   )}
                 </div>
-              )}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+                {/* SubName */}
+                {item.subName && <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#B0906A', marginBottom: 4 }}>{item.subName}</p>}
+                {/* Name */}
+                <h2 style={{ fontFamily: '"Fraunces",Georgia,serif', fontSize: '1.5rem', fontWeight: 700, color: '#1C1209', lineHeight: 1.2, marginBottom: 6 }}>{item.name}</h2>
+                {/* Location */}
+                {item.location && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 10 }}>
+                    <MapPin style={{ width: 12, height: 12, color: '#9B1B4D', flexShrink: 0 }} />
+                    <span style={{ fontSize: 12, color: '#9B1B4D', fontWeight: 500 }}>{item.location}</span>
+                  </div>
+                )}
+                {/* Rating placeholder */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: '#1C1209' }}>4.8</span>
+                  <span style={{ fontSize: 14, color: '#B8820B' }}>🍷🍷🍷🍷🍷</span>
+                  <span style={{ fontSize: 11, color: '#B0A090' }}>318 avaliações</span>
+                </div>
+                <div style={{ height: 1, background: 'rgba(139,90,43,0.12)', marginBottom: 12 }} />
+                {/* Tasting note */}
+                {(item.tastingNote || item.highlight) && (
+                  <>
+                    <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#B0906A', marginBottom: 8 }}>Como é</p>
+                    <p style={{ fontSize: 14, lineHeight: 1.65, color: '#5C5048', marginBottom: 14 }}>{item.tastingNote || item.highlight}</p>
+                    <div style={{ height: 1, background: 'rgba(139,90,43,0.12)', marginBottom: 12 }} />
+                  </>
+                )}
+                {/* Review section (existing behavior) */}
+                <AnimatePresence>
+                  {user && state.tried && !state.review && (
+                    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden" style={{ marginBottom: 12 }}>
+                      <AddReviewSection itemId={item.itemId} itemName={item.name} onAddReview={onAddReview} />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+                {state.review && (
+                  <div style={{ borderRadius: 16, padding: 16, background: '#F8F4EF', border: '1px solid rgba(139,90,43,0.10)', marginBottom: 14 }}>
+                    <div className="flex items-center justify-between" style={{ marginBottom: 8 }}>
+                      <span style={{ fontSize: 14, fontWeight: 700, color: '#1C1209', fontFamily: '"Fraunces",Georgia,serif' }}>Sua Avaliação</span>
+                      <span style={{ fontSize: 11, fontWeight: 600, color: '#2D4A3E' }}>✓ Pontos ganhos</span>
+                    </div>
+                    {state.review.rating > 0 && (
+                      <div className="flex gap-0.5" style={{ marginBottom: 8 }}>
+                        {[1,2,3,4,5].map(s => (
+                          <span key={s} style={{ fontSize: 18, color: s <= state.review!.rating ? '#B8820B' : '#DDD0C0' }}>★</span>
+                        ))}
+                      </div>
+                    )}
+                    {state.review.comment && <p style={{ fontSize: 13, lineHeight: 1.6, color: '#7A6855' }}>{state.review.comment}</p>}
+                  </div>
+                )}
+                {/* Bottom actions */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{ flex: 1 }}>
+                    {item.subName && <p style={{ fontSize: 12, fontWeight: 700, color: '#1C1209' }}>{item.subName}</p>}
+                  </div>
+                  <button
+                    onClick={() => onToggleFavorite(item.itemId)}
+                    style={{ width: 40, height: 40, borderRadius: '50%', flexShrink: 0, border: `2px solid ${state.favorite ? '#6B0035' : 'rgba(107,0,53,0.30)'}`, background: state.favorite ? '#6B0035' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                  >
+                    <Bookmark style={{ width: 16, height: 16, color: state.favorite ? '#fff' : '#6B0035' }} fill={state.favorite ? 'white' : 'none'} />
+                  </button>
+                  <button
+                    onClick={() => onToggleTried(item.itemId)}
+                    style={{ borderRadius: 14, padding: '10px 18px', background: state.tried ? '#2D4A3E' : '#1F3B36', color: '#fff', fontWeight: 700, fontSize: 13 }}
+                  >
+                    {state.tried ? '✓ Na adega' : 'Adicionar à adega'}
+                  </button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </motion.div>
     </motion.div>
   );
 }

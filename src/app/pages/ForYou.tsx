@@ -1,133 +1,746 @@
-import { useState, useEffect, useMemo } from 'react';
-import { Link, useNavigate } from 'react-router';
-import { Search, ChevronRight } from 'lucide-react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useNavigate } from 'react-router';
+import { ChevronLeft, ChevronRight, X, Search, Bookmark, MapPin, Share2 } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { CollectionCard } from '../components/CollectionCard';
+import { PROFILE_LABELS, PROFILE_ICONS, type WineProfile } from '../../lib/profileConstants';
 import {
-  PROFILE_LABELS, PROFILE_ICONS,
-  type WineProfile,
-} from '../../lib/profileConstants';
+  toggleTried as psToggleTried,
+  toggleFavorite as psToggleFavorite,
+} from '../../lib/pointsSystem';
 
-// ── Types ──────────────────────────────────────────────────────────────
+// ── Types ──────────────────────────────────────────────────────────────────────
 
 interface UserProfileData {
-  wine_profile:   WineProfile;
-  total_points:   number;
-  user_level:     string;
-  display_name:   string;
+  wine_profile: WineProfile;
+  total_points: number;
+  user_level: string;
+  display_name: string;
   quiz_completed: boolean;
 }
 
 interface CollectionRow {
-  id:           string;
-  title:        string;
-  tagline:      string | null;
-  photo:        string;
+  id: string;
+  title: string;
+  tagline: string | null;
+  photo: string;
   content_type: string;
-  category:     string;
-  country:      { name: string } | null;
-  region:       { name: string } | null;
-  sub_region:   { name: string } | null;
+  category: string;
+  country: { name: string } | null;
+  region: { name: string } | null;
+  sponsor_logo?: string | null;
 }
 
 interface ProfileRule {
   category: string;
   priority: number;
-  visible:  boolean;
+  visible: boolean;
 }
 
-interface RegionRow {
-  id:     string;
-  name:   string;
-  photo:  string | null;
-  parent?: { name: string } | null;
+type ItemType = 'wine' | 'experience' | 'winery';
+
+interface UnifiedItem {
+  itemId: string;
+  itemType: ItemType;
+  id: string;
+  name: string;
+  photo: string;
+  subName: string | null;
+  location: string | null;
+  type: string | null;
+  highlight: string | null;
+  tastingNote: string | null;
+  price_min: number | null;
+  price_max: number | null;
 }
 
-// ── Constants ──────────────────────────────────────────────────────────
+type ItemState = { tried: boolean; favorite: boolean };
+
+interface ColProgress {
+  total: number;
+  done: number;
+}
+
+// ── Constants ─────────────────────────────────────────────────────────────────
 
 const FALLBACK = 'https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=600&q=80';
 
-// ══════════════════════════════════════════════════════════════════════
-// Main component
-// ══════════════════════════════════════════════════════════════════════
+function imgFallback(e: React.SyntheticEvent<HTMLImageElement>) {
+  (e.target as HTMLImageElement).src = FALLBACK;
+}
+
+// ── ItemModal ─────────────────────────────────────────────────────────────────
+
+function ItemModal({
+  items,
+  initialIndex,
+  collectionTitle,
+  itemStates,
+  onClose,
+  onToggleTried,
+  onToggleFavorite,
+}: {
+  items: UnifiedItem[];
+  initialIndex: number;
+  collectionTitle: string;
+  itemStates: Record<string, ItemState>;
+  onClose: () => void;
+  onToggleTried: (id: string) => void;
+  onToggleFavorite: (id: string) => void;
+}) {
+  const [index, setIndex] = useState(initialIndex);
+  const [level, setLevel] = useState<0 | 1>(0);
+  const touchStartX = useRef<number | null>(null);
+
+  const item = items[index];
+  const state = itemStates[item.itemId] ?? { tried: false, favorite: false };
+  const isWine = item.itemType === 'wine';
+
+  // Lock body scroll
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = ''; };
+  }, []);
+
+  // Keyboard navigation
+  const prev = useCallback(() => { setIndex(i => Math.max(0, i - 1)); setLevel(0); }, []);
+  const next = useCallback(() => { setIndex(i => Math.min(items.length - 1, i + 1)); setLevel(0); }, [items.length]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowRight') next();
+      if (e.key === 'ArrowLeft') prev();
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [next, prev, onClose]);
+
+  // Touch swipe
+  const onTouchStart = (e: React.TouchEvent) => { touchStartX.current = e.touches[0].clientX; };
+  const onTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX.current === null) return;
+    const dx = e.changedTouches[0].clientX - touchStartX.current;
+    if (Math.abs(dx) > 48) { dx < 0 ? next() : prev(); setLevel(0); }
+    touchStartX.current = null;
+  };
+
+  const photoHeight = level === 0 ? '60vh' : '38vh';
+  const sheetHeight = level === 0 ? '40vh' : '62vh';
+
+  const priceText = item.price_min != null
+    ? `R$ ${item.price_min}${item.price_max && item.price_max !== item.price_min ? ` – R$ ${item.price_max}` : ''}`
+    : null;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.2 }}
+      style={{ position: 'fixed', inset: 0, zIndex: 100, background: '#000' }}
+      onTouchStart={onTouchStart}
+      onTouchEnd={onTouchEnd}
+    >
+      {/* ── Top bar ─────────────────────────────────────────────────── */}
+      <div style={{
+        position: 'absolute', top: 0, left: 0, right: 0, zIndex: 20,
+        padding: '16px 16px 8px',
+      }}>
+        <div className="flex items-center justify-between">
+          <button
+            onClick={onClose}
+            style={{
+              width: 36, height: 36, borderRadius: '50%',
+              background: 'rgba(0,0,0,0.35)', backdropFilter: 'blur(8px)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}
+          >
+            <X className="w-4 h-4" style={{ color: '#fff' }} />
+          </button>
+          <div className="text-center">
+            <p style={{ fontFamily: '"DM Sans",system-ui,sans-serif', fontSize: 12, fontWeight: 700, color: '#fff' }}>
+              {collectionTitle}
+            </p>
+            <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.65)' }}>{index + 1} de {items.length}</p>
+          </div>
+          <button style={{
+            width: 36, height: 36, borderRadius: '50%',
+            background: 'rgba(0,0,0,0.35)', backdropFilter: 'blur(8px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <Share2 className="w-4 h-4" style={{ color: '#fff' }} />
+          </button>
+        </div>
+
+        {/* Progress segments */}
+        <div className="flex gap-1.5 mt-3">
+          {items.map((_, i) => (
+            <button
+              key={i}
+              onClick={() => { setIndex(i); setLevel(0); }}
+              style={{
+                flex: 1, height: 2, borderRadius: 99,
+                background: i === index ? '#fff' : 'rgba(255,255,255,0.30)',
+              }}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* ── Photo ─────────────────────────────────────────────────────── */}
+      <motion.div
+        animate={{ height: photoHeight }}
+        transition={{ type: 'spring', damping: 28, stiffness: 260 }}
+        style={{ position: 'absolute', top: 0, left: 0, right: 0, overflow: 'hidden', cursor: 'pointer' }}
+        onClick={() => setLevel(l => l === 0 ? 1 : 0)}
+      >
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={item.itemId}
+            initial={{ opacity: 0, x: 40 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -40 }}
+            transition={{ duration: 0.22, ease: 'easeOut' }}
+            style={{ width: '100%', height: '100%' }}
+          >
+            {isWine ? (
+              <div style={{ width: '100%', height: '100%', background: '#F5F0E8', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '48px 48px 16px' }}>
+                <img
+                  src={item.photo || FALLBACK}
+                  alt={item.name}
+                  style={{ maxHeight: '100%', maxWidth: '100%', objectFit: 'contain', filter: 'drop-shadow(0 16px 40px rgba(0,0,0,0.22))' }}
+                  onError={imgFallback}
+                />
+              </div>
+            ) : (
+              <img
+                src={item.photo || FALLBACK}
+                alt={item.name}
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                onError={imgFallback}
+              />
+            )}
+          </motion.div>
+        </AnimatePresence>
+      </motion.div>
+
+      {/* Prev/Next arrows on photo */}
+      {items.length > 1 && (
+        <>
+          <button
+            onClick={prev}
+            style={{
+              position: 'absolute', left: 12, top: '30vh', transform: 'translateY(-50%)',
+              width: 44, height: 44, borderRadius: '50%',
+              background: 'rgba(255,255,255,0.18)', backdropFilter: 'blur(6px)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              opacity: index === 0 ? 0 : 1, pointerEvents: index === 0 ? 'none' : 'auto', zIndex: 15,
+            }}
+          >
+            <ChevronLeft className="w-5 h-5" style={{ color: '#fff' }} />
+          </button>
+          <button
+            onClick={next}
+            style={{
+              position: 'absolute', right: 12, top: '30vh', transform: 'translateY(-50%)',
+              width: 44, height: 44, borderRadius: '50%',
+              background: 'rgba(255,255,255,0.18)', backdropFilter: 'blur(6px)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              opacity: index === items.length - 1 ? 0 : 1, pointerEvents: index === items.length - 1 ? 'none' : 'auto', zIndex: 15,
+            }}
+          >
+            <ChevronRight className="w-5 h-5" style={{ color: '#fff' }} />
+          </button>
+        </>
+      )}
+
+      {/* ── Bottom sheet ──────────────────────────────────────────────── */}
+      <motion.div
+        animate={{ height: sheetHeight }}
+        transition={{ type: 'spring', damping: 28, stiffness: 260 }}
+        style={{
+          position: 'absolute', bottom: 0, left: 0, right: 0,
+          background: '#FFFFFF',
+          borderRadius: '20px 20px 0 0',
+          boxShadow: '0 -4px 32px rgba(0,0,0,0.18)',
+          overflow: 'hidden',
+          display: 'flex', flexDirection: 'column',
+        }}
+      >
+        {/* Handle */}
+        <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 12, paddingBottom: 4, flexShrink: 0 }}>
+          <div style={{ width: 40, height: 4, borderRadius: 99, background: 'rgba(0,0,0,0.12)' }} />
+        </div>
+
+        <div style={{ flex: 1, overflowY: 'auto', padding: '8px 20px 24px' }}>
+          <AnimatePresence mode="wait">
+            {level === 0 ? (
+              <motion.div
+                key="level0"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.15 }}
+              >
+                {/* Type */}
+                <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#B0906A', marginBottom: 4 }}>
+                  {item.type ?? (item.itemType === 'wine' ? 'Vinho' : item.itemType === 'experience' ? 'Experiência' : 'Vinícola')}
+                </p>
+                {/* Name */}
+                <h2 style={{ fontFamily: '"Fraunces",Georgia,serif', fontSize: '1.375rem', fontWeight: 700, color: '#1C1209', lineHeight: 1.2, marginBottom: 4 }}>
+                  {item.name}
+                </h2>
+                {/* SubName */}
+                {item.subName && (
+                  <p style={{ fontSize: 13, color: '#7A6855', marginBottom: 6 }}>{item.subName}</p>
+                )}
+                {/* Location */}
+                {item.location && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 10 }}>
+                    <MapPin style={{ width: 12, height: 12, color: '#9B1B4D', flexShrink: 0 }} />
+                    <span style={{ fontSize: 12, color: '#9B1B4D', fontWeight: 500 }}>{item.location}</span>
+                  </div>
+                )}
+                {/* Price */}
+                {priceText && (
+                  <p style={{ fontSize: 18, fontWeight: 700, color: '#1C1209', marginBottom: 14 }}>{priceText}</p>
+                )}
+                {/* Actions */}
+                <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+                  <button
+                    onClick={() => onToggleFavorite(item.itemId)}
+                    style={{
+                      width: 44, height: 44, borderRadius: '50%', flexShrink: 0,
+                      border: `2px solid ${state.favorite ? '#6B0035' : 'rgba(107,0,53,0.30)'}`,
+                      background: state.favorite ? '#6B0035' : 'transparent',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}
+                  >
+                    <Bookmark style={{ width: 18, height: 18, color: state.favorite ? '#fff' : '#6B0035' }} fill={state.favorite ? 'white' : 'none'} />
+                  </button>
+                  <button
+                    onClick={() => onToggleTried(item.itemId)}
+                    style={{
+                      flex: 1, borderRadius: 16,
+                      background: state.tried ? '#2D4A3E' : '#1F3B36',
+                      color: '#fff', fontWeight: 700, fontSize: 14,
+                      paddingTop: 14, paddingBottom: 14,
+                      boxShadow: '0 4px 16px rgba(31,59,54,0.35)',
+                    }}
+                  >
+                    {state.tried ? '✓ Adicionado à adega' : 'Adicionar à adega'}
+                  </button>
+                </div>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="level1"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.15 }}
+              >
+                {/* Tags pills */}
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
+                  {item.type && (
+                    <span style={{ fontSize: 11, background: '#F5EEF4', color: '#7B1E5C', borderRadius: 99, padding: '3px 10px', fontWeight: 600 }}>
+                      {item.type}
+                    </span>
+                  )}
+                  {item.itemType === 'wine' && (
+                    <span style={{ fontSize: 11, background: '#FFF8EC', color: '#B8820B', borderRadius: 99, padding: '3px 10px', fontWeight: 600 }}>
+                      ★ Edição especial
+                    </span>
+                  )}
+                </div>
+                {/* SubName */}
+                {item.subName && (
+                  <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#B0906A', marginBottom: 4 }}>
+                    {item.subName}
+                  </p>
+                )}
+                {/* Name */}
+                <h2 style={{ fontFamily: '"Fraunces",Georgia,serif', fontSize: '1.5rem', fontWeight: 700, color: '#1C1209', lineHeight: 1.2, marginBottom: 6 }}>
+                  {item.name}
+                </h2>
+                {/* Location */}
+                {item.location && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 10 }}>
+                    <MapPin style={{ width: 12, height: 12, color: '#9B1B4D', flexShrink: 0 }} />
+                    <span style={{ fontSize: 12, color: '#9B1B4D', fontWeight: 500 }}>{item.location}</span>
+                  </div>
+                )}
+                {/* Rating placeholder */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: '#1C1209' }}>4.8</span>
+                  <span style={{ fontSize: 14, color: '#B8820B' }}>🍷🍷🍷🍷🍷</span>
+                  <span style={{ fontSize: 11, color: '#B0A090' }}>318 avaliações</span>
+                </div>
+                <div style={{ height: 1, background: 'rgba(139,90,43,0.12)', marginBottom: 12 }} />
+                {/* Tasting note */}
+                {(item.tastingNote || item.highlight) && (
+                  <>
+                    <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#B0906A', marginBottom: 8 }}>
+                      Como é
+                    </p>
+                    <p style={{ fontSize: 14, lineHeight: 1.65, color: '#5C5048', marginBottom: 14 }}>
+                      {item.tastingNote || item.highlight}
+                    </p>
+                    <div style={{ height: 1, background: 'rgba(139,90,43,0.12)', marginBottom: 12 }} />
+                  </>
+                )}
+                {/* Bottom row */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{ flex: 1 }}>
+                    {item.subName && (
+                      <p style={{ fontSize: 12, fontWeight: 700, color: '#1C1209' }}>{item.subName}</p>
+                    )}
+                    {priceText && (
+                      <p style={{ fontSize: 15, fontWeight: 700, color: '#1C1209' }}>{priceText}</p>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => onToggleFavorite(item.itemId)}
+                    style={{
+                      width: 40, height: 40, borderRadius: '50%', flexShrink: 0,
+                      border: `2px solid ${state.favorite ? '#6B0035' : 'rgba(107,0,53,0.30)'}`,
+                      background: state.favorite ? '#6B0035' : 'transparent',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}
+                  >
+                    <Bookmark style={{ width: 16, height: 16, color: state.favorite ? '#fff' : '#6B0035' }} fill={state.favorite ? 'white' : 'none'} />
+                  </button>
+                  <button
+                    onClick={() => onToggleTried(item.itemId)}
+                    style={{
+                      borderRadius: 14, padding: '10px 18px',
+                      background: state.tried ? '#2D4A3E' : '#1F3B36',
+                      color: '#fff', fontWeight: 700, fontSize: 13,
+                    }}
+                  >
+                    {state.tried ? '✓ Na adega' : 'Adicionar à adega'}
+                  </button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+// ── ReelSlide ─────────────────────────────────────────────────────────────────
+
+function ReelSlide({
+  col,
+  items,
+  progress,
+  itemStates,
+  onItemClick,
+}: {
+  col: CollectionRow;
+  items: UnifiedItem[];
+  progress: ColProgress;
+  itemStates: Record<string, ItemState>;
+  onItemClick: (items: UnifiedItem[], index: number) => void;
+}) {
+  const [itemIndex, setItemIndex] = useState(0);
+
+  const slideH = 'calc(100svh - 56px - 64px)';
+  const heroH = '62%';
+  const carouselH = '38%';
+
+  return (
+    <div style={{
+      height: slideH,
+      scrollSnapAlign: 'start',
+      position: 'relative',
+      flexShrink: 0,
+      overflow: 'hidden',
+    }}>
+      {/* === HERO === */}
+      <div style={{ height: heroH, position: 'relative', overflow: 'hidden' }}>
+        {/* Background photo */}
+        <img
+          src={col.photo || FALLBACK}
+          alt={col.title}
+          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+          onError={imgFallback}
+        />
+        {/* Gradient overlay */}
+        <div style={{
+          position: 'absolute', inset: 0,
+          background: 'linear-gradient(to top, rgba(0,0,0,0.82) 0%, rgba(0,0,0,0.35) 50%, rgba(0,0,0,0.10) 100%)',
+        }} />
+
+        {/* Hero content */}
+        <div style={{
+          position: 'absolute', bottom: 0, left: 0, right: 0,
+          padding: '0 20px 16px',
+        }}>
+          <p style={{ fontSize: 13, fontStyle: 'italic', color: 'rgba(255,255,255,0.70)', marginBottom: 4 }}>
+            Descubra
+          </p>
+          <h1 style={{
+            fontFamily: '"Fraunces",Georgia,serif',
+            fontSize: 'clamp(28px, 8vw, 38px)',
+            fontWeight: 800,
+            color: '#fff',
+            textTransform: 'uppercase',
+            letterSpacing: '-0.01em',
+            lineHeight: 1.1,
+            marginBottom: 6,
+          }}>
+            {col.title}
+          </h1>
+          {col.tagline && (
+            <p style={{
+              fontSize: 13, color: 'rgba(255,255,255,0.72)', lineHeight: 1.5,
+              display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
+              marginBottom: 10,
+            }}>
+              {col.tagline}
+            </p>
+          )}
+
+          {/* Item counter + arrows */}
+          {items.length > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+              <span style={{ fontWeight: 700, color: '#fff', fontSize: 15, minWidth: 60 }}>
+                {itemIndex + 1} — {items.length}
+              </span>
+              <button
+                onClick={() => setItemIndex(i => Math.max(0, i - 1))}
+                style={{
+                  width: 36, height: 36, borderRadius: '50%',
+                  background: 'rgba(255,255,255,0.18)', backdropFilter: 'blur(6px)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  opacity: itemIndex === 0 ? 0.35 : 1,
+                }}
+              >
+                <ChevronLeft style={{ width: 18, height: 18, color: '#fff' }} />
+              </button>
+              <button
+                onClick={() => setItemIndex(i => Math.min(items.length - 1, i + 1))}
+                style={{
+                  width: 36, height: 36, borderRadius: '50%',
+                  background: 'rgba(255,255,255,0.18)', backdropFilter: 'blur(6px)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  opacity: itemIndex === items.length - 1 ? 0.35 : 1,
+                }}
+              >
+                <ChevronRight style={{ width: 18, height: 18, color: '#fff' }} />
+              </button>
+            </div>
+          )}
+
+          {/* Progress badge */}
+          {progress.done > 0 && (
+            <div style={{
+              display: 'inline-flex', alignItems: 'center', gap: 5,
+              background: 'rgba(45,74,62,0.88)', borderRadius: 99,
+              padding: '4px 10px', fontSize: 11, color: '#fff', fontWeight: 600,
+            }}>
+              ✓ {progress.done} de {progress.total} já provados
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* === ITEMS CAROUSEL === */}
+      <div style={{
+        height: carouselH,
+        background: 'linear-gradient(to bottom, rgba(10,6,3,0.92) 0%, rgba(10,6,3,0.98) 100%)',
+        overflowX: 'auto',
+        display: 'flex',
+        gap: 12,
+        padding: '12px 16px',
+        scrollbarWidth: 'none',
+      }}>
+        {items.length === 0 ? (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1 }}>
+            <p style={{ color: 'rgba(255,255,255,0.40)', fontSize: 13 }}>Nenhum item ainda</p>
+          </div>
+        ) : items.map((item, i) => {
+          const isTried = itemStates[item.itemId]?.tried ?? false;
+          const isWine = item.itemType === 'wine';
+          const isActive = i === itemIndex;
+          return (
+            <div
+              key={item.itemId}
+              onClick={() => onItemClick(items, i)}
+              style={{
+                width: 110, flexShrink: 0,
+                borderRadius: 16, overflow: 'hidden',
+                cursor: 'pointer',
+                outline: isActive ? '2px solid rgba(255,255,255,0.70)' : 'none',
+                transition: 'transform 0.15s',
+              }}
+              className="active:scale-95"
+            >
+              {/* Photo */}
+              <div style={{
+                height: 130,
+                background: isWine ? '#F5F0E8' : '#2A1A10',
+                position: 'relative', overflow: 'hidden',
+              }}>
+                <img
+                  src={item.photo || FALLBACK}
+                  alt={item.name}
+                  style={{
+                    width: '100%', height: '100%',
+                    objectFit: isWine ? 'contain' : 'cover',
+                    padding: isWine ? 8 : 0,
+                  }}
+                  onError={imgFallback}
+                />
+                {isTried && (
+                  <div style={{
+                    position: 'absolute', top: 6, right: 6,
+                    width: 20, height: 20, borderRadius: '50%',
+                    background: '#2D4A3E',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    <span style={{ color: '#fff', fontSize: 11, fontWeight: 700 }}>✓</span>
+                  </div>
+                )}
+              </div>
+              {/* Info */}
+              <div style={{ background: '#fff', padding: '6px 8px 8px' }}>
+                <p style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.10em', textTransform: 'uppercase', color: '#B0906A', marginBottom: 2 }}>
+                  {item.type ?? (item.itemType === 'wine' ? 'Vinho' : item.itemType === 'experience' ? 'Exp.' : 'Vinícola')}
+                </p>
+                <p style={{
+                  fontFamily: '"Fraunces",Georgia,serif', fontSize: 11, fontWeight: 700, color: '#1C1209',
+                  display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', lineHeight: 1.35,
+                }}>
+                  {item.name}
+                </p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ── Main component ─────────────────────────────────────────────────────────────
 
 export default function ForYou() {
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  const [profile, setProfile]                       = useState<UserProfileData | null>(null);
-  const [collections, setCollections]               = useState<CollectionRow[]>([]);
-  const [profileRules, setProfileRules]             = useState<ProfileRule[]>([]);
-  const [collectionItemsMap, setCollectionItemsMap] = useState<Record<string, string[]>>({});
-  const [previewPhotosMap, setPreviewPhotosMap]     = useState<Record<string, string[]>>({});
-  const [completedIds, setCompletedIds]             = useState<Set<string>>(new Set());
-  const [countries, setCountries]                   = useState<RegionRow[]>([]);
-  const [regions, setRegions]                       = useState<RegionRow[]>([]);
-  const [loading, setLoading]                       = useState(true);
-  const [loadingGeo, setLoadingGeo]                 = useState(true);
+  const [profile, setProfile] = useState<UserProfileData | null>(null);
+  const [collections, setCollections] = useState<CollectionRow[]>([]);
+  const [profileRules, setProfileRules] = useState<ProfileRule[]>([]);
+  const [itemsByCollection, setItemsByCollection] = useState<Record<string, UnifiedItem[]>>({});
+  const [itemStates, setItemStates] = useState<Record<string, ItemState>>({});
+  const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
+  const [loading, setLoading] = useState(true);
+  const [modalState, setModalState] = useState<{ items: UnifiedItem[]; index: number; colTitle: string } | null>(null);
 
-  // ── Load global data ─────────────────────────────────────────
+  // ── Load data ──────────────────────────────────────────────────────────────
+
   useEffect(() => {
     const load = async () => {
-      const [{ data: cols }, { data: colItems }, { data: ctrs }, { data: regs }] = await Promise.all([
+      const [{ data: cols }, { data: colItems }] = await Promise.all([
         supabase
           .from('collections')
-          .select('id, title, tagline, photo, content_type, category, country:country_id(name), region:region_id(name), sub_region:sub_region_id(name)')
+          .select('id, title, tagline, photo, content_type, category, country:country_id(name), region:region_id(name), sponsor_logo')
           .order('title'),
-        supabase.from('collection_items').select('collection_id, item_id, item_type, position').order('collection_id').order('position').limit(1000),
-        supabase.from('regions').select('id, name, photo').eq('level', 'country').order('name').limit(20),
-        supabase.from('regions').select('id, name, photo, parent:parent_id(name)').eq('level', 'region').order('name').limit(20),
+        supabase
+          .from('collection_items')
+          .select('collection_id, item_id, item_type, position')
+          .order('collection_id')
+          .order('position')
+          .limit(2000),
       ]);
 
       setCollections((cols as CollectionRow[]) ?? []);
-      setCountries((ctrs as RegionRow[]) ?? []);
-      setRegions((regs as RegionRow[]) ?? []);
-      setLoadingGeo(false);
 
-      // Build collection → item_ids map
-      const map: Record<string, string[]> = {};
-      for (const row of (colItems ?? []) as any[]) {
-        if (!map[row.collection_id]) map[row.collection_id] = [];
-        map[row.collection_id].push(row.item_id);
-      }
-      setCollectionItemsMap(map);
+      const rawItems = (colItems ?? []) as { collection_id: string; item_id: string; item_type: string; position: number }[];
 
-      // Build preview photos map
-      const previewPerCol: Record<string, { item_id: string; item_type: string }[]> = {};
-      for (const row of (colItems ?? []) as any[]) {
-        if (!previewPerCol[row.collection_id]) previewPerCol[row.collection_id] = [];
-        if (previewPerCol[row.collection_id].length < 5) {
-          previewPerCol[row.collection_id].push({ item_id: row.item_id, item_type: row.item_type });
-        }
+      // Group by collection
+      const byColRaw: Record<string, { item_id: string; item_type: string; position: number }[]> = {};
+      for (const row of rawItems) {
+        if (!byColRaw[row.collection_id]) byColRaw[row.collection_id] = [];
+        byColRaw[row.collection_id].push({ item_id: row.item_id, item_type: row.item_type, position: row.position });
       }
-      const previewItems = Object.values(previewPerCol).flat();
-      const pvWineIds   = previewItems.filter(r => r.item_type === 'wine').map(r => r.item_id);
-      const pvExpIds    = previewItems.filter(r => r.item_type === 'experience').map(r => r.item_id);
-      const pvWineryIds = previewItems.filter(r => r.item_type === 'winery').map(r => r.item_id);
-      const [pvWines, pvExps, pvWineries] = await Promise.all([
-        pvWineIds.length   ? supabase.from('wines').select('id, photo').in('id', pvWineIds)         : Promise.resolve({ data: [] }),
-        pvExpIds.length    ? supabase.from('experiences').select('id, photo').in('id', pvExpIds)    : Promise.resolve({ data: [] }),
-        pvWineryIds.length ? supabase.from('wineries').select('id, photo').in('id', pvWineryIds)    : Promise.resolve({ data: [] }),
+
+      const wineIds = rawItems.filter(r => r.item_type === 'wine').map(r => r.item_id);
+      const expIds = rawItems.filter(r => r.item_type === 'experience').map(r => r.item_id);
+      const wineryIds = rawItems.filter(r => r.item_type === 'winery').map(r => r.item_id);
+
+      const [{ data: wineRows }, { data: expRows }, { data: wineryRows }] = await Promise.all([
+        wineIds.length
+          ? supabase.from('wines').select('id, name, photo, highlight, tasting_note, type, price_min, price_max, wineries(name, region:region_id(name))').in('id', wineIds)
+          : Promise.resolve({ data: [] }),
+        expIds.length
+          ? supabase.from('experiences').select('id, name, photo, highlight, category, winery:winery_id(name), region:region_id(name)').in('id', expIds)
+          : Promise.resolve({ data: [] }),
+        wineryIds.length
+          ? supabase.from('wineries').select('id, name, photo, highlight, category, region:region_id(name)').in('id', wineryIds)
+          : Promise.resolve({ data: [] }),
       ]);
-      const photoById: Record<string, string> = {};
-      for (const r of [...(pvWines.data ?? []), ...(pvExps.data ?? []), ...(pvWineries.data ?? [])] as any[]) {
-        if (r.photo) photoById[r.id] = r.photo;
+
+      const wineMap = new Map((wineRows ?? []).map((r: any) => [r.id, r]));
+      const expMap = new Map((expRows ?? []).map((r: any) => [r.id, r]));
+      const wineryMap = new Map((wineryRows ?? []).map((r: any) => [r.id, r]));
+
+      const byCol: Record<string, UnifiedItem[]> = {};
+      for (const [colId, ciList] of Object.entries(byColRaw)) {
+        const unified: UnifiedItem[] = ciList.flatMap(ci => {
+          if (ci.item_type === 'wine') {
+            const w = wineMap.get(ci.item_id) as any;
+            if (!w) return [];
+            return [{
+              itemId: ci.item_id, itemType: 'wine' as ItemType, id: w.id, name: w.name, photo: w.photo ?? '',
+              subName: (w.wineries as any)?.name ?? null,
+              location: (w.wineries as any)?.region?.name ?? null,
+              type: w.type ?? null, highlight: w.highlight ?? null, tastingNote: w.tasting_note ?? null,
+              price_min: w.price_min ?? null, price_max: w.price_max ?? null,
+            }];
+          }
+          if (ci.item_type === 'experience') {
+            const e = expMap.get(ci.item_id) as any;
+            if (!e) return [];
+            return [{
+              itemId: ci.item_id, itemType: 'experience' as ItemType, id: e.id, name: e.name, photo: e.photo ?? '',
+              subName: (e.winery as any)?.name ?? null,
+              location: (e.region as any)?.name ?? null,
+              type: e.category ?? null, highlight: e.highlight ?? null, tastingNote: null,
+              price_min: null, price_max: null,
+            }];
+          }
+          if (ci.item_type === 'winery') {
+            const w = wineryMap.get(ci.item_id) as any;
+            if (!w) return [];
+            return [{
+              itemId: ci.item_id, itemType: 'winery' as ItemType, id: w.id, name: w.name, photo: w.photo ?? '',
+              subName: null,
+              location: (w.region as any)?.name ?? null,
+              type: w.category ?? null, highlight: w.highlight ?? null, tastingNote: null,
+              price_min: null, price_max: null,
+            }];
+          }
+          return [];
+        });
+        byCol[colId] = unified;
       }
-      const newPreviewMap: Record<string, string[]> = {};
-      for (const [colId, items] of Object.entries(previewPerCol)) {
-        const photos = items.map(r => photoById[r.item_id]).filter(Boolean);
-        if (photos.length > 0) newPreviewMap[colId] = photos;
-      }
-      setPreviewPhotosMap(newPreviewMap);
+      setItemsByCollection(byCol);
       setLoading(false);
     };
     load();
   }, []);
 
-  // ── Load user-specific data ───────────────────────────────────
+  // ── Load user-specific data ────────────────────────────────────────────────
+
   useEffect(() => {
-    if (!user) { setProfile(null); setProfileRules([]); setCompletedIds(new Set()); return; }
+    if (!user) { setProfile(null); setProfileRules([]); setCompletedIds(new Set()); setItemStates({}); return; }
 
     const loadUser = async () => {
       const [{ data: prof }, { data: progress }] = await Promise.all([
@@ -136,14 +749,20 @@ export default function ForYou() {
           .eq('user_id', user.id)
           .maybeSingle(),
         supabase.from('user_progress')
-          .select('item_id, completed')
+          .select('item_id, completed, is_favorite')
           .eq('user_id', user.id),
       ]);
 
-      setProfile(prof as UserProfileData ?? null);
-      setCompletedIds(new Set(
-        (progress ?? []).filter((p: any) => p.completed).map((p: any) => p.item_id as string)
-      ));
+      setProfile((prof as UserProfileData) ?? null);
+
+      const states: Record<string, ItemState> = {};
+      const cIds = new Set<string>();
+      for (const p of (progress ?? []) as any[]) {
+        states[p.item_id] = { tried: p.completed ?? false, favorite: p.is_favorite ?? false };
+        if (p.completed) cIds.add(p.item_id);
+      }
+      setItemStates(states);
+      setCompletedIds(cIds);
 
       if (prof?.wine_profile) {
         const { data: rules } = await supabase
@@ -156,7 +775,8 @@ export default function ForYou() {
     loadUser();
   }, [user]);
 
-  // ── Personalized collections ──────────────────────────────────
+  // ── Personalized collections ───────────────────────────────────────────────
+
   const personalizedCollections = useMemo(() => {
     if (!profileRules.length) return collections;
     const ruleMap: Record<string, ProfileRule> = {};
@@ -167,238 +787,129 @@ export default function ForYou() {
       .sort((a, b) => (ruleMap[a.category]?.priority ?? 99) - (ruleMap[b.category]?.priority ?? 99));
   }, [collections, profileRules]);
 
-  // ── Collection progress ───────────────────────────────────────
-  const getProgress = (colId: string) => {
-    const items = collectionItemsMap[colId] ?? [];
-    const done  = items.filter(id => completedIds.has(id)).length;
-    return { total: items.length, done, pct: items.length > 0 ? Math.round((done / items.length) * 100) : 0 };
-  };
+  // ── Progress helper ────────────────────────────────────────────────────────
+
+  const getProgress = useCallback((colId: string): ColProgress => {
+    const items = itemsByCollection[colId] ?? [];
+    const done = items.filter(item => completedIds.has(item.itemId)).length;
+    return { total: items.length, done };
+  }, [itemsByCollection, completedIds]);
+
+  // ── Actions ────────────────────────────────────────────────────────────────
+
+  const toggleTried = useCallback(async (itemId: string) => {
+    if (!user) return;
+    const current = itemStates[itemId] ?? { tried: false, favorite: false };
+    const allItems = Object.values(itemsByCollection).flat();
+    const found = allItems.find(i => i.itemId === itemId);
+    const itemType = found?.itemType ?? 'wine';
+    setItemStates(prev => ({ ...prev, [itemId]: { ...current, tried: !current.tried } }));
+    setCompletedIds(prev => {
+      const next = new Set(prev);
+      current.tried ? next.delete(itemId) : next.add(itemId);
+      return next;
+    });
+    await psToggleTried(user.id, itemId, itemType, current.tried);
+  }, [user, itemStates, itemsByCollection]);
+
+  const toggleFavorite = useCallback(async (itemId: string) => {
+    if (!user) return;
+    const current = itemStates[itemId] ?? { tried: false, favorite: false };
+    const allItems = Object.values(itemsByCollection).flat();
+    const found = allItems.find(i => i.itemId === itemId);
+    const itemType = found?.itemType ?? 'wine';
+    setItemStates(prev => ({ ...prev, [itemId]: { ...current, favorite: !current.favorite } }));
+    await psToggleFavorite(user.id, itemId, itemType, current.favorite);
+  }, [user, itemStates, itemsByCollection]);
+
+  // ── Render ─────────────────────────────────────────────────────────────────
+
+  if (loading) {
+    return (
+      <div style={{ height: 'calc(100svh - 56px - 64px)', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#E9E3D9' }}>
+        <div style={{ width: 40, height: 40, borderRadius: '50%', border: '2px solid rgba(107,0,53,0.15)', borderTopColor: '#6B0035' }} className="animate-spin" />
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen" style={{ background: '#E9E3D9' }}>
-
-      {/* ── Compact sticky header (mobile) ──────────────────────── */}
-      <header className="lg:hidden sticky top-0 z-40 bg-white"
-              style={{ borderBottom: '1px solid rgba(139,90,43,0.12)' }}>
-        <div className="flex items-center justify-between px-4 h-12">
-          <h1 className="text-base font-bold"
-              style={{ fontFamily: '"Fraunces", Georgia, serif', color: '#1C1209' }}>
-            Feito para você
-          </h1>
-          <button onClick={() => navigate('/search')}
-                  className="w-8 h-8 rounded-full flex items-center justify-center"
-                  style={{ background: '#EDE4D6', color: '#7A6855' }}>
-            <Search className="w-4 h-4" />
-          </button>
-        </div>
-      </header>
-
-      <div className="max-w-screen-xl mx-auto px-4 py-5 lg:px-8 lg:py-8 space-y-8">
-
-        {/* ── Profile badge / Quiz CTA ─────────────────────────────── */}
+    <>
+      {/* ── Floating header ────────────────────────────────────────────────── */}
+      <div style={{
+        position: 'fixed', top: 56, left: 0, right: 0, zIndex: 30,
+        padding: '8px 16px',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        pointerEvents: 'none',
+      }}>
+        {/* Profile badge */}
         {user && profile?.quiz_completed ? (
-          <div className="flex items-center gap-2">
-            <span className="text-lg">{PROFILE_ICONS[profile.wine_profile]}</span>
-            <span
-              className="text-xs font-bold uppercase tracking-widest px-3 py-1.5 rounded-full"
-              style={{ background: 'rgba(107,0,53,0.10)', color: '#6B0035' }}
-            >
+          <div style={{
+            display: 'inline-flex', alignItems: 'center', gap: 6,
+            background: 'rgba(107,0,53,0.12)', borderRadius: 99,
+            padding: '5px 12px', pointerEvents: 'auto',
+          }}>
+            <span style={{ fontSize: 14 }}>{PROFILE_ICONS[profile.wine_profile]}</span>
+            <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#6B0035' }}>
               Para o perfil {PROFILE_LABELS[profile.wine_profile]}
             </span>
           </div>
-        ) : user && !profile?.quiz_completed ? (
-          <Link to="/onboarding" style={{ textDecoration: 'none' }}>
-            <div className="rounded-2xl px-4 py-3 text-white"
-                 style={{ background: 'linear-gradient(135deg, #6B0035 0%, #9B1B4D 100%)' }}>
-              <p className="text-sm font-bold">🍷 Qual é o seu perfil de vinho?</p>
-              <p className="text-xs mt-0.5" style={{ color: 'rgba(255,255,255,0.70)' }}>
-                Faça o quiz e personalize sua experiência →
-              </p>
-            </div>
-          </Link>
-        ) : null}
-
-        {/* ── Por País ─────────────────────────────────────────────── */}
-        <section>
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-base font-bold" style={{ fontFamily: '"Fraunces", Georgia, serif', color: '#1C1209' }}>
-              🌍 Por País
-            </h2>
-            <Link to="/regions"
-                  className="text-xs font-semibold flex items-center gap-0.5"
-                  style={{ color: '#6B0035', textDecoration: 'none' }}>
-              Ver todos <ChevronRight className="w-3.5 h-3.5" />
-            </Link>
-          </div>
-          {loadingGeo ? (
-            <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
-              {[1,2,3,4,5].map(i => (
-                <div key={i} className="flex-shrink-0 rounded-2xl animate-pulse"
-                     style={{ width: 80, height: 80, background: '#D5CFC5' }} />
-              ))}
-            </div>
-          ) : countries.length > 0 ? (
-            <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
-              {countries.map(c => (
-                <Link key={c.id} to={`/country/${c.id}`}
-                      className="flex-shrink-0 relative rounded-2xl overflow-hidden"
-                      style={{ width: 80, height: 80, textDecoration: 'none' }}>
-                  {c.photo ? (
-                    <img src={c.photo} alt={c.name} className="w-full h-full object-cover"
-                         onError={e => { (e.target as HTMLImageElement).src = FALLBACK; }} />
-                  ) : (
-                    <div className="w-full h-full" style={{ background: '#6B0035' }} />
-                  )}
-                  <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.65) 0%, rgba(0,0,0,0.10) 60%)' }} />
-                  <p className="absolute bottom-1.5 left-1.5 right-1.5 text-white font-semibold text-[10px] text-center leading-tight line-clamp-2">
-                    {c.name}
-                  </p>
-                </Link>
-              ))}
-            </div>
-          ) : (
-            <p className="text-sm" style={{ color: '#B0A090' }}>Nenhum país disponível.</p>
-          )}
-        </section>
-
-        {/* ── Por Região ───────────────────────────────────────────── */}
-        <section>
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-base font-bold" style={{ fontFamily: '"Fraunces", Georgia, serif', color: '#1C1209' }}>
-              📍 Por Região
-            </h2>
-            <Link to="/regions"
-                  className="text-xs font-semibold flex items-center gap-0.5"
-                  style={{ color: '#6B0035', textDecoration: 'none' }}>
-              Ver todas <ChevronRight className="w-3.5 h-3.5" />
-            </Link>
-          </div>
-          {loadingGeo ? (
-            <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
-              {[1,2,3,4,5].map(i => (
-                <div key={i} className="flex-shrink-0 rounded-2xl animate-pulse"
-                     style={{ width: 100, height: 80, background: '#D5CFC5' }} />
-              ))}
-            </div>
-          ) : regions.length > 0 ? (
-            <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
-              {regions.map(r => (
-                <Link key={r.id} to={`/region/${r.id}`}
-                      className="flex-shrink-0 relative rounded-2xl overflow-hidden"
-                      style={{ width: 100, height: 80, textDecoration: 'none' }}>
-                  {r.photo ? (
-                    <img src={r.photo} alt={r.name} className="w-full h-full object-cover"
-                         onError={e => { (e.target as HTMLImageElement).src = FALLBACK; }} />
-                  ) : (
-                    <div className="w-full h-full" style={{ background: '#4A0024' }} />
-                  )}
-                  <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.70) 0%, rgba(0,0,0,0.10) 60%)' }} />
-                  <div className="absolute bottom-1.5 left-1.5 right-1.5">
-                    <p className="text-white font-semibold text-[10px] leading-tight line-clamp-1">{r.name}</p>
-                    {(r.parent as any)?.name && (
-                      <p className="text-[9px] leading-tight" style={{ color: 'rgba(255,255,255,0.65)' }}>
-                        {(r.parent as any).name}
-                      </p>
-                    )}
-                  </div>
-                </Link>
-              ))}
-            </div>
-          ) : (
-            <p className="text-sm" style={{ color: '#B0A090' }}>Nenhuma região disponível.</p>
-          )}
-        </section>
-
-        {/* ── Coleções para você ───────────────────────────────────── */}
-        <section>
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-base font-bold" style={{ fontFamily: '"Fraunces", Georgia, serif', color: '#1C1209' }}>
-              Coleções para você
-            </h2>
-            <Link to="/explore"
-                  className="text-xs font-semibold flex items-center gap-0.5"
-                  style={{ color: '#6B0035', textDecoration: 'none' }}>
-              Ver todas <ChevronRight className="w-3.5 h-3.5" />
-            </Link>
-          </div>
-
-          {loading ? (
-            <>
-              <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide lg:hidden">
-                {[1,2,3].map(i => (
-                  <div key={i} className="flex-shrink-0 rounded-[18px] animate-pulse"
-                       style={{ width: 200, height: 300, background: '#D5CFC5' }} />
-                ))}
-              </div>
-              <div className="hidden lg:grid grid-cols-3 xl:grid-cols-4 gap-4">
-                {[1,2,3,4].map(i => (
-                  <div key={i} className="rounded-[18px] animate-pulse" style={{ height: 300, background: '#D5CFC5' }} />
-                ))}
-              </div>
-            </>
-          ) : personalizedCollections.length > 0 ? (
-            <>
-              {/* Mobile: horizontal scroll carousel */}
-              <div className="flex gap-4 overflow-x-auto pb-3 scrollbar-hide lg:hidden">
-                {personalizedCollections.map((col) => {
-                  const prog = getProgress(col.id);
-                  return (
-                    <div key={col.id} className="flex-shrink-0" style={{ width: 200 }}>
-                      <CollectionCard
-                        id={col.id}
-                        title={col.title}
-                        coverImage={col.photo}
-                        description={col.tagline ?? ''}
-                        contentType={col.content_type}
-                        category={col.category}
-                        country={(col.country as any)?.name}
-                        region={(col.region as any)?.name}
-                        subRegion={(col.sub_region as any)?.name}
-                        progress={prog.pct}
-                        totalItems={prog.total}
-                        completedItems={prog.done}
-                        previewPhotos={previewPhotosMap[col.id]}
-                        variant="portrait"
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-              {/* Desktop: CSS grid */}
-              <div className="hidden lg:grid grid-cols-3 xl:grid-cols-4 gap-4">
-                {personalizedCollections.map((col) => {
-                  const prog = getProgress(col.id);
-                  return (
-                    <CollectionCard
-                      key={col.id}
-                      id={col.id}
-                      title={col.title}
-                      coverImage={col.photo}
-                      description={col.tagline ?? ''}
-                      contentType={col.content_type}
-                      category={col.category}
-                      country={(col.country as any)?.name}
-                      region={(col.region as any)?.name}
-                      subRegion={(col.sub_region as any)?.name}
-                      progress={prog.pct}
-                      totalItems={prog.total}
-                      completedItems={prog.done}
-                      previewPhotos={previewPhotosMap[col.id]}
-                      variant="portrait"
-                    />
-                  );
-                })}
-              </div>
-            </>
-          ) : (
-            <div className="text-center py-10 text-sm rounded-2xl bg-white"
-                 style={{ color: '#B0A090', border: '1px solid rgba(139,90,43,0.10)' }}>
-              Nenhuma coleção disponível.
-            </div>
-          )}
-        </section>
-
+        ) : (
+          <div />
+        )}
+        {/* Search */}
+        <button
+          onClick={() => navigate('/search')}
+          style={{
+            width: 36, height: 36, borderRadius: '50%',
+            background: 'rgba(233,227,217,0.85)', backdropFilter: 'blur(8px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            pointerEvents: 'auto',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.10)',
+          }}
+        >
+          <Search style={{ width: 16, height: 16, color: '#7A6855' }} />
+        </button>
       </div>
-    </div>
+
+      {/* ── Snap scroll container ───────────────────────────────────────────── */}
+      <div style={{
+        height: 'calc(100svh - 56px - 64px)',
+        overflowY: personalizedCollections.length > 0 ? 'scroll' : 'hidden',
+        scrollSnapType: 'y mandatory',
+        background: '#000',
+      }}>
+        {personalizedCollections.length === 0 ? (
+          <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#E9E3D9' }}>
+            <p style={{ color: '#B0A090', fontSize: 14 }}>Nenhuma coleção disponível.</p>
+          </div>
+        ) : (
+          personalizedCollections.map(col => (
+            <ReelSlide
+              key={col.id}
+              col={col}
+              items={itemsByCollection[col.id] ?? []}
+              progress={getProgress(col.id)}
+              itemStates={itemStates}
+              onItemClick={(items, index) => setModalState({ items, index, colTitle: col.title })}
+            />
+          ))
+        )}
+      </div>
+
+      {/* ── Item modal ─────────────────────────────────────────────────────── */}
+      <AnimatePresence>
+        {modalState && (
+          <ItemModal
+            items={modalState.items}
+            initialIndex={modalState.index}
+            collectionTitle={modalState.colTitle}
+            itemStates={itemStates}
+            onClose={() => setModalState(null)}
+            onToggleTried={toggleTried}
+            onToggleFavorite={toggleFavorite}
+          />
+        )}
+      </AnimatePresence>
+    </>
   );
 }
