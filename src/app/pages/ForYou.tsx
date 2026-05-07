@@ -27,8 +27,9 @@ interface CollectionRow {
   photo: string;
   content_type: string;
   category: string;
-  country: { name: string } | null;
-  region: { name: string } | null;
+  country:    { name: string } | null;
+  region:     { name: string } | null;
+  sub_region: { name: string } | null;
 }
 
 interface ProfileRule {
@@ -64,6 +65,26 @@ interface ColProgress {
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const FALLBACK = 'https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=600&q=80';
+
+const CONTENT_TYPE_LABELS: Record<string, string> = {
+  wines: 'Vinhos', Vinhos: 'Vinhos',
+  wineries: 'Vinícolas', Vinícolas: 'Vinícolas',
+  experiences: 'Experiências', Experiências: 'Experiências',
+  grapes: 'Uvas', mix: 'Mix', brotherhoods: 'Confrarias',
+};
+
+// ── useIsDesktop ──────────────────────────────────────────────────────────────
+
+function useIsDesktop() {
+  const [v, setV] = useState(() => typeof window !== 'undefined' && window.innerWidth >= 1024);
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 1024px)');
+    const handler = (e: MediaQueryListEvent) => setV(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
+  return v;
+}
 
 function imgFallback(e: React.SyntheticEvent<HTMLImageElement>) {
   (e.target as HTMLImageElement).src = FALLBACK;
@@ -447,181 +468,245 @@ function ReelSlide({
   onItemClick: (items: UnifiedItem[], index: number) => void;
 }) {
   const [itemIndex, setItemIndex] = useState(0);
+  const isDesktop = useIsDesktop();
 
-  const slideH = 'calc(100svh - 56px - 64px)';
-  const heroH = '62%';
-  const carouselH = '38%';
+  const typeLabel = CONTENT_TYPE_LABELS[col.content_type] ?? col.content_type;
+  const geoChain  = [col.country?.name, col.region?.name, col.sub_region?.name].filter(Boolean).join(' › ');
+  const pct       = progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : 0;
 
-  return (
-    <div style={{
-      height: slideH,
-      scrollSnapAlign: 'start',
-      position: 'relative',
-      flexShrink: 0,
-      overflow: 'hidden',
-    }}>
-      {/* === HERO === */}
-      <div style={{ height: heroH, position: 'relative', overflow: 'hidden' }}>
-        {/* Background photo */}
-        <img
-          src={col.photo || FALLBACK}
-          alt={col.title}
-          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
-          onError={imgFallback}
-        />
-        {/* Gradient overlay */}
-        <div style={{
-          position: 'absolute', inset: 0,
-          background: 'linear-gradient(to top, rgba(0,0,0,0.82) 0%, rgba(0,0,0,0.35) 50%, rgba(0,0,0,0.10) 100%)',
-        }} />
+  const itemLabel = (item: UnifiedItem) =>
+    item.type ?? (item.itemType === 'wine' ? 'Vinho' : item.itemType === 'experience' ? 'Experiência' : 'Vinícola');
 
-        {/* Hero content */}
-        <div style={{
-          position: 'absolute', bottom: 0, left: 0, right: 0,
-          padding: '0 20px 16px',
-        }}>
-          <p style={{ fontSize: 13, fontStyle: 'italic', color: 'rgba(255,255,255,0.70)', marginBottom: 4 }}>
-            Descubra
+  // ── Shared: photo background + collection info panel ─────────────────────
+  const InfoPanel = ({ padding }: { padding: string }) => (
+    <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+      <img
+        src={col.photo || FALLBACK} alt={col.title}
+        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+        onError={imgFallback}
+      />
+      <div style={{
+        position: 'absolute', inset: 0,
+        background: 'linear-gradient(to top, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.50) 55%, rgba(0,0,0,0.12) 100%)',
+      }} />
+      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding }}>
+        {/* Type + category badges */}
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
+          {typeLabel && (
+            <span style={{
+              background: 'rgba(255,255,255,0.18)', backdropFilter: 'blur(8px)',
+              color: '#fff', fontSize: 10, fontWeight: 700, letterSpacing: '0.10em',
+              textTransform: 'uppercase', padding: '4px 12px', borderRadius: 99,
+            }}>{typeLabel}</span>
+          )}
+          {col.category && (
+            <span style={{
+              background: 'rgba(184,130,11,0.28)', backdropFilter: 'blur(8px)',
+              color: '#FFD97D', fontSize: 10, fontWeight: 700, letterSpacing: '0.10em',
+              textTransform: 'uppercase', padding: '4px 12px', borderRadius: 99,
+            }}>{col.category}</span>
+          )}
+        </div>
+
+        {/* Italic label */}
+        <p style={{ fontSize: 12, fontStyle: 'italic', color: 'rgba(255,255,255,0.65)', marginBottom: 4 }}>Descubra</p>
+
+        {/* Title */}
+        <h1 style={{
+          fontFamily: '"Fraunces",Georgia,serif',
+          fontSize: isDesktop ? 'clamp(26px, 2.4vw, 42px)' : 'clamp(24px, 7vw, 34px)',
+          fontWeight: 800, color: '#fff', textTransform: 'uppercase',
+          letterSpacing: '-0.01em', lineHeight: 1.08, marginBottom: 8,
+        }}>{col.title}</h1>
+
+        {/* Tagline */}
+        {col.tagline && (
+          <p style={{
+            fontSize: 13, color: 'rgba(255,255,255,0.70)', lineHeight: 1.55,
+            display: '-webkit-box', WebkitLineClamp: isDesktop ? 3 : 2,
+            WebkitBoxOrient: 'vertical', overflow: 'hidden', marginBottom: 14,
+          }}>{col.tagline}</p>
+        )}
+
+        {/* Geo chain */}
+        {geoChain && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 14 }}>
+            <MapPin style={{ width: 11, height: 11, color: 'rgba(255,255,255,0.55)', flexShrink: 0 }} />
+            <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.68)', fontWeight: 500 }}>{geoChain}</span>
+          </div>
+        )}
+
+        {/* Progress bar */}
+        {progress.total > 0 && (
+          <div style={{ marginBottom: isDesktop ? 0 : 12 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
+              <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)' }}>Seu progresso</span>
+              <span style={{ fontSize: 11, fontWeight: 700, color: progress.done > 0 ? '#6BF5A0' : 'rgba(255,255,255,0.45)' }}>
+                {progress.done}/{progress.total}
+              </span>
+            </div>
+            <div style={{ height: 3, borderRadius: 99, background: 'rgba(255,255,255,0.18)' }}>
+              <div style={{
+                height: '100%', borderRadius: 99,
+                background: 'linear-gradient(90deg, #6BF5A0, #2DD4BF)',
+                width: `${Math.max(pct, progress.done > 0 ? 4 : 0)}%`,
+                transition: 'width 0.6s ease',
+              }} />
+            </div>
+          </div>
+        )}
+
+        {/* Mobile-only: item counter + arrows */}
+        {!isDesktop && items.length > 0 && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontWeight: 700, color: '#fff', fontSize: 14, minWidth: 56 }}>
+              {itemIndex + 1} — {items.length}
+            </span>
+            <button
+              onClick={() => setItemIndex(i => Math.max(0, i - 1))}
+              style={{
+                width: 34, height: 34, borderRadius: '50%',
+                background: 'rgba(255,255,255,0.18)', backdropFilter: 'blur(6px)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                opacity: itemIndex === 0 ? 0.3 : 1,
+              }}
+            ><ChevronLeft style={{ width: 16, height: 16, color: '#fff' }} /></button>
+            <button
+              onClick={() => setItemIndex(i => Math.min(items.length - 1, i + 1))}
+              style={{
+                width: 34, height: 34, borderRadius: '50%',
+                background: 'rgba(255,255,255,0.18)', backdropFilter: 'blur(6px)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                opacity: itemIndex === items.length - 1 ? 0.3 : 1,
+              }}
+            ><ChevronRight style={{ width: 16, height: 16, color: '#fff' }} /></button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  // ── Item card (shared by both layouts) ────────────────────────────────────
+  const ItemCard = ({ item, idx, cardW, photoH }: { item: UnifiedItem; idx: number; cardW: number; photoH: number }) => {
+    const state  = itemStates[item.itemId] ?? { tried: false, favorite: false };
+    const isWine = item.itemType === 'wine';
+    return (
+      <div
+        onClick={() => onItemClick(items, idx)}
+        style={{
+          width: cardW, flexShrink: 0, borderRadius: 16, overflow: 'hidden',
+          cursor: 'pointer', background: '#fff',
+          boxShadow: '0 2px 12px rgba(28,18,9,0.10)',
+          outline: !isDesktop && idx === itemIndex ? '2px solid rgba(255,255,255,0.75)' : 'none',
+          transition: 'transform 0.15s, box-shadow 0.15s',
+        }}
+        className="active:scale-95 hover:shadow-lg"
+      >
+        {/* Photo area */}
+        <div style={{ height: photoH, background: isWine ? '#F5F0E8' : '#1C1209', position: 'relative', overflow: 'hidden' }}>
+          <img
+            src={item.photo || FALLBACK} alt={item.name}
+            style={{ width: '100%', height: '100%', objectFit: isWine ? 'contain' : 'cover', padding: isWine ? '10px 14px' : 0 }}
+            onError={imgFallback}
+          />
+          {/* Status badges */}
+          <div style={{ position: 'absolute', top: 6, right: 6, display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-end' }}>
+            {state.tried && (
+              <span style={{
+                background: '#2D4A3E', color: '#fff',
+                fontSize: 9, fontWeight: 700, padding: '2px 7px', borderRadius: 99,
+              }}>✓ Vivido</span>
+            )}
+            {state.favorite && (
+              <span style={{
+                background: '#6B0035', color: '#fff',
+                fontSize: 9, fontWeight: 700, padding: '2px 7px', borderRadius: 99,
+              }}>♡ Salvo</span>
+            )}
+          </div>
+        </div>
+        {/* Info area */}
+        <div style={{ padding: isDesktop ? '10px 14px 14px' : '6px 9px 10px' }}>
+          <p style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.10em', textTransform: 'uppercase', color: '#B0906A', marginBottom: 3 }}>
+            {itemLabel(item)}
           </p>
-          <h1 style={{
+          <p style={{
             fontFamily: '"Fraunces",Georgia,serif',
-            fontSize: 'clamp(28px, 8vw, 38px)',
-            fontWeight: 800,
-            color: '#fff',
-            textTransform: 'uppercase',
-            letterSpacing: '-0.01em',
-            lineHeight: 1.1,
-            marginBottom: 6,
-          }}>
-            {col.title}
-          </h1>
-          {col.tagline && (
-            <p style={{
-              fontSize: 13, color: 'rgba(255,255,255,0.72)', lineHeight: 1.5,
-              display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
-              marginBottom: 10,
-            }}>
-              {col.tagline}
+            fontSize: isDesktop ? 13 : 11, fontWeight: 700, color: '#1C1209',
+            display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', lineHeight: 1.3,
+            marginBottom: item.subName ? 2 : 0,
+          }}>{item.name}</p>
+          {item.subName && (
+            <p style={{ fontSize: isDesktop ? 11 : 10, color: '#7A6855', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {item.subName}
             </p>
           )}
+        </div>
+      </div>
+    );
+  };
 
-          {/* Item counter + arrows */}
-          {items.length > 0 && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-              <span style={{ fontWeight: 700, color: '#fff', fontSize: 15, minWidth: 60 }}>
-                {itemIndex + 1} — {items.length}
-              </span>
-              <button
-                onClick={() => setItemIndex(i => Math.max(0, i - 1))}
-                style={{
-                  width: 36, height: 36, borderRadius: '50%',
-                  background: 'rgba(255,255,255,0.18)', backdropFilter: 'blur(6px)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  opacity: itemIndex === 0 ? 0.35 : 1,
-                }}
-              >
-                <ChevronLeft style={{ width: 18, height: 18, color: '#fff' }} />
-              </button>
-              <button
-                onClick={() => setItemIndex(i => Math.min(items.length - 1, i + 1))}
-                style={{
-                  width: 36, height: 36, borderRadius: '50%',
-                  background: 'rgba(255,255,255,0.18)', backdropFilter: 'blur(6px)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  opacity: itemIndex === items.length - 1 ? 0.35 : 1,
-                }}
-              >
-                <ChevronRight style={{ width: 18, height: 18, color: '#fff' }} />
-              </button>
+  // ── DESKTOP layout ────────────────────────────────────────────────────────
+  if (isDesktop) {
+    return (
+      <div style={{
+        height: 'calc(100vh - 64px)',
+        scrollSnapAlign: 'start', flexShrink: 0,
+        display: 'flex', overflow: 'hidden',
+      }}>
+        {/* Left: info panel */}
+        <div style={{ width: '38%', flexShrink: 0, position: 'relative' }}>
+          <InfoPanel padding="0 36px 44px" />
+        </div>
+
+        {/* Right: card grid */}
+        <div style={{
+          flex: 1, overflowY: 'auto', background: '#F5F0E8',
+          padding: '28px 28px',
+          scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,90,43,0.25) transparent',
+        }}>
+          {items.length === 0 ? (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+              <p style={{ color: '#B0A090', fontSize: 14 }}>Nenhum item nesta coleção.</p>
             </div>
-          )}
-
-          {/* Progress badge */}
-          {progress.done > 0 && (
-            <div style={{
-              display: 'inline-flex', alignItems: 'center', gap: 5,
-              background: 'rgba(45,74,62,0.88)', borderRadius: 99,
-              padding: '4px 10px', fontSize: 11, color: '#fff', fontWeight: 600,
-            }}>
-              ✓ {progress.done} de {progress.total} já provados
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))', gap: 16 }}>
+              {items.map((item, i) => (
+                <ItemCard key={item.itemId} item={item} idx={i} cardW={0} photoH={230} />
+              ))}
             </div>
           )}
         </div>
       </div>
+    );
+  }
 
-      {/* === ITEMS CAROUSEL === */}
+  // ── MOBILE layout ─────────────────────────────────────────────────────────
+  return (
+    <div style={{
+      height: 'calc(100svh - 56px - 64px)',
+      scrollSnapAlign: 'start', flexShrink: 0,
+      display: 'flex', flexDirection: 'column', overflow: 'hidden',
+    }}>
+      {/* Hero — 50% */}
+      <div style={{ height: '50%', position: 'relative', flexShrink: 0 }}>
+        <InfoPanel padding="0 18px 14px" />
+      </div>
+
+      {/* Cards carousel — 50% */}
       <div style={{
-        height: carouselH,
-        background: 'linear-gradient(to bottom, rgba(10,6,3,0.92) 0%, rgba(10,6,3,0.98) 100%)',
-        overflowX: 'auto',
-        display: 'flex',
-        gap: 12,
-        padding: '12px 16px',
-        scrollbarWidth: 'none',
+        flex: 1,
+        background: 'linear-gradient(to bottom, rgba(10,6,3,0.94) 0%, rgba(10,6,3,0.99) 100%)',
+        overflowX: 'auto', display: 'flex', gap: 10,
+        padding: '12px 14px', scrollbarWidth: 'none', alignItems: 'flex-start',
       }}>
         {items.length === 0 ? (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1 }}>
-            <p style={{ color: 'rgba(255,255,255,0.40)', fontSize: 13 }}>Nenhum item ainda</p>
+            <p style={{ color: 'rgba(255,255,255,0.38)', fontSize: 13 }}>Nenhum item ainda</p>
           </div>
-        ) : items.map((item, i) => {
-          const isTried = itemStates[item.itemId]?.tried ?? false;
-          const isWine = item.itemType === 'wine';
-          const isActive = i === itemIndex;
-          return (
-            <div
-              key={item.itemId}
-              onClick={() => onItemClick(items, i)}
-              style={{
-                width: 110, flexShrink: 0,
-                borderRadius: 16, overflow: 'hidden',
-                cursor: 'pointer',
-                outline: isActive ? '2px solid rgba(255,255,255,0.70)' : 'none',
-                transition: 'transform 0.15s',
-              }}
-              className="active:scale-95"
-            >
-              {/* Photo */}
-              <div style={{
-                height: 130,
-                background: isWine ? '#F5F0E8' : '#2A1A10',
-                position: 'relative', overflow: 'hidden',
-              }}>
-                <img
-                  src={item.photo || FALLBACK}
-                  alt={item.name}
-                  style={{
-                    width: '100%', height: '100%',
-                    objectFit: isWine ? 'contain' : 'cover',
-                    padding: isWine ? 8 : 0,
-                  }}
-                  onError={imgFallback}
-                />
-                {isTried && (
-                  <div style={{
-                    position: 'absolute', top: 6, right: 6,
-                    width: 20, height: 20, borderRadius: '50%',
-                    background: '#2D4A3E',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  }}>
-                    <span style={{ color: '#fff', fontSize: 11, fontWeight: 700 }}>✓</span>
-                  </div>
-                )}
-              </div>
-              {/* Info */}
-              <div style={{ background: '#fff', padding: '6px 8px 8px' }}>
-                <p style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.10em', textTransform: 'uppercase', color: '#B0906A', marginBottom: 2 }}>
-                  {item.type ?? (item.itemType === 'wine' ? 'Vinho' : item.itemType === 'experience' ? 'Exp.' : 'Vinícola')}
-                </p>
-                <p style={{
-                  fontFamily: '"Fraunces",Georgia,serif', fontSize: 11, fontWeight: 700, color: '#1C1209',
-                  display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', lineHeight: 1.35,
-                }}>
-                  {item.name}
-                </p>
-              </div>
-            </div>
-          );
-        })}
+        ) : items.map((item, i) => (
+          <ItemCard key={item.itemId} item={item} idx={i} cardW={136} photoH={158} />
+        ))}
       </div>
     </div>
   );
@@ -632,6 +717,7 @@ function ReelSlide({
 export default function ForYou() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const isDesktop = useIsDesktop();
 
   const [profile, setProfile] = useState<UserProfileData | null>(null);
   const [collections, setCollections] = useState<CollectionRow[]>([]);
@@ -649,7 +735,7 @@ export default function ForYou() {
       const [{ data: cols }, { data: colItems }] = await Promise.all([
         supabase
           .from('collections')
-          .select('id, title, tagline, photo, content_type, category, country:country_id(name), region:region_id(name)')
+          .select('id, title, tagline, photo, content_type, category, country:country_id(name), region:region_id(name), sub_region:sub_region_id(name)')
           .order('title'),
         supabase
           .from('collection_items')
@@ -833,8 +919,8 @@ export default function ForYou() {
 
   return (
     <>
-      {/* ── Floating header ────────────────────────────────────────────────── */}
-      <div style={{
+      {/* ── Floating header (mobile only — desktop has info in left panel) ─── */}
+      <div className="lg:hidden" style={{
         position: 'fixed', top: 56, left: 0, right: 0, zIndex: 30,
         padding: '8px 16px',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -872,7 +958,7 @@ export default function ForYou() {
 
       {/* ── Snap scroll container ───────────────────────────────────────────── */}
       <div style={{
-        height: 'calc(100svh - 56px - 64px)',
+        height: isDesktop ? 'calc(100vh - 64px)' : 'calc(100svh - 56px - 64px)',
         overflowY: personalizedCollections.length > 0 ? 'scroll' : 'hidden',
         scrollSnapType: 'y mandatory',
         background: '#000',
