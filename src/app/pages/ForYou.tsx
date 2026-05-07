@@ -603,87 +603,105 @@ function ReelSlide({
   };
 
   // ── DESKTOP layout ────────────────────────────────────────────────────────
+  // Design: left info panel floats on top (z-index); behind it a full-width
+  // horizontal card scroll — cards slide under the panel as user scrolls left.
   if (isDesktop) {
+    const LEFT_W    = '40%';
+    const CARD_W_DK = 280;
+    const CARD_H_DK = 'calc(100vh - 64px - 80px)'; // nearly full height
+
     return (
       <div style={{
         height: 'calc(100vh - 64px)',
         scrollSnapAlign: 'start', flexShrink: 0,
-        display: 'flex', overflow: 'hidden',
+        position: 'relative', overflow: 'hidden',
       }}>
-        {/* Left: info panel — 40% */}
-        <div style={{ width: '40%', flexShrink: 0, position: 'relative' }}>
+
+        {/* ── Background canvas (warm gradient behind everything) ── */}
+        <div style={{
+          position: 'absolute', inset: 0,
+          background: 'linear-gradient(135deg, #EDE4D6 0%, #E0D5C0 100%)',
+        }} />
+
+        {/* ── Horizontal card scroll — full width, sits behind left panel ── */}
+        <div style={{
+          position: 'absolute', inset: 0,
+          overflowX: 'auto', overflowY: 'hidden',
+          display: 'flex', alignItems: 'center',
+          gap: 20,
+          paddingLeft: LEFT_W,   /* first card starts just after the left panel */
+          paddingRight: 48,
+          scrollbarWidth: 'none',
+        }}>
+          {items.length === 0 ? (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '60vw' }}>
+              <p style={{ color: '#B0A090', fontSize: 14 }}>Nenhum item nesta coleção.</p>
+            </div>
+          ) : items.map((item, i) => {
+            const isWine = item.itemType === 'wine';
+            return (
+              <div
+                key={item.itemId}
+                onClick={() => onItemClick(items, i)}
+                style={{
+                  width: CARD_W_DK, height: CARD_H_DK,
+                  flexShrink: 0, borderRadius: 24, overflow: 'hidden',
+                  cursor: 'pointer', background: '#fff',
+                  boxShadow: '0 8px 40px rgba(28,18,9,0.14)',
+                  display: 'flex', flexDirection: 'column',
+                  transition: 'transform 0.2s, box-shadow 0.2s',
+                }}
+                className="hover:scale-[1.02] hover:shadow-2xl active:scale-[0.98]"
+              >
+                {/* Photo — flex:1 → fills all space above footer */}
+                <div style={{
+                  flex: 1, minHeight: 0,
+                  background: isWine ? '#F5F0E8' : '#1C1209',
+                  position: 'relative', overflow: 'hidden',
+                }}>
+                  <img
+                    src={item.photo || FALLBACK} alt={item.name}
+                    style={{
+                      width: '100%', height: '100%',
+                      objectFit: isWine ? 'contain' : 'cover',
+                      padding: isWine ? '24px 32px' : 0,
+                    }}
+                    onError={imgFallback}
+                  />
+                  <StatusBadges itemId={item.itemId} />
+                </div>
+                {/* Info footer */}
+                <div style={{ padding: '16px 20px 22px', flexShrink: 0, borderTop: '1px solid rgba(139,90,43,0.08)' }}>
+                  <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#B0906A', marginBottom: 6 }}>
+                    {itemLabel(item)}
+                  </p>
+                  <p style={{
+                    fontFamily: '"Fraunces",Georgia,serif', fontSize: 17, fontWeight: 700,
+                    color: '#1C1209', lineHeight: 1.2,
+                    display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
+                    marginBottom: item.subName ? 5 : 0,
+                  }}>{item.name}</p>
+                  {item.subName && (
+                    <p style={{ fontSize: 13, color: '#7A6855', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {item.subName}
+                    </p>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* ── Left info panel — overlaid, cards scroll behind it ── */}
+        <div style={{
+          position: 'absolute', top: 0, left: 0, bottom: 0,
+          width: LEFT_W, zIndex: 10,
+          /* subtle right shadow to sell the depth effect */
+          filter: 'drop-shadow(8px 0 24px rgba(0,0,0,0.18))',
+        }}>
           <InfoPanel padding="0 44px 52px" />
         </div>
 
-        {/* Right: card grid — 60% */}
-        <div style={{
-          flex: 1, overflowY: 'auto',
-          background: 'linear-gradient(135deg, #EDE4D6 0%, #E6DAC8 100%)',
-          padding: '32px 32px 40px',
-          scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,90,43,0.20) transparent',
-        }}>
-          {/* Header */}
-          <div style={{ marginBottom: 24, paddingBottom: 16, borderBottom: '1px solid rgba(139,90,43,0.15)' }}>
-            <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#8B6840', marginBottom: 4 }}>
-              {typeLabel} · {col.category}
-            </p>
-            <p style={{ fontSize: 13, color: '#7A6855' }}>
-              {items.length} {items.length === 1 ? 'item' : 'itens'} nesta coleção
-            </p>
-          </div>
-
-          {items.length === 0 ? (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 200 }}>
-              <p style={{ color: '#B0A090', fontSize: 14 }}>Nenhum item nesta coleção.</p>
-            </div>
-          ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 20 }}>
-              {items.map((item, i) => {
-                const isWine = item.itemType === 'wine';
-                return (
-                  <div
-                    key={item.itemId}
-                    onClick={() => onItemClick(items, i)}
-                    style={{
-                      borderRadius: 20, overflow: 'hidden', cursor: 'pointer',
-                      background: '#fff',
-                      boxShadow: '0 4px 20px rgba(28,18,9,0.10)',
-                      transition: 'transform 0.18s, box-shadow 0.18s',
-                    }}
-                    className="hover:scale-[1.02] hover:shadow-xl active:scale-[0.99]"
-                  >
-                    {/* Photo */}
-                    <div style={{ height: 260, background: isWine ? '#F5F0E8' : '#1C1209', position: 'relative', overflow: 'hidden' }}>
-                      <img
-                        src={item.photo || FALLBACK} alt={item.name}
-                        style={{ width: '100%', height: '100%', objectFit: isWine ? 'contain' : 'cover', padding: isWine ? '14px 24px' : 0 }}
-                        onError={imgFallback}
-                      />
-                      <StatusBadges itemId={item.itemId} />
-                    </div>
-                    {/* Info */}
-                    <div style={{ padding: '14px 18px 18px' }}>
-                      <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#B0906A', marginBottom: 5 }}>
-                        {itemLabel(item)}
-                      </p>
-                      <p style={{
-                        fontFamily: '"Fraunces",Georgia,serif', fontSize: 15, fontWeight: 700,
-                        color: '#1C1209', lineHeight: 1.25,
-                        display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
-                        marginBottom: item.subName ? 4 : 0,
-                      }}>{item.name}</p>
-                      {item.subName && (
-                        <p style={{ fontSize: 12, color: '#7A6855', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {item.subName}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
       </div>
     );
   }
