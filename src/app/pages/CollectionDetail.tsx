@@ -1,20 +1,20 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, Link } from 'react-router';
 import {
-  ChevronLeft, Share2, Heart, CheckCircle2, MapPin,
-  X, ChevronRight, Bookmark,
+  ChevronLeft, Share2, CheckCircle2, MapPin,
+  X, ChevronRight, Bookmark, ShoppingBag, Loader2, Camera, Pencil,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
-import { AddReviewSection } from '../components/AddReviewSection';
 import { CollectionCard } from '../components/CollectionCard';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import {
   toggleTried as psToggleTried,
   toggleFavorite as psToggleFavorite,
-  awardPoints,
+  saveReview as psSaveReview,
 } from '../../lib/pointsSystem';
+import { processAndUpload } from '../../lib/imageUtils';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -28,12 +28,10 @@ interface UnifiedItem {
   itemId: string; itemType: ItemType; id: string; name: string; photo: string;
   highlight: string | null; tastingNote: string | null; subName: string | null;
   location: string | null; type: string | null; position: number;
+  price_min?: number | null; price_max?: number | null;
 }
 
-type ItemState = {
-  tried: boolean; favorite: boolean;
-  review?: { photo?: string; comment: string; rating: number };
-};
+type ItemState = { tried: boolean; favorite: boolean; rating: number; notes: string; photoUrl: string };
 
 interface OtherCollection {
   id: string; title: string; photo: string; tagline: string | null;
@@ -44,48 +42,67 @@ interface OtherCollection {
 
 const FALLBACK = 'https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=600&q=80';
 
-const WHY_LABEL: Record<string, string> = {
-  wine: 'Por que provar?', experience: 'Por que viver?', winery: 'Por que visitar?',
-};
-
 function imgFallback(e: React.SyntheticEvent<HTMLImageElement>) {
   (e.target as HTMLImageElement).src = FALLBACK;
+}
+
+// ── useIsDesktop ──────────────────────────────────────────────────────────────
+
+function useIsDesktop() {
+  const [v, setV] = useState(() => typeof window !== 'undefined' && window.innerWidth >= 1024);
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 1024px)');
+    const handler = (e: MediaQueryListEvent) => setV(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
+  return v;
 }
 
 // ── Fullscreen Item Modal ──────────────────────────────────────────────────────
 
 function ItemModal({
   items, initialIndex, collectionTitle, itemStates,
-  user, onClose, onToggleTried, onToggleFavorite, onAddReview,
+  onClose, onToggleTried, onToggleFavorite, onSaveReview,
 }: {
   items: UnifiedItem[];
   initialIndex: number;
   collectionTitle: string;
   itemStates: Record<string, ItemState>;
-  user: any;
   onClose: () => void;
   onToggleTried: (id: string) => void;
   onToggleFavorite: (id: string) => void;
-  onAddReview: (id: string, r: { photo?: string; comment: string; rating: number }) => void;
+  onSaveReview: (itemId: string, review: { rating?: number; notes?: string; photoUrl?: string }) => Promise<void>;
 }) {
   const [index, setIndex] = useState(initialIndex);
-  const [level, setLevel] = useState<0 | 1>(0);
   const touchStartX = useRef<number | null>(null);
+  const isDesktop = useIsDesktop();
 
-  const item  = items[index];
-  const state = itemStates[item.itemId] ?? { tried: false, favorite: false };
-  const isWine = item.itemType === 'wine';
+  const [formOpen,     setFormOpen]     = useState(false);
+  const [draftRating,  setDraftRating]  = useState(0);
+  const [draftComment, setDraftComment] = useState('');
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [photoFile,    setPhotoFile]    = useState<File | null>(null);
+  const [savingReview, setSavingReview] = useState(false);
+  const photoInputRef = useRef<HTMLInputElement>(null);
 
-  // Lock body scroll
+  const item     = items[index];
+  const state    = itemStates[item.itemId] ?? { tried: false, favorite: false, rating: 0, notes: '', photoUrl: '' };
+  const isWine   = item.itemType === 'wine';
+  const typeLabel = item.type ?? (isWine ? 'Vinho' : item.itemType === 'experience' ? 'Experiência' : 'Vinícola');
+  const note     = item.tastingNote || item.highlight;
+  const priceText = item.price_min != null
+    ? `R$ ${item.price_min}${item.price_max && item.price_max !== item.price_min ? ` – R$ ${item.price_max}` : ''}`
+    : null;
+
   useEffect(() => {
     document.body.style.overflow = 'hidden';
     return () => { document.body.style.overflow = ''; };
   }, []);
 
-  const prev = useCallback(() => { setIndex(i => Math.max(0, i - 1)); setLevel(0); }, []);
-  const next = useCallback(() => { setIndex(i => Math.min(items.length - 1, i + 1)); setLevel(0); }, [items.length]);
+  const prev = useCallback(() => setIndex(i => Math.max(0, i - 1)), []);
+  const next = useCallback(() => setIndex(i => Math.min(items.length - 1, i + 1)), [items.length]);
 
-  // Keyboard navigation
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'ArrowRight') next();
@@ -96,242 +113,271 @@ function ItemModal({
     return () => window.removeEventListener('keydown', onKey);
   }, [next, prev, onClose]);
 
-  // Touch swipe
   const onTouchStart = (e: React.TouchEvent) => { touchStartX.current = e.touches[0].clientX; };
-  const onTouchEnd = (e: React.TouchEvent) => {
+  const onTouchEnd   = (e: React.TouchEvent) => {
     if (touchStartX.current === null) return;
     const dx = e.changedTouches[0].clientX - touchStartX.current;
-    if (Math.abs(dx) > 48) { dx < 0 ? next() : prev(); setLevel(0); }
+    if (Math.abs(dx) > 48) dx < 0 ? next() : prev();
     touchStartX.current = null;
   };
 
-  const photoHeight = level === 0 ? '60vh' : '38vh';
-  const sheetHeight = level === 0 ? '40vh' : '62vh';
+  useEffect(() => { setFormOpen(false); setSavingReview(false); }, [index]);
 
-  return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.2 }}
-      style={{ position: 'fixed', inset: 0, zIndex: 100, background: '#000' }}
-      onTouchStart={onTouchStart}
-      onTouchEnd={onTouchEnd}
-    >
-      {/* ── Top bar ────────────────────────────────────────────────── */}
-      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 20, padding: '16px 16px 8px' }}>
-        <div className="flex items-center justify-between">
-          <button
-            onClick={onClose}
-            style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(0,0,0,0.35)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-          >
-            <X className="w-4 h-4" style={{ color: '#fff' }} />
-          </button>
-          <div className="text-center">
-            <p style={{ fontFamily: '"DM Sans",system-ui,sans-serif', fontSize: 12, fontWeight: 700, color: '#fff' }}>{collectionTitle}</p>
-            <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.65)' }}>{index + 1} de {items.length}</p>
-          </div>
-          <button style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(0,0,0,0.35)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Share2 className="w-4 h-4" style={{ color: '#fff' }} />
-          </button>
+  const handleJaBebi = () => {
+    if (!formOpen) {
+      setDraftRating(state.rating || 0);
+      setDraftComment(state.notes || '');
+      setPhotoPreview(state.photoUrl || null);
+      setPhotoFile(null);
+    }
+    setFormOpen(v => !v);
+  };
+
+  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setPhotoFile(file);
+    const reader = new FileReader();
+    reader.onloadend = () => setPhotoPreview(reader.result as string);
+    reader.readAsDataURL(file);
+  };
+
+  const handleSaveReview = async () => {
+    setSavingReview(true);
+    try {
+      let photoUrl = state.photoUrl || undefined;
+      if (photoFile) photoUrl = await processAndUpload(photoFile);
+      await onSaveReview(item.itemId, {
+        rating:   draftRating || undefined,
+        notes:    draftComment.trim() || undefined,
+        photoUrl,
+      });
+      setFormOpen(false);
+    } catch (err) {
+      console.error('saveReview error', err);
+    } finally {
+      setSavingReview(false);
+    }
+  };
+
+  const InfoContent = () => (
+    <>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
+        {typeLabel && (
+          <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', background: '#F5EEF4', color: '#7B1E5C', padding: '4px 12px', borderRadius: 99 }}>{typeLabel}</span>
+        )}
+        {note && (
+          <span style={{ fontSize: 10, fontWeight: 700, background: '#FFF8EC', color: '#B8820B', padding: '4px 12px', borderRadius: 99 }}>★ Destaque</span>
+        )}
+      </div>
+      <h2 style={{ fontFamily: '"Fraunces",Georgia,serif', fontSize: isDesktop ? '1.5rem' : '1.35rem', fontWeight: 700, color: '#1C1209', lineHeight: 1.18, marginBottom: 4 }}>{item.name}</h2>
+      {item.subName && <p style={{ fontSize: 13, color: '#7A6855', fontWeight: 500, marginBottom: 6 }}>{item.subName}</p>}
+      {item.location && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: priceText ? 10 : 14 }}>
+          <MapPin style={{ width: 11, height: 11, color: '#9B1B4D', flexShrink: 0 }} />
+          <span style={{ fontSize: 11, color: '#9B1B4D', fontWeight: 500 }}>{item.location}</span>
         </div>
-        {/* Progress segments */}
-        <div className="flex gap-1.5 mt-3">
-          {items.map((_, i) => (
-            <button
-              key={i}
-              onClick={() => { setIndex(i); setLevel(0); }}
-              style={{ flex: 1, height: 2, borderRadius: 99, background: i === index ? '#fff' : 'rgba(255,255,255,0.30)' }}
-            />
+      )}
+      {priceText && <p style={{ fontSize: 19, fontWeight: 700, color: '#1C1209', letterSpacing: '-0.01em', marginBottom: 14 }}>{priceText}</p>}
+      {item.highlight && (
+        <div style={{ background: 'linear-gradient(135deg, #FBF6F0 0%, #F5EDE0 100%)', borderLeft: '3px solid rgba(176,144,106,0.45)', borderRadius: '0 10px 10px 0', padding: '10px 14px', marginBottom: 18 }}>
+          <p style={{ fontSize: 13, lineHeight: 1.65, color: '#5C5048', fontStyle: 'italic', margin: 0 }}>{item.highlight}</p>
+        </div>
+      )}
+      <div style={{ display: 'flex', gap: 10, alignItems: 'stretch' }}>
+        <button
+          onClick={() => onToggleFavorite(item.itemId)}
+          title={state.favorite ? 'Remover dos salvos' : 'Salvar'}
+          style={{ width: 48, flexShrink: 0, borderRadius: 14, border: `1.5px solid ${state.favorite ? '#6B0035' : 'rgba(107,0,53,0.22)'}`, background: state.favorite ? '#6B0035' : 'rgba(107,0,53,0.04)', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.18s' }}
+        >
+          <Bookmark style={{ width: 17, height: 17, color: state.favorite ? '#fff' : '#6B0035' }} fill={state.favorite ? '#fff' : 'none'} />
+        </button>
+        <button
+          onClick={handleJaBebi}
+          style={{ flex: 1, borderRadius: 14, background: state.tried ? (formOpen ? 'linear-gradient(135deg, #3D5A4E 0%, #2D4A3E 100%)' : 'linear-gradient(135deg, #2D4A3E 0%, #1F3B36 100%)') : 'linear-gradient(135deg, #1F3B36 0%, #152B22 100%)', color: state.tried ? '#6BF5A0' : '#fff', fontWeight: 700, fontSize: 14, padding: '13px 16px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, boxShadow: state.tried ? '0 4px 16px rgba(45,74,62,0.30)' : '0 4px 20px rgba(31,59,54,0.40)', transition: 'background 0.2s' }}
+        >
+          {state.tried
+            ? <><CheckCircle2 style={{ width: 16, height: 16, color: '#6BF5A0' }} />Já bebi! {formOpen ? '▲' : '▼'}</>
+            : <><CheckCircle2 style={{ width: 16, height: 16, color: 'rgba(255,255,255,0.70)' }} />Já bebi?</>
+          }
+        </button>
+        <button title="Comprar" style={{ width: 48, flexShrink: 0, borderRadius: 14, border: '1.5px solid rgba(28,18,9,0.15)', background: 'rgba(28,18,9,0.04)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <ShoppingBag style={{ width: 17, height: 17, color: '#5C5048' }} />
+        </button>
+      </div>
+
+      <AnimatePresence>
+        {formOpen && (
+          <motion.div key="review-form" initial={{ opacity: 0, height: 0, marginTop: 0 }} animate={{ opacity: 1, height: 'auto', marginTop: 16 }} exit={{ opacity: 0, height: 0, marginTop: 0 }} transition={{ type: 'spring', damping: 26, stiffness: 280 }} style={{ overflow: 'hidden' }}>
+            <div style={{ background: '#F8F4EF', borderRadius: 16, padding: '16px 16px 18px' }}>
+              <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#7A6855', marginBottom: 12 }}>Sua experiência</p>
+              <div style={{ display: 'flex', gap: 8, marginBottom: 14, alignItems: 'center' }}>
+                {[1,2,3,4,5].map(n => (
+                  <button key={n} onClick={() => setDraftRating(n === draftRating ? 0 : n)} style={{ fontSize: 22, lineHeight: 1, padding: 0, background: 'none', border: 'none', opacity: n <= draftRating ? 1 : 0.22, transform: n <= draftRating ? 'scale(1.1)' : 'scale(1)', transition: 'opacity 0.15s, transform 0.15s' }} title={`${n} taça${n > 1 ? 's' : ''}`}>🍷</button>
+                ))}
+                {draftRating > 0 && <span style={{ fontSize: 11, color: '#7A6855', marginLeft: 4 }}>{['','Não gostei','Regular','Bom','Muito bom','Excepcional'][draftRating]}</span>}
+              </div>
+              <textarea value={draftComment} onChange={e => setDraftComment(e.target.value)} placeholder="Como foi sua experiência? (opcional)" rows={3} style={{ width: '100%', border: '1.5px solid rgba(139,90,43,0.18)', borderRadius: 10, padding: '9px 12px', fontSize: 13, resize: 'none', outline: 'none', background: '#fff', color: '#1C1209', fontFamily: 'inherit', lineHeight: 1.55, boxSizing: 'border-box' }} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10 }}>
+                <button onClick={() => photoInputRef.current?.click()} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 13px', borderRadius: 8, border: '1.5px dashed rgba(107,0,53,0.28)', background: 'transparent', fontSize: 12, color: '#6B0035', fontWeight: 600 }}>
+                  <Camera style={{ width: 13, height: 13 }} />{photoPreview ? 'Trocar foto' : 'Adicionar foto'}
+                </button>
+                {photoPreview && (
+                  <div style={{ position: 'relative' }}>
+                    <img src={photoPreview} alt="preview" style={{ width: 44, height: 44, borderRadius: 8, objectFit: 'cover', border: '1px solid rgba(0,0,0,0.10)' }} />
+                    <button onClick={() => { setPhotoFile(null); setPhotoPreview(null); }} style={{ position: 'absolute', top: -6, right: -6, width: 16, height: 16, borderRadius: '50%', background: '#6B0035', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <X style={{ width: 9, height: 9, color: '#fff' }} />
+                    </button>
+                  </div>
+                )}
+                <input ref={photoInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handlePhotoSelect} />
+              </div>
+              <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+                <button onClick={() => setFormOpen(false)} style={{ flex: 1, padding: '10px', borderRadius: 12, border: '1.5px solid rgba(0,0,0,0.10)', background: 'transparent', fontSize: 13, fontWeight: 600, color: '#7A6855' }}>Cancelar</button>
+                <button onClick={handleSaveReview} disabled={savingReview} style={{ flex: 2, padding: '10px', borderRadius: 12, background: 'linear-gradient(135deg, #2D4A3E, #1F3B36)', fontSize: 13, fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, opacity: savingReview ? 0.7 : 1 }}>
+                  {savingReview ? <><Loader2 style={{ width: 14, height: 14 }} className="animate-spin" />Salvando…</> : <><CheckCircle2 style={{ width: 14, height: 14 }} />Confirmar</>}
+                </button>
+              </div>
+              {state.tried && (
+                <button onClick={() => { onToggleTried(item.itemId); setFormOpen(false); }} style={{ marginTop: 10, width: '100%', background: 'none', border: 'none', fontSize: 11, color: '#B0906A', textDecoration: 'underline', cursor: 'pointer' }}>
+                  Remover marcação de "já bebi"
+                </button>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {state.tried && !formOpen && (state.rating > 0 || state.notes || state.photoUrl) && (
+        <div style={{ marginTop: 14, background: '#F0F7F4', borderRadius: 14, padding: '12px 14px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+            <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.10em', textTransform: 'uppercase', color: '#2D4A3E' }}>Minha avaliação</p>
+            <button onClick={handleJaBebi} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 3, color: '#2D4A3E' }}>
+              <Pencil style={{ width: 11, height: 11 }} /><span style={{ fontSize: 11, fontWeight: 600 }}>Editar</span>
+            </button>
+          </div>
+          {state.rating > 0 && (
+            <div style={{ display: 'flex', gap: 3, marginBottom: state.notes || state.photoUrl ? 6 : 0 }}>
+              {[1,2,3,4,5].map(n => <span key={n} style={{ fontSize: 16, opacity: n <= state.rating ? 1 : 0.18 }}>🍷</span>)}
+            </div>
+          )}
+          {state.notes && <p style={{ fontSize: 13, color: '#3D5A4E', lineHeight: 1.5, fontStyle: 'italic', marginBottom: state.photoUrl ? 8 : 0 }}>"{state.notes}"</p>}
+          {state.photoUrl && <img src={state.photoUrl} alt="Minha foto" style={{ width: '100%', maxHeight: 160, objectFit: 'cover', borderRadius: 10 }} />}
+        </div>
+      )}
+
+      <div style={{ height: 1, background: 'rgba(139,90,43,0.10)', margin: '22px 0 18px' }} />
+      {item.tastingNote && item.tastingNote !== item.highlight && (
+        <div style={{ marginBottom: 18 }}>
+          <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#B0906A', marginBottom: 8 }}>Notas de degustação</p>
+          <p style={{ fontSize: 13, lineHeight: 1.7, color: '#5C5048' }}>{item.tastingNote}</p>
+        </div>
+      )}
+      <div style={{ marginBottom: 24 }}>
+        <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#B0906A', marginBottom: 10 }}>Sobre este item</p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+          {[
+            { label: 'Tipo', value: typeLabel },
+            { label: isWine ? 'Vinícola' : 'Produtor', value: item.subName },
+            { label: 'Região', value: item.location },
+            { label: 'Preço', value: priceText },
+          ].filter(r => r.value).map((row, i) => (
+            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid rgba(139,90,43,0.08)' }}>
+              <span style={{ fontSize: 12, color: '#B0906A', fontWeight: 500 }}>{row.label}</span>
+              <span style={{ fontSize: 12, color: '#1C1209', fontWeight: 600, textAlign: 'right', maxWidth: '60%' }}>{row.value}</span>
+            </div>
           ))}
         </div>
       </div>
+    </>
+  );
 
-      {/* ── Photo (animates height by level) ──────────────────────── */}
-      <motion.div
-        animate={{ height: photoHeight }}
-        transition={{ type: 'spring', damping: 28, stiffness: 260 }}
-        style={{ position: 'absolute', top: 0, left: 0, right: 0, overflow: 'hidden', cursor: 'pointer' }}
-        onClick={() => setLevel(l => l === 0 ? 1 : 0)}
-      >
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={item.itemId}
-            initial={{ opacity: 0, x: 40 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -40 }}
-            transition={{ duration: 0.22, ease: 'easeOut' }}
-            style={{ width: '100%', height: '100%' }}
-          >
-            {isWine ? (
-              <div style={{ width: '100%', height: '100%', background: '#F5F0E8', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '48px 48px 16px' }}>
-                <img
-                  src={item.photo || FALLBACK}
-                  alt={item.name}
-                  style={{ maxHeight: '100%', maxWidth: '100%', objectFit: 'contain', filter: 'drop-shadow(0 16px 40px rgba(0,0,0,0.22))' }}
-                  onError={imgFallback}
-                />
-              </div>
-            ) : (
-              <img
-                src={item.photo || FALLBACK}
-                alt={item.name}
-                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                onError={imgFallback}
-              />
-            )}
-          </motion.div>
-        </AnimatePresence>
-      </motion.div>
-
-      {/* ── Prev / Next arrows ─────────────────────────────────────── */}
+  const topBarDark = isWine;
+  const TopBar = ({ inCard }: { inCard?: boolean }) => (
+    <div style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 20, padding: inCard ? '14px 16px 10px' : '16px 16px 8px', background: topBarDark ? 'linear-gradient(to bottom, rgba(240,234,222,0.96) 0%, rgba(240,234,222,0) 100%)' : 'linear-gradient(to bottom, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0) 100%)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <button onClick={onClose} style={{ width: 34, height: 34, borderRadius: '50%', flexShrink: 0, background: topBarDark ? 'rgba(28,18,9,0.10)' : 'rgba(0,0,0,0.32)', backdropFilter: 'blur(8px)', border: topBarDark ? '1px solid rgba(28,18,9,0.14)' : '1px solid rgba(255,255,255,0.14)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <X style={{ width: 14, height: 14, color: topBarDark ? '#1C1209' : '#fff' }} />
+        </button>
+        <div style={{ textAlign: 'center', flex: 1, padding: '0 10px' }}>
+          <p style={{ fontSize: 11, fontWeight: 700, color: topBarDark ? '#1C1209' : '#fff', lineHeight: 1.3, opacity: 0.85 }}>{collectionTitle}</p>
+          <p style={{ fontSize: 9, color: topBarDark ? 'rgba(28,18,9,0.55)' : 'rgba(255,255,255,0.60)', marginTop: 1 }}>{index + 1} de {items.length}</p>
+        </div>
+        <button style={{ width: 34, height: 34, borderRadius: '50%', flexShrink: 0, background: topBarDark ? 'rgba(28,18,9,0.10)' : 'rgba(0,0,0,0.32)', backdropFilter: 'blur(8px)', border: topBarDark ? '1px solid rgba(28,18,9,0.14)' : '1px solid rgba(255,255,255,0.14)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <Share2 style={{ width: 14, height: 14, color: topBarDark ? '#1C1209' : '#fff' }} />
+        </button>
+      </div>
       {items.length > 1 && (
-        <>
-          <button
-            onClick={prev}
-            style={{ position: 'absolute', left: 12, top: '30vh', transform: 'translateY(-50%)', width: 44, height: 44, borderRadius: '50%', background: 'rgba(255,255,255,0.18)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: index === 0 ? 0 : 1, pointerEvents: index === 0 ? 'none' : 'auto', zIndex: 15 }}
-          >
-            <ChevronLeft className="w-5 h-5" style={{ color: '#fff' }} />
-          </button>
-          <button
-            onClick={next}
-            style={{ position: 'absolute', right: 12, top: '30vh', transform: 'translateY(-50%)', width: 44, height: 44, borderRadius: '50%', background: 'rgba(255,255,255,0.18)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: index === items.length - 1 ? 0 : 1, pointerEvents: index === items.length - 1 ? 'none' : 'auto', zIndex: 15 }}
-          >
-            <ChevronRight className="w-5 h-5" style={{ color: '#fff' }} />
-          </button>
-        </>
+        <div style={{ display: 'flex', gap: 4, marginTop: 10 }}>
+          {items.map((_, i) => (
+            <button key={i} onClick={() => setIndex(i)} style={{ flex: 1, height: 2, borderRadius: 99, background: i === index ? (topBarDark ? '#6B0035' : '#fff') : (topBarDark ? 'rgba(107,0,53,0.22)' : 'rgba(255,255,255,0.30)'), transition: 'background 0.2s' }} />
+          ))}
+        </div>
       )}
+    </div>
+  );
 
-      {/* ── Bottom sheet (two levels) ──────────────────────────────── */}
-      <motion.div
-        animate={{ height: sheetHeight }}
-        transition={{ type: 'spring', damping: 28, stiffness: 260 }}
-        style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: '#FFFFFF', borderRadius: '20px 20px 0 0', boxShadow: '0 -4px 32px rgba(0,0,0,0.18)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
-      >
-        {/* Handle */}
-        <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 12, paddingBottom: 4, flexShrink: 0 }}>
-          <div style={{ width: 40, height: 4, borderRadius: 99, background: 'rgba(0,0,0,0.12)' }} />
-        </div>
-
-        <div style={{ flex: 1, overflowY: 'auto', padding: '8px 20px 24px' }}>
-          <AnimatePresence mode="wait">
-            {level === 0 ? (
-              <motion.div key="level0" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
-                {/* Type */}
-                <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#B0906A', marginBottom: 4 }}>
-                  {item.type ?? (item.itemType === 'wine' ? 'Vinho' : item.itemType === 'experience' ? 'Experiência' : 'Vinícola')}
-                </p>
-                {/* Name */}
-                <h2 style={{ fontFamily: '"Fraunces",Georgia,serif', fontSize: '1.375rem', fontWeight: 700, color: '#1C1209', lineHeight: 1.2, marginBottom: 4 }}>
-                  {item.name}
-                </h2>
-                {/* SubName */}
-                {item.subName && <p style={{ fontSize: 13, color: '#7A6855', marginBottom: 6 }}>{item.subName}</p>}
-                {/* Location */}
-                {item.location && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 14 }}>
-                    <MapPin style={{ width: 12, height: 12, color: '#9B1B4D', flexShrink: 0 }} />
-                    <span style={{ fontSize: 12, color: '#9B1B4D', fontWeight: 500 }}>{item.location}</span>
-                  </div>
-                )}
-                {/* Actions */}
-                <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
-                  <button
-                    onClick={() => onToggleFavorite(item.itemId)}
-                    style={{ width: 44, height: 44, borderRadius: '50%', flexShrink: 0, border: `2px solid ${state.favorite ? '#6B0035' : 'rgba(107,0,53,0.30)'}`, background: state.favorite ? '#6B0035' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                  >
-                    <Bookmark style={{ width: 18, height: 18, color: state.favorite ? '#fff' : '#6B0035' }} fill={state.favorite ? 'white' : 'none'} />
-                  </button>
-                  <button
-                    onClick={() => onToggleTried(item.itemId)}
-                    style={{ flex: 1, borderRadius: 16, background: state.tried ? '#2D4A3E' : '#1F3B36', color: '#fff', fontWeight: 700, fontSize: 14, paddingTop: 14, paddingBottom: 14, boxShadow: '0 4px 16px rgba(31,59,54,0.35)' }}
-                  >
-                    {state.tried ? '✓ Adicionado à adega' : 'Adicionar à adega'}
-                  </button>
-                </div>
-              </motion.div>
-            ) : (
-              <motion.div key="level1" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
-                {/* Tags */}
-                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
-                  {item.type && <span style={{ fontSize: 11, background: '#F5EEF4', color: '#7B1E5C', borderRadius: 99, padding: '3px 10px', fontWeight: 600 }}>{item.type}</span>}
-                  {item.itemType === 'wine' && item.tastingNote && (
-                    <span style={{ fontSize: 11, background: '#FFF8EC', color: '#B8820B', borderRadius: 99, padding: '3px 10px', fontWeight: 600 }}>★ Selecionado</span>
-                  )}
-                </div>
-                {/* SubName */}
-                {item.subName && <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#B0906A', marginBottom: 4 }}>{item.subName}</p>}
-                {/* Name */}
-                <h2 style={{ fontFamily: '"Fraunces",Georgia,serif', fontSize: '1.5rem', fontWeight: 700, color: '#1C1209', lineHeight: 1.2, marginBottom: 6 }}>{item.name}</h2>
-                {/* Location */}
-                {item.location && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 10 }}>
-                    <MapPin style={{ width: 12, height: 12, color: '#9B1B4D', flexShrink: 0 }} />
-                    <span style={{ fontSize: 12, color: '#9B1B4D', fontWeight: 500 }}>{item.location}</span>
-                  </div>
-                )}
-                {/* Rating placeholder */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: '#1C1209' }}>4.8</span>
-                  <span style={{ fontSize: 14, color: '#B8820B' }}>🍷🍷🍷🍷🍷</span>
-                  <span style={{ fontSize: 11, color: '#B0A090' }}>318 avaliações</span>
-                </div>
-                <div style={{ height: 1, background: 'rgba(139,90,43,0.12)', marginBottom: 12 }} />
-                {/* Tasting note */}
-                {(item.tastingNote || item.highlight) && (
-                  <>
-                    <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#B0906A', marginBottom: 8 }}>Como é</p>
-                    <p style={{ fontSize: 14, lineHeight: 1.65, color: '#5C5048', marginBottom: 14 }}>{item.tastingNote || item.highlight}</p>
-                    <div style={{ height: 1, background: 'rgba(139,90,43,0.12)', marginBottom: 12 }} />
-                  </>
-                )}
-                {/* Review section (existing behavior) */}
-                <AnimatePresence>
-                  {user && state.tried && !state.review && (
-                    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden" style={{ marginBottom: 12 }}>
-                      <AddReviewSection itemId={item.itemId} itemName={item.name} onAddReview={onAddReview} />
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-                {state.review && (
-                  <div style={{ borderRadius: 16, padding: 16, background: '#F8F4EF', border: '1px solid rgba(139,90,43,0.10)', marginBottom: 14 }}>
-                    <div className="flex items-center justify-between" style={{ marginBottom: 8 }}>
-                      <span style={{ fontSize: 14, fontWeight: 700, color: '#1C1209', fontFamily: '"Fraunces",Georgia,serif' }}>Sua Avaliação</span>
-                      <span style={{ fontSize: 11, fontWeight: 600, color: '#2D4A3E' }}>✓ Pontos ganhos</span>
-                    </div>
-                    {state.review.rating > 0 && (
-                      <div className="flex gap-0.5" style={{ marginBottom: 8 }}>
-                        {[1,2,3,4,5].map(s => (
-                          <span key={s} style={{ fontSize: 18, color: s <= state.review!.rating ? '#B8820B' : '#DDD0C0' }}>★</span>
-                        ))}
-                      </div>
-                    )}
-                    {state.review.comment && <p style={{ fontSize: 13, lineHeight: 1.6, color: '#7A6855' }}>{state.review.comment}</p>}
-                  </div>
-                )}
-                {/* Bottom actions */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <div style={{ flex: 1 }}>
-                    {item.subName && <p style={{ fontSize: 12, fontWeight: 700, color: '#1C1209' }}>{item.subName}</p>}
-                  </div>
-                  <button
-                    onClick={() => onToggleFavorite(item.itemId)}
-                    style={{ width: 40, height: 40, borderRadius: '50%', flexShrink: 0, border: `2px solid ${state.favorite ? '#6B0035' : 'rgba(107,0,53,0.30)'}`, background: state.favorite ? '#6B0035' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                  >
-                    <Bookmark style={{ width: 16, height: 16, color: state.favorite ? '#fff' : '#6B0035' }} fill={state.favorite ? 'white' : 'none'} />
-                  </button>
-                  <button
-                    onClick={() => onToggleTried(item.itemId)}
-                    style={{ borderRadius: 14, padding: '10px 18px', background: state.tried ? '#2D4A3E' : '#1F3B36', color: '#fff', fontWeight: 700, fontSize: 13 }}
-                  >
-                    {state.tried ? '✓ Na adega' : 'Adicionar à adega'}
-                  </button>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
+  const PhotoSlide = () => (
+    <AnimatePresence mode="wait">
+      <motion.div key={item.itemId} initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }} transition={{ duration: 0.2, ease: 'easeOut' }} style={{ width: '100%', height: '100%' }}>
+        {isWine ? (
+          <div style={{ width: '100%', height: '100%', background: '#F5F0E8', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '60px 24px 16px' }}>
+            <img src={item.photo || FALLBACK} alt={item.name} style={{ maxHeight: '100%', maxWidth: '100%', objectFit: 'contain', filter: 'drop-shadow(0 20px 48px rgba(0,0,0,0.20))' }} onError={imgFallback} />
+          </div>
+        ) : (
+          <img src={item.photo || FALLBACK} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={imgFallback} />
+        )}
       </motion.div>
+    </AnimatePresence>
+  );
+
+  if (isDesktop) {
+    const CARD_W = 460;
+    return (
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.22 }} onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(10,4,2,0.74)', backdropFilter: 'blur(18px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <button onClick={e => { e.stopPropagation(); prev(); }} style={{ position: 'absolute', left: `calc(50% - ${CARD_W / 2}px - 60px)`, width: 48, height: 48, borderRadius: '50%', background: 'rgba(255,255,255,0.12)', backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.18)', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: index === 0 ? 0.2 : 1, pointerEvents: index === 0 ? 'none' : 'auto', transition: 'opacity 0.2s' }}>
+          <ChevronLeft style={{ width: 22, height: 22, color: '#fff' }} />
+        </button>
+        <motion.div onClick={e => e.stopPropagation()} initial={{ scale: 0.93, opacity: 0, y: 24 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.93, opacity: 0, y: 24 }} transition={{ type: 'spring', damping: 28, stiffness: 300 }} style={{ width: CARD_W, height: '88vh', maxHeight: 860, borderRadius: 24, overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: '0 40px 100px rgba(0,0,0,0.65)' }}>
+          <div style={{ height: '54%', flexShrink: 0, position: 'relative', overflow: 'hidden', background: isWine ? '#F5F0E8' : '#1C1209' }}>
+            <PhotoSlide />
+            <TopBar inCard />
+          </div>
+          <div style={{ flex: 1, overflowY: 'auto', background: '#FFFFFF', padding: '22px 28px 28px' }}>
+            <InfoContent />
+          </div>
+        </motion.div>
+        <button onClick={e => { e.stopPropagation(); next(); }} style={{ position: 'absolute', left: `calc(50% + ${CARD_W / 2}px + 12px)`, width: 48, height: 48, borderRadius: '50%', background: 'rgba(255,255,255,0.12)', backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.18)', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: index === items.length - 1 ? 0.2 : 1, pointerEvents: index === items.length - 1 ? 'none' : 'auto', transition: 'opacity 0.2s' }}>
+          <ChevronRight style={{ width: 22, height: 22, color: '#fff' }} />
+        </button>
+      </motion.div>
+    );
+  }
+
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} style={{ position: 'fixed', inset: 0, zIndex: 100, background: isWine ? '#F5F0E8' : '#0A0402', display: 'flex', flexDirection: 'column' }} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
+      <div style={{ height: '52svh', flexShrink: 0, position: 'relative', overflow: 'hidden', background: isWine ? '#F5F0E8' : '#0A0402' }}>
+        <PhotoSlide />
+        <TopBar />
+        {items.length > 1 && (
+          <>
+            <button onClick={prev} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', width: 40, height: 40, borderRadius: '50%', background: topBarDark ? 'rgba(28,18,9,0.12)' : 'rgba(255,255,255,0.18)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: index === 0 ? 0.2 : 1, pointerEvents: index === 0 ? 'none' : 'auto', zIndex: 15 }}>
+              <ChevronLeft style={{ width: 18, height: 18, color: topBarDark ? '#1C1209' : '#fff' }} />
+            </button>
+            <button onClick={next} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', width: 40, height: 40, borderRadius: '50%', background: topBarDark ? 'rgba(28,18,9,0.12)' : 'rgba(255,255,255,0.18)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: index === items.length - 1 ? 0.2 : 1, pointerEvents: index === items.length - 1 ? 'none' : 'auto', zIndex: 15 }}>
+              <ChevronRight style={{ width: 18, height: 18, color: topBarDark ? '#1C1209' : '#fff' }} />
+            </button>
+          </>
+        )}
+      </div>
+      <div style={{ flex: 1, background: '#fff', borderRadius: '22px 22px 0 0', boxShadow: '0 -6px 40px rgba(0,0,0,0.18)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '12px 0 6px', flexShrink: 0 }}>
+          <div style={{ width: 36, height: 3, borderRadius: 99, background: 'rgba(0,0,0,0.13)' }} />
+        </div>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '6px 22px 32px' }}>
+          <InfoContent />
+        </div>
+      </div>
     </motion.div>
   );
 }
@@ -339,9 +385,10 @@ function ItemModal({
 // ── Compact card for the list ──────────────────────────────────────────────────
 
 function CompactItemCard({
-  item, state, onClick,
+  item, state, onClick, onToggleTried, onToggleFavorite,
 }: {
   item: UnifiedItem; state: ItemState; onClick: () => void;
+  onToggleTried: (id: string) => void; onToggleFavorite: (id: string) => void;
 }) {
   const isWine = item.itemType === 'wine';
 
@@ -414,14 +461,23 @@ function CompactItemCard({
             )}
           </div>
 
-          {/* CTA hint */}
+          {/* CTA hint + action buttons */}
           <div className="flex items-center justify-between mt-2">
-            <span className="text-xs font-semibold" style={{ color: '#690037' }}>
-              Ver detalhes →
-            </span>
-            {state.favorite && (
-              <Heart className="w-3.5 h-3.5" style={{ color: '#690037', fill: '#690037' }} />
-            )}
+            <span className="text-xs font-semibold" style={{ color: '#690037' }}>Ver detalhes →</span>
+            <div className="flex gap-2" onClick={e => e.stopPropagation()}>
+              <button
+                onClick={() => onToggleFavorite(item.itemId)}
+                style={{ width: 28, height: 28, borderRadius: '50%', border: `1.5px solid ${state.favorite ? '#6B0035' : 'rgba(107,0,53,0.22)'}`, background: state.favorite ? '#6B0035' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              >
+                <Bookmark style={{ width: 12, height: 12, color: state.favorite ? '#fff' : '#6B0035' }} fill={state.favorite ? '#fff' : 'none'} />
+              </button>
+              <button
+                onClick={() => onToggleTried(item.itemId)}
+                style={{ width: 28, height: 28, borderRadius: '50%', background: state.tried ? '#2D4A3E' : 'rgba(45,74,62,0.10)', border: `1.5px solid ${state.tried ? '#2D4A3E' : 'rgba(45,74,62,0.22)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              >
+                <CheckCircle2 style={{ width: 12, height: 12, color: state.tried ? '#6BF5A0' : '#2D4A3E' }} />
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -512,12 +568,12 @@ export default function CollectionDetail() {
       if (user && unified.length > 0) {
         const ids = unified.map(i => i.itemId);
         const { data: progress } = await supabase
-          .from('user_progress').select('item_id, completed, is_favorite')
+          .from('user_progress').select('item_id, completed, is_favorite, rating, notes, photo_url')
           .eq('user_id', user.id).in('item_id', ids);
         if (progress) {
           const states: Record<string, ItemState> = {};
           (progress as any[]).forEach(p => {
-            states[p.item_id] = { tried: p.completed ?? false, favorite: p.is_favorite ?? false };
+            states[p.item_id] = { tried: p.completed ?? false, favorite: p.is_favorite ?? false, rating: p.rating ?? 0, notes: p.notes ?? '', photoUrl: p.photo_url ?? '' };
           });
           setItemStates(states);
         }
@@ -547,7 +603,7 @@ export default function CollectionDetail() {
 
   const toggleTried = async (itemId: string) => {
     if (!user) { toast.error('Entre para marcar itens'); return; }
-    const current = itemStates[itemId] ?? { tried: false, favorite: false };
+    const current = itemStates[itemId] ?? { tried: false, favorite: false, rating: 0, notes: '', photoUrl: '' };
     setItemStates(prev => ({ ...prev, [itemId]: { ...current, tried: !current.tried } }));
     await psToggleTried(user.id, itemId, getItemType(itemId), current.tried);
     if (!current.tried) toast.success('+1 ponto!', { description: 'Item marcado como experimentado ✓' });
@@ -555,27 +611,29 @@ export default function CollectionDetail() {
 
   const toggleFavorite = async (itemId: string) => {
     if (!user) { toast.error('Entre para favoritar'); return; }
-    const current = itemStates[itemId] ?? { tried: false, favorite: false };
+    const current = itemStates[itemId] ?? { tried: false, favorite: false, rating: 0, notes: '', photoUrl: '' };
     setItemStates(prev => ({ ...prev, [itemId]: { ...current, favorite: !current.favorite } }));
     await psToggleFavorite(user.id, itemId, getItemType(itemId), current.favorite);
     if (!current.favorite) toast.success('+1 ponto!', { description: 'Adicionado aos favoritos ❤️' });
   };
 
-  const addReview = async (itemId: string, review: { photo?: string; comment: string; rating: number }) => {
-    setItemStates(prev => ({ ...prev, [itemId]: { ...(prev[itemId] ?? { tried: false, favorite: false }), review } }));
+  const saveReview = async (itemId: string, review: { rating?: number; notes?: string; photoUrl?: string }) => {
     if (!user) return;
+    const current = itemStates[itemId] ?? { tried: false, favorite: false, rating: 0, notes: '', photoUrl: '' };
+    setItemStates(prev => ({
+      ...prev,
+      [itemId]: {
+        ...current,
+        tried: true,
+        rating: review.rating ?? current.rating,
+        notes: review.notes ?? current.notes,
+        photoUrl: review.photoUrl ?? current.photoUrl,
+      },
+    }));
     const itemType = getItemType(itemId);
-    const hasReview = review.comment.trim() || review.rating > 0;
-    const hasPhoto  = !!review.photo;
-    let totalPts = 0;
-    if (hasReview) { await awardPoints({ userId: user.id, action: 'review', itemId, itemType }); totalPts += 3; }
-    if (hasPhoto)  { await awardPoints({ userId: user.id, action: 'photo',  itemId, itemType }); totalPts += 3; }
-    await supabase.from('reviews').insert({
-      user_id: user.id, item_id: itemId, item_type: itemType,
-      rating: review.rating, comment: review.comment || null,
-      photos: review.photo ? [review.photo] : null, points_earned: totalPts,
-    });
-    if (totalPts > 0) toast.success(`+${totalPts} pontos!`, { description: 'Avaliação registrada 🎉' });
+    if (!current.tried) await psToggleTried(user.id, itemId, itemType, false);
+    await psSaveReview(user.id, itemId, itemType, review);
+    toast.success('Avaliação salva!', { description: 'Sua experiência foi registrada 🎉' });
   };
 
   // ── Loading / not found ───────────────────────────────────────────────────────
@@ -695,8 +753,10 @@ export default function CollectionDetail() {
                   <CompactItemCard
                     key={item.itemId}
                     item={item}
-                    state={itemStates[item.itemId] ?? { tried: false, favorite: false }}
+                    state={itemStates[item.itemId] ?? { tried: false, favorite: false, rating: 0, notes: '', photoUrl: '' }}
                     onClick={() => setModalIndex(i)}
+                    onToggleTried={toggleTried}
+                    onToggleFavorite={toggleFavorite}
                   />
                 ))}
               </>
@@ -736,11 +796,10 @@ export default function CollectionDetail() {
             initialIndex={modalIndex}
             collectionTitle={collection.title}
             itemStates={itemStates}
-            user={user}
             onClose={() => setModalIndex(null)}
             onToggleTried={toggleTried}
             onToggleFavorite={toggleFavorite}
-            onAddReview={addReview}
+            onSaveReview={saveReview}
           />
         )}
       </AnimatePresence>
