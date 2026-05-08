@@ -398,7 +398,7 @@ function CompactItemCard({
               {item.type ?? (item.itemType === 'wine' ? 'Vinho' : item.itemType === 'experience' ? 'Experiência' : 'Vinícola')}
             </p>
             <h3
-              className="font-bold leading-snug line-clamp-2 mb-0.5"
+              className="font-bold leading-snug line-clamp-3 mb-0.5"
               style={{ fontFamily: '"Fraunces", Georgia, serif', fontSize: '0.95rem', color: '#1C1209', letterSpacing: '-0.01em' }}
             >
               {item.name}

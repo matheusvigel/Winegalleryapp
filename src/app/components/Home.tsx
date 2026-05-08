@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router';
 import { motion } from 'motion/react';
 import { ChevronRight, Trophy } from 'lucide-react';
@@ -9,7 +9,7 @@ import {
   LEVEL_LABELS, LEVEL_POINTS,
   type WineProfile, type UserLevel,
 } from '../../lib/profileConstants';
-import { CollectionCard } from '../components/CollectionCard';
+// CollectionCard removed — collections now use inline ForYou-style reel cards
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -51,6 +51,13 @@ interface ProfileRule {
 // ── Constants ──────────────────────────────────────────────────────────
 
 const FALLBACK = 'https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=600&q=80';
+
+const CONTENT_TYPE_LABELS: Record<string, string> = {
+  wines: 'Vinhos', Vinhos: 'Vinhos',
+  wineries: 'Vinícolas', Vinícolas: 'Vinícolas',
+  experiences: 'Experiências', Experiências: 'Experiências',
+  grapes: 'Uvas', mix: 'Mix', brotherhoods: 'Confrarias',
+};
 
 const HIGHLIGHT_TYPE: Record<string, { label: string; emoji: string; bg: string }> = {
   collection:  { label: 'Coleção',      emoji: '📚', bg: 'bg-amber-500'   },
@@ -100,17 +107,13 @@ export default function Home() {
   const [collections, setCollections]               = useState<CollectionRow[]>([]);
   const [profileRules, setProfileRules]             = useState<ProfileRule[]>([]);
   const [collectionItemsMap, setCollectionItemsMap] = useState<Record<string, string[]>>({});
-  const [previewPhotosMap, setPreviewPhotosMap]     = useState<Record<string, string[]>>({});
   const [completedIds, setCompletedIds]             = useState<Set<string>>(new Set());
   const [bonusCount, setBonusCount]                 = useState(0);
   const [dismissedBonus, setDismissedBonus]         = useState(false);
   const [loading, setLoading]                       = useState(true);
-  const [visibleCount, setVisibleCount]             = useState(6);
   const [countries, setCountries]                   = useState<{ id: string; name: string; photo: string | null }[]>([]);
   const [regions, setRegions]                       = useState<{ id: string; name: string; photo: string | null; parent?: { name: string } | null }[]>([]);
   const [triedCount, setTriedCount]                 = useState(0);
-
-  const sentinelRef = useRef<HTMLDivElement>(null);
 
   // ── Load global data ─────────────────────────────────────────
   useEffect(() => {
@@ -137,34 +140,6 @@ export default function Home() {
         map[row.collection_id].push(row.item_id);
       }
       setCollectionItemsMap(map);
-
-      // Build preview photos map: collection → first 5 item photos
-      const previewPerCol: Record<string, { item_id: string; item_type: string }[]> = {};
-      for (const row of (colItems ?? []) as any[]) {
-        if (!previewPerCol[row.collection_id]) previewPerCol[row.collection_id] = [];
-        if (previewPerCol[row.collection_id].length < 5) {
-          previewPerCol[row.collection_id].push({ item_id: row.item_id, item_type: row.item_type });
-        }
-      }
-      const previewItems = Object.values(previewPerCol).flat();
-      const pvWineIds   = previewItems.filter(r => r.item_type === 'wine').map(r => r.item_id);
-      const pvExpIds    = previewItems.filter(r => r.item_type === 'experience').map(r => r.item_id);
-      const pvWineryIds = previewItems.filter(r => r.item_type === 'winery').map(r => r.item_id);
-      const [pvWines, pvExps, pvWineries] = await Promise.all([
-        pvWineIds.length   ? supabase.from('wines').select('id, photo').in('id', pvWineIds)         : Promise.resolve({ data: [] }),
-        pvExpIds.length    ? supabase.from('experiences').select('id, photo').in('id', pvExpIds)    : Promise.resolve({ data: [] }),
-        pvWineryIds.length ? supabase.from('wineries').select('id, photo').in('id', pvWineryIds)    : Promise.resolve({ data: [] }),
-      ]);
-      const photoById: Record<string, string> = {};
-      for (const r of [...(pvWines.data ?? []), ...(pvExps.data ?? []), ...(pvWineries.data ?? [])] as any[]) {
-        if (r.photo) photoById[r.id] = r.photo;
-      }
-      const newPreviewMap: Record<string, string[]> = {};
-      for (const [colId, items] of Object.entries(previewPerCol)) {
-        const photos = items.map(r => photoById[r.item_id]).filter(Boolean);
-        if (photos.length > 0) newPreviewMap[colId] = photos;
-      }
-      setPreviewPhotosMap(newPreviewMap);
 
       // Resolve highlight photos/names
       const hlList = hls ?? [];
@@ -251,29 +226,6 @@ export default function Home() {
       .sort((a, b) => (ruleMap[a.category]?.priority ?? 99) - (ruleMap[b.category]?.priority ?? 99));
   }, [collections, profileRules]);
 
-  // Reset visible count when personalizedCollections changes (profile change)
-  useEffect(() => {
-    setVisibleCount(6);
-  }, [personalizedCollections]);
-
-  // ── Infinite scroll via IntersectionObserver ──────────────────
-  useEffect(() => {
-    const sentinel = sentinelRef.current;
-    if (!sentinel) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting) {
-          setVisibleCount(prev => Math.min(prev + 6, personalizedCollections.length));
-        }
-      },
-      { rootMargin: '100px' }
-    );
-
-    observer.observe(sentinel);
-    return () => observer.disconnect();
-  }, [personalizedCollections.length]);
-
   // ── Collection progress ───────────────────────────────────────
   const getProgress = (colId: string) => {
     const items = collectionItemsMap[colId] ?? [];
@@ -285,15 +237,13 @@ export default function Home() {
   const ptsToNext     = profile ? getPtsToNext(profile.total_points, profile.user_level) : 0;
   const nextLevel     = profile ? NEXT_LEVEL[profile.user_level] : null;
 
-  const hasMore = visibleCount < personalizedCollections.length;
-
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background overflow-x-hidden">
 
       <div className="max-w-screen-xl mx-auto px-4 py-4 lg:px-8 lg:py-8 lg:grid lg:grid-cols-[1fr_300px] lg:gap-10 lg:items-start">
 
         {/* ══ MAIN COLUMN ══════════════════════════════════════════ */}
-        <div className="space-y-6">
+        <div className="space-y-6 min-w-0 overflow-hidden">
 
           {/* ── 1. Compact profile strip ─────────────────────────── */}
           {user && profile && profile.quiz_completed ? (
@@ -353,6 +303,7 @@ export default function Home() {
               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
                     style={{ background: '#FBF3DC', color: '#B8820B' }}>Em breve</span>
             </div>
+            <div className="overflow-hidden -mx-4 px-4 lg:mx-0 lg:px-0">
             <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
               {[
                 { label: 'COLEÇÃO', title: 'Provar 10 Pinots',     sub: '★ 7 de 10',     color: '#6B0035' },
@@ -368,6 +319,7 @@ export default function Home() {
                 </div>
               ))}
             </div>
+            </div>
           </section>
 
           {/* ── 3. Por País ───────────────────────────────────────── */}
@@ -381,6 +333,7 @@ export default function Home() {
                 Ver todos <ChevronRight className="w-3.5 h-3.5" />
               </Link>
             </div>
+            <div className="overflow-hidden -mx-4 px-4 lg:mx-0 lg:px-0">
             {loading ? (
               <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
                 {[1,2,3,4,5].map(i => (
@@ -408,6 +361,7 @@ export default function Home() {
                 ))}
               </div>
             ) : null}
+            </div>
           </section>
 
           {/* ── 4. Por Região ─────────────────────────────────────── */}
@@ -421,6 +375,7 @@ export default function Home() {
                 Ver todas <ChevronRight className="w-3.5 h-3.5" />
               </Link>
             </div>
+            <div className="overflow-hidden -mx-4 px-4 lg:mx-0 lg:px-0">
             {loading ? (
               <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
                 {[1,2,3,4].map(i => (
@@ -453,9 +408,10 @@ export default function Home() {
                 ))}
               </div>
             ) : null}
+            </div>
           </section>
 
-          {/* ── 5. Feito para você — coleções ─────────────────────── */}
+          {/* ── 5. Feito para você — reel mobile / grid desktop ──── */}
           <section>
             <SectionHeader
               title={user && profile?.quiz_completed ? 'Feito para você' : 'Coleções'}
@@ -465,55 +421,39 @@ export default function Home() {
                   : 'Descubra vinhos, experiências e muito mais'
               }
               linkTo="/for-you"
-              linkLabel="Ver todas"
+              linkLabel="Ver tudo"
             />
             {loading ? (
               <>
-                <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide lg:hidden">
-                  {[1,2,3].map(i => (
-                    <div key={i} className="flex-shrink-0 rounded-[18px] animate-pulse"
-                         style={{ width: 200, height: 300, background: '#EDE4D6' }} />
-                  ))}
+                <div className="overflow-hidden -mx-4 px-4 lg:mx-0 lg:px-0 lg:hidden">
+                  <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+                    {[1,2,3,4].map(i => (
+                      <div key={i} className="flex-shrink-0 rounded-2xl animate-pulse"
+                           style={{ width: 160, height: 248, background: '#EDE4D6' }} />
+                    ))}
+                  </div>
                 </div>
                 <div className="hidden lg:grid grid-cols-3 xl:grid-cols-4 gap-4">
                   {[1,2,3,4].map(i => (
-                    <div key={i} className="rounded-[18px] animate-pulse" style={{ height: 300, background: '#EDE4D6' }} />
+                    <div key={i} className="rounded-2xl animate-pulse" style={{ height: 280, background: '#EDE4D6' }} />
                   ))}
                 </div>
               </>
             ) : personalizedCollections.length > 0 ? (
               <>
-                <div className="flex gap-4 overflow-x-auto pb-3 scrollbar-hide lg:hidden">
-                  {personalizedCollections.map((col) => {
-                    const prog = getProgress(col.id);
-                    return (
-                      <div key={col.id} className="flex-shrink-0" style={{ width: 200 }}>
-                        <CollectionCard
-                          id={col.id} title={col.title} coverImage={col.photo}
-                          description={col.tagline ?? ''} contentType={col.content_type}
-                          category={col.category} country={(col.country as any)?.name}
-                          region={(col.region as any)?.name} subRegion={(col.sub_region as any)?.name}
-                          progress={prog.pct} totalItems={prog.total} completedItems={prog.done}
-                          previewPhotos={previewPhotosMap[col.id]} variant="portrait"
-                        />
-                      </div>
-                    );
-                  })}
+                {/* Mobile: horizontal reel (160×248 portrait cards) */}
+                <div className="overflow-hidden -mx-4 px-4 lg:hidden">
+                  <div className="flex gap-3 overflow-x-auto pb-3 scrollbar-hide">
+                    {personalizedCollections.map(col => (
+                      <CollectionReelCard key={col.id} col={col} prog={getProgress(col.id)} size="sm" />
+                    ))}
+                  </div>
                 </div>
+                {/* Desktop: 3–4 column grid (taller cards, full cell width) */}
                 <div className="hidden lg:grid grid-cols-3 xl:grid-cols-4 gap-4">
-                  {personalizedCollections.map((col) => {
-                    const prog = getProgress(col.id);
-                    return (
-                      <CollectionCard
-                        key={col.id} id={col.id} title={col.title} coverImage={col.photo}
-                        description={col.tagline ?? ''} contentType={col.content_type}
-                        category={col.category} country={(col.country as any)?.name}
-                        region={(col.region as any)?.name} subRegion={(col.sub_region as any)?.name}
-                        progress={prog.pct} totalItems={prog.total} completedItems={prog.done}
-                        previewPhotos={previewPhotosMap[col.id]} variant="portrait"
-                      />
-                    );
-                  })}
+                  {personalizedCollections.map(col => (
+                    <CollectionReelCard key={col.id} col={col} prog={getProgress(col.id)} size="lg" />
+                  ))}
                 </div>
               </>
             ) : (
@@ -530,8 +470,10 @@ export default function Home() {
                 linkTo="/explore"
                 linkLabel="Ver tudo"
               />
-              <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide lg:grid lg:grid-cols-3 lg:overflow-visible">
-                {highlights.map((h, i) => <HighlightCard key={h.id} h={h} index={i} />)}
+              <div className="overflow-hidden -mx-4 px-4 lg:mx-0 lg:px-0 lg:overflow-visible">
+                <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide lg:grid lg:grid-cols-3 lg:overflow-visible">
+                  {highlights.map((h, i) => <HighlightCard key={h.id} h={h} index={i} />)}
+                </div>
               </div>
             </section>
           )}
@@ -702,7 +644,7 @@ function HighlightCard({ h, index }: { h: HighlightRow; index: number }) {
           </span>
         </div>
         {/* Title */}
-        <p className="absolute bottom-3 left-3 right-3 text-white font-semibold text-sm leading-snug line-clamp-2"
+        <p className="absolute bottom-3 left-3 right-3 text-white font-semibold text-sm leading-snug"
            style={{ fontFamily: '"Fraunces", Georgia, serif' }}>
           {h.label}
         </p>
@@ -943,5 +885,96 @@ function GuestCard({ title, text, cta, to }: {
         {cta}
       </Link>
     </div>
+  );
+}
+
+// ── Collection reel card (used in "Feito para você" section) ──────────────
+function CollectionReelCard({
+  col, prog, size,
+}: {
+  col: CollectionRow;
+  prog: { total: number; done: number; pct: number };
+  size: 'sm' | 'lg';
+}) {
+  const typeLabel = CONTENT_TYPE_LABELS[col.content_type] ?? col.content_type;
+  const isSm = size === 'sm';
+  return (
+    <Link
+      to={`/collection/${col.id}`}
+      style={{
+        flexShrink: isSm ? 0 : undefined,
+        width: isSm ? 160 : '100%',
+        height: isSm ? 248 : 280,
+        textDecoration: 'none', display: 'block',
+      }}
+    >
+      <div style={{
+        position: 'relative', width: '100%', height: '100%',
+        borderRadius: 16, overflow: 'hidden',
+        boxShadow: '0 4px 20px rgba(28,18,9,0.14)',
+        background: '#1C1209',
+      }}>
+        <img
+          src={col.photo || FALLBACK} alt={col.title}
+          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+          onError={e => { (e.target as HTMLImageElement).src = FALLBACK; }}
+        />
+        <div style={{
+          position: 'absolute', inset: 0,
+          background: 'linear-gradient(to top, rgba(10,4,2,0.92) 0%, rgba(10,4,2,0.28) 55%, transparent 100%)',
+        }} />
+        {typeLabel && (
+          <div style={{ position: 'absolute', top: 10, left: 10 }}>
+            <span style={{
+              background: 'rgba(255,255,255,0.18)', backdropFilter: 'blur(6px)',
+              color: '#fff', fontSize: 9, fontWeight: 700,
+              letterSpacing: '0.10em', textTransform: 'uppercase',
+              padding: '3px 9px', borderRadius: 99,
+            }}>{typeLabel}</span>
+          </div>
+        )}
+        {prog.done > 0 && (
+          <div style={{ position: 'absolute', top: 10, right: 10 }}>
+            <span style={{
+              background: 'rgba(45,74,62,0.88)', color: '#fff',
+              fontSize: 9, fontWeight: 700, padding: '3px 8px', borderRadius: 99,
+            }}>✓ {prog.done}/{prog.total}</span>
+          </div>
+        )}
+        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: isSm ? '0 12px 14px' : '0 16px 18px' }}>
+          {col.category && (
+            <p style={{
+              fontSize: 9, fontWeight: 700, letterSpacing: '0.10em',
+              textTransform: 'uppercase', color: 'rgba(255,255,255,0.55)', marginBottom: 3,
+            }}>{col.category}</p>
+          )}
+          <p style={{
+            fontFamily: '"Fraunces",Georgia,serif',
+            fontSize: isSm ? 14 : 16, fontWeight: 700,
+            color: '#fff', lineHeight: 1.2,
+            display: '-webkit-box', WebkitLineClamp: 3,
+            WebkitBoxOrient: 'vertical', overflow: 'hidden',
+            marginBottom: col.tagline ? 4 : (prog.pct > 0 ? 6 : 0),
+          }}>{col.title}</p>
+          {col.tagline && (
+            <p style={{
+              fontSize: 10, color: 'rgba(255,255,255,0.58)', lineHeight: 1.35,
+              display: '-webkit-box', WebkitLineClamp: 1,
+              WebkitBoxOrient: 'vertical', overflow: 'hidden',
+              marginBottom: prog.pct > 0 ? 6 : 0,
+            }}>{col.tagline}</p>
+          )}
+          {prog.pct > 0 && (
+            <div style={{ height: 2, borderRadius: 99, background: 'rgba(255,255,255,0.18)' }}>
+              <div style={{
+                height: '100%', borderRadius: 99,
+                background: 'linear-gradient(90deg, #6BF5A0, #2DD4BF)',
+                width: `${Math.max(prog.pct, 4)}%`,
+              }} />
+            </div>
+          )}
+        </div>
+      </div>
+    </Link>
   );
 }

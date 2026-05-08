@@ -142,7 +142,7 @@ export function CollectionCard({
 
             {/* Title */}
             <h3
-              className="font-bold leading-snug line-clamp-2 mb-1"
+              className="font-bold leading-snug mb-1"
               style={{
                 fontFamily: '"Fraunces", Georgia, serif',
                 fontSize: '1rem',
@@ -229,7 +229,7 @@ export function CollectionCard({
                 {typeLabel ?? 'Coleção'}{category ? ` · ${category}` : ''}
               </p>
               <h3
-                className="font-bold leading-snug line-clamp-2 mb-0.5"
+                className="font-bold leading-snug mb-0.5"
                 style={{ fontFamily: '"Fraunces", Georgia, serif', fontSize: '0.92rem', color: '#1C1209' }}
               >
                 {title}

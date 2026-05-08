@@ -355,7 +355,7 @@ function ReelSlide({
                 <p style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.10em', textTransform: 'uppercase', color: '#B0906A', marginBottom: 2 }}>
                   {item.type ?? (item.itemType === 'wine' ? 'Vinho' : item.itemType === 'experience' ? 'Exp.' : 'Vinícola')}
                 </p>
-                <p style={{ fontFamily: '"Fraunces",Georgia,serif', fontSize: 11, fontWeight: 700, color: '#1C1209', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', lineHeight: 1.35 }}>
+                <p style={{ fontFamily: '"Fraunces",Georgia,serif', fontSize: 11, fontWeight: 700, color: '#1C1209', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden', lineHeight: 1.35 }}>
                   {item.name}
                 </p>
               </div>

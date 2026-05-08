@@ -100,7 +100,7 @@ function ItemCard({ item, collections, filterType }: { item: ItemRow; collection
         }
       </div>
       <div className="flex-1 min-w-0">
-        <p className="font-semibold text-sm leading-tight line-clamp-1"
+        <p className="font-semibold text-sm leading-tight line-clamp-2"
            style={{ color: '#1C1209', fontFamily: '"Fraunces", Georgia, serif' }}>{item.name}</p>
         {item.winery && <p className="text-xs mt-0.5" style={{ color: '#7A6855' }}>{item.winery.name}</p>}
         {item.type && (
