@@ -1113,14 +1113,14 @@ function ReelSlide({
         </div>
       )}
 
-      {/* Cards carousel — cards stretch to full area height, 5:7 aspect ratio */}
+      {/* Cards carousel — explicit width per card so iOS Safari renders consistently */}
       <div style={{
         flex: 1, minHeight: 0,
         background: 'linear-gradient(to bottom, #EDE4D6 0%, #E2D5BE 100%)',
         overflowX: 'auto', display: 'flex', gap: 12,
         padding: '12px 16px',
         scrollbarWidth: 'none',
-        alignItems: 'stretch',
+        alignItems: 'center',
       }}>
         {items.length === 0 ? (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1 }}>
@@ -1132,6 +1132,7 @@ function ReelSlide({
             <div
               key={item.itemId}
               style={{
+                width: 'clamp(150px, 44vw, 200px)',
                 aspectRatio: '5 / 7',
                 flexShrink: 0,
                 borderRadius: 18, overflow: 'hidden',
@@ -1153,9 +1154,8 @@ function ReelSlide({
                   style={{
                     position: 'absolute', inset: 0,
                     width: '100%', height: '100%',
-                    objectFit: isWine ? 'contain' : 'cover',
+                    objectFit: 'cover',
                     objectPosition: 'center center',
-                    padding: isWine ? '8px 0' : 0,
                   }}
                   onError={imgFallback}
                 />
