@@ -35,6 +35,8 @@ import AdminsAdmin from "./backoffice/pages/Admins";
 import WineSubmissionsAdmin from "./backoffice/pages/WineSubmissions";
 
 import Explore from "./pages/Explore";
+import ForYou from "./pages/ForYou";
+import Minha from "./pages/Minha";
 import SearchPage from "./pages/SearchPage";
 import Achievements from "./pages/Achievements";
 import WineDetail from "./pages/WineDetail";
@@ -94,6 +96,15 @@ export const router = createBrowserRouter([
     Component: Root,
     children: [
       { index: true,                    Component: Home              },
+      { path: "for-you",                Component: ForYou            },
+      {
+        path: "minha",
+        element: (
+          <ProtectedRoute>
+            <Minha />
+          </ProtectedRoute>
+        ),
+      },
       { path: "explore",                Component: Explore           },
       { path: "search",                 Component: SearchPage        },
       { path: "achievements",           Component: Achievements      },

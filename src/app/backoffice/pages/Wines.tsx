@@ -18,7 +18,7 @@ type Wine = {
 
 type Winery = { id: string; name: string };
 type Grape  = { id: string; name: string; type: string };
-type WineGrape = { grape_id: string; percentage: number | null };
+type WineGrape = { grape_id: string };
 
 const CATEGORIES = ['Essencial', 'Fugir do óbvio', 'Ícones'];
 const TYPES = ['Tinto', 'Branco', 'Rosé', 'Espumante', 'Fortificado', 'Laranja', 'Sobremesa'];
@@ -47,17 +47,12 @@ function GrapeComposition({
     ), [allGrapes, composition, search]);
 
   const addGrape = (grape_id: string) => {
-    onChange([...composition, { grape_id, percentage: null }]);
+    onChange([...composition, { grape_id }]);
     setSearch('');
   };
 
   const removeGrape = (grape_id: string) =>
     onChange(composition.filter(c => c.grape_id !== grape_id));
-
-  const setPct = (grape_id: string, pct: string) =>
-    onChange(composition.map(c =>
-      c.grape_id === grape_id ? { ...c, percentage: pct ? Number(pct) : null } : c
-    ));
 
   return (
     <div className="space-y-2">
@@ -71,13 +66,6 @@ function GrapeComposition({
               🍇 {grape.name}
               <span className="text-xs text-neutral-500 ml-1">· {grape.type}</span>
             </span>
-            <input
-              type="number" min={1} max={100}
-              value={c.percentage ?? ''}
-              onChange={e => setPct(c.grape_id, e.target.value)}
-              placeholder="%" className="w-16 h-8 px-2 text-sm border border-neutral-200 rounded-lg outline-none focus:border-purple-500 text-center"
-            />
-            <span className="text-xs text-neutral-400">%</span>
             <button type="button" onClick={() => removeGrape(c.grape_id)}
               className="p-1 text-neutral-400 hover:text-red-500 transition-colors">
               <X size={14} />
@@ -160,7 +148,7 @@ export default function Wines() {
       .from('wine_grapes')
       .select('grape_id, percentage')
       .eq('wine_id', r.id);
-    setComposition((wg ?? []).map((x: any) => ({ grape_id: x.grape_id, percentage: x.percentage })));
+    setComposition((wg ?? []).map((x: any) => ({ grape_id: x.grape_id })));
     setError(''); setModalOpen(true);
   };
 
@@ -197,11 +185,14 @@ export default function Wines() {
     }
 
     // Sync grape composition
-    await supabase.from('wine_grapes').delete().eq('wine_id', wineId);
+    const { error: delErr } = await supabase.from('wine_grapes').delete().eq('wine_id', wineId);
+    if (delErr) { setError('Erro ao atualizar uvas: ' + delErr.message); setSaving(false); return; }
+
     if (composition.length > 0) {
-      await supabase.from('wine_grapes').insert(
-        composition.map(c => ({ wine_id: wineId, grape_id: c.grape_id, percentage: c.percentage ?? null }))
+      const { error: insErr } = await supabase.from('wine_grapes').insert(
+        composition.map(c => ({ wine_id: wineId, grape_id: c.grape_id }))
       );
+      if (insErr) { setError('Erro ao salvar uvas: ' + insErr.message); setSaving(false); return; }
     }
 
     setModalOpen(false); load();
@@ -263,7 +254,7 @@ export default function Wines() {
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-neutral-50 border-b border-neutral-200 text-left">
-                <th className="px-4 py-3 text-xs font-semibold text-neutral-500 uppercase tracking-wide w-14 hidden sm:table-cell">Foto</th>
+                <th className="px-4 py-3 text-xs font-semibold text-neutral-500 uppercase tracking-wide w-16 hidden sm:table-cell">Foto</th>
                 <th className="px-4 py-3 text-xs font-semibold text-neutral-500 uppercase tracking-wide">Nome</th>
                 <th className="px-4 py-3 text-xs font-semibold text-neutral-500 uppercase tracking-wide hidden sm:table-cell">Tipo</th>
                 <th className="px-4 py-3 text-xs font-semibold text-neutral-500 uppercase tracking-wide hidden md:table-cell">Categoria</th>
@@ -275,11 +266,13 @@ export default function Wines() {
             <tbody>
               {filteredRows.map((r, i) => (
                 <tr key={r.id} className={`border-b border-neutral-100 last:border-0 ${i % 2 ? 'bg-neutral-50/50' : ''}`}>
-                  <td className="px-4 py-3 hidden sm:table-cell">
+                  <td className="px-4 py-2 hidden sm:table-cell">
                     {r.photo ? (
-                      <img src={r.photo} alt={r.name} className="w-10 h-10 rounded-lg object-cover border border-neutral-200" />
+                      <div className="w-10 h-16 rounded-lg border border-neutral-200 overflow-hidden flex items-center justify-center" style={{ background: '#F5F0E8' }}>
+                        <img src={r.photo} alt={r.name} className="w-full h-full object-contain" style={{ padding: '4px 6px' }} />
+                      </div>
                     ) : (
-                      <div className="w-10 h-10 rounded-lg bg-neutral-100 border border-neutral-200 flex items-center justify-center text-neutral-300 text-xs">—</div>
+                      <div className="w-10 h-16 rounded-lg bg-neutral-100 border border-neutral-200 flex items-center justify-center text-neutral-300 text-xs">—</div>
                     )}
                   </td>
                   <td className="px-4 py-3 font-medium text-neutral-900">{r.name}</td>

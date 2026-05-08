@@ -1,21 +1,21 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router';
-import { Home, Compass, Users, Trophy, User, Search, GlassWater, Plus } from 'lucide-react';
+import { Home, Compass, User, Search, Plus, Sparkles } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 const NAV_LINKS = [
-  { path: '/',             label: 'Início',     Icon: Home    },
-  { path: '/explore',      label: 'Explorar',   Icon: Compass },
-  { path: '/brotherhoods', label: 'Confrarias', Icon: Users   },
-  { path: '/achievements', label: 'Conquistas', Icon: Trophy  },
+  { path: '/',        label: 'Início',          Icon: Home     },
+  { path: '/for-you', label: 'Feito para você', Icon: Sparkles },
+  { path: '/explore', label: 'Explorar',        Icon: Compass  },
+  { path: '/minha',   label: 'Minha',           Icon: User     },
 ];
 
 const MOBILE_NAV_LEFT = [
-  { path: '/',        label: 'Início',   Icon: Home       },
-  { path: '/explore', label: 'Explorar', Icon: Compass    },
+  { path: '/',        label: 'Início',          Icon: Home     },
+  { path: '/for-you', label: 'Para você',       Icon: Sparkles },
 ];
 const MOBILE_NAV_RIGHT = [
-  { path: '/adega',   label: 'Adega',   Icon: GlassWater },
-  { path: '/profile', label: 'Perfil',  Icon: User       },
+  { path: '/explore', label: 'Explorar', Icon: Compass },
+  { path: '/minha',   label: 'Minha',    Icon: User    },
 ];
 
 function WineArchIcon({ size = 28, color = '#6B0035' }: { size?: number; color?: string }) {
@@ -55,6 +55,15 @@ function useActive() {
   const { pathname } = useLocation();
   return (path: string) => {
     if (path === '/') return pathname === '/';
+    if (path === '/minha') {
+      return (
+        pathname.startsWith('/minha') ||
+        pathname.startsWith('/adega') ||
+        pathname.startsWith('/profile') ||
+        pathname.startsWith('/achievements')
+      );
+    }
+    if (path === '/for-you') return pathname.startsWith('/for-you');
     return pathname.startsWith(path);
   };
 }
@@ -132,9 +141,9 @@ export default function Root() {
               <Search className="w-5 h-5" strokeWidth={isActive('/search') ? 2.5 : 2} />
             </button>
             <button
-              onClick={() => navigate('/profile')}
+              onClick={() => navigate('/minha')}
               className="w-9 h-9 rounded-full flex items-center justify-center transition-colors overflow-hidden"
-              style={isActive('/profile')
+              style={isActive('/minha')
                 ? { background: '#F8EBF1', color: '#6B0035' }
                 : { background: '#EDE4D6', color: '#7A6855' }}
             >
@@ -145,7 +154,7 @@ export default function Root() {
                   className="w-9 h-9 rounded-full object-cover"
                 />
               ) : (
-                <User className="w-5 h-5" strokeWidth={isActive('/profile') ? 2.5 : 2} />
+                <User className="w-5 h-5" strokeWidth={isActive('/minha') ? 2.5 : 2} />
               )}
             </button>
           </div>
@@ -172,12 +181,7 @@ export default function Root() {
           Content
           ═══════════════════════════════════════════════════════ */}
       <main className="lg:pb-0 pb-20">
-        <div className="hidden lg:block">
-          <Outlet />
-        </div>
-        <div className="lg:hidden">
-          <Outlet />
-        </div>
+        <Outlet />
       </main>
 
       {/* ═══════════════════════════════════════════════════════

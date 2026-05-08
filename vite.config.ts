@@ -41,6 +41,10 @@ export default defineConfig({
         ],
       },
       workbox: {
+        // Exclude large WASM/ONNX model files from precache
+        // (@imgly/background-removal ships ~50 MB of ML model assets)
+        globIgnores: ['**/*.wasm', '**/*.onnx'],
+        maximumFileSizeToCacheInBytes: 4 * 1024 * 1024, // 4 MB safety net
         // Cache Google Fonts
         runtimeCaching: [
           {

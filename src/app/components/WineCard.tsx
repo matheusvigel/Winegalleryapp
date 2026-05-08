@@ -44,7 +44,7 @@ export function WineCard({ id, name, imageUrl, brandName, wineType, region, year
 
         {/* Info */}
         <div className="p-3 bg-white/80 backdrop-blur-sm">
-          <h3 className="font-semibold text-gray-900 text-sm mb-0.5 line-clamp-2">{name}</h3>
+          <h3 className="font-semibold text-gray-900 text-sm mb-0.5 line-clamp-3">{name}</h3>
           {(brandName || wineType || year) && (
             <p className="text-xs text-gray-600 mb-1.5">
               {brandName}{(brandName && (wineType || year)) ? ' • ' : ''}{year ?? wineType}

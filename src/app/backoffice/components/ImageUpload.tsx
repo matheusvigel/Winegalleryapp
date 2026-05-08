@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { processAndUpload } from '../../../lib/imageUtils';
-import { getFalKey, saveFalKey, transformToWatercolor } from '../../../lib/falUtils';
-import { ImagePlus, X, Loader2, Link, Upload, Palette, ChevronRight, Key } from 'lucide-react';
+import { getFalKey, saveFalKey, transformToWatercolor, removeImageBackground } from '../../../lib/falUtils';
+import { ImagePlus, X, Loader2, Link, Upload, Palette, ChevronRight, Key, Eraser } from 'lucide-react';
 
 interface Props {
   value: string;
@@ -111,6 +111,22 @@ export default function ImageUpload({ value, onChange }: Props) {
     runGeneration(key);
   };
 
+  // ── Background removal only ───────────────────────────────────────────────
+  const runBgRemoval = async () => {
+    setGeneratingWc(true);
+    setWcError('');
+    setWcResult('');
+    try {
+      const url = await removeImageBackground(value, setWcStatus);
+      setWcResult(url);
+    } catch (e) {
+      setWcError(e instanceof Error ? e.message : 'Erro desconhecido');
+    } finally {
+      setGeneratingWc(false);
+      setWcStatus('');
+    }
+  };
+
   const saveKey = () => {
     const trimmed = keyDraft.trim();
     if (!trimmed) return;
@@ -189,26 +205,45 @@ export default function ImageUpload({ value, onChange }: Props) {
 
         <p className="text-xs text-neutral-400 truncate" title={value}>{value}</p>
 
-        {/* Watercolor button */}
-        <button
-          type="button"
-          onClick={generateWatercolor}
-          disabled={generatingWc}
-          className="w-full h-9 flex items-center justify-center gap-2 text-xs font-medium text-purple-700 border border-purple-200 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-        >
-          {generatingWc ? (
-            <>
-              <Loader2 size={13} className="animate-spin" />
-              {wcStatus || 'Gerando aquarela…'}
-            </>
-          ) : (
-            <>
-              <Palette size={13} />
-              Gerar versão aquarela
-              <ChevronRight size={12} className="text-purple-400" />
-            </>
-          )}
-        </button>
+        {/* Action buttons */}
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={generateWatercolor}
+            disabled={generatingWc}
+            className="flex-1 h-9 flex items-center justify-center gap-1.5 text-xs font-medium text-purple-700 border border-purple-200 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            {generatingWc && wcStatus && !wcStatus.startsWith('Removendo') ? (
+              <>
+                <Loader2 size={13} className="animate-spin" />
+                {wcStatus}
+              </>
+            ) : (
+              <>
+                <Palette size={13} />
+                Aquarela
+              </>
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={runBgRemoval}
+            disabled={generatingWc}
+            className="flex-1 h-9 flex items-center justify-center gap-1.5 text-xs font-medium text-teal-700 border border-teal-200 bg-teal-50 hover:bg-teal-100 rounded-lg transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            {generatingWc && wcStatus?.startsWith('Removendo') ? (
+              <>
+                <Loader2 size={13} className="animate-spin" />
+                {wcStatus}
+              </>
+            ) : (
+              <>
+                <Eraser size={13} />
+                Remover fundo
+              </>
+            )}
+          </button>
+        </div>
 
         {/* API key input (shown when key is missing or user wants to change it) */}
         {showKeyInput && (

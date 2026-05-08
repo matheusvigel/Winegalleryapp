@@ -1,3 +1,4 @@
+import { removeBackground } from '@imgly/background-removal';
 import { supabase } from './supabase';
 
 // ── Storage key for persisting the Google AI key in the browser ───────────────
@@ -28,13 +29,36 @@ const MODELS_TO_TRY = [
 const BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 
 // ── Watercolor prompt ─────────────────────────────────────────────────────────
+//
+// Rules:
+//   • Portrait canvas — 600×1800 px (1:3 ratio, matching standard bottle height).
+//   • Bottle fills 85–90% of canvas height; body width ≈ 55–65% of canvas width.
+//   • Full bottle always visible (base to capsule), centered with ~5% margin.
+//   • Pure flat white (#FFFFFF) background — no texture, no shadow, no vignette.
+//
 const WATERCOLOR_PROMPT =
-  'Transform this wine bottle into an elegant watercolor illustration art. ' +
-  'Use a light, clean white or off-white background — do NOT use dark or black backgrounds. ' +
-  'Apply expressive, loose watercolor brushstrokes with soft painterly texture and translucent color layers. ' +
-  'Preserve the bottle shape, label typography, brand name, and all label details accurately. ' +
-  'Romantic, sophisticated fine-art wine illustration style — the same bottle, ' +
-  'reimagined as a hand-painted watercolor artwork on bright white paper.';
+  'Transform this wine bottle photo into an elegant watercolor illustration. ' +
+
+  // ── Canvas / composition ───────────────────────────────────────────────────
+  'Output a tall portrait image exactly 600 pixels wide by 1800 pixels tall (1:3 ratio). ' +
+  'The wine bottle must be centered horizontally and fill approximately 85–90% of ' +
+  'the image height — from its flat base at the very bottom to the top of the capsule. ' +
+  'The bottle body (at its widest point, the shoulder) should span approximately ' +
+  '55–65% of the image width. ' +
+  'Leave a small equal top and bottom margin of approximately 5–7% of the canvas height. ' +
+  'Do NOT crop any part of the bottle. Do NOT zoom in — show the entire bottle. ' +
+
+  // ── Background ─────────────────────────────────────────────────────────────
+  'The background must be a single, flat, pure white color (#FFFFFF). ' +
+  'No paper texture, no cream or off-white tint, no soft gradient, ' +
+  'no vignette, no drop shadow, no checkered pattern, no noise. ' +
+  'Just a clean, bright, neutral white — like a professional product photo studio background. ' +
+
+  // ── Style ──────────────────────────────────────────────────────────────────
+  'Apply expressive, loose watercolor brushstrokes with soft painterly texture ' +
+  'and translucent color layers. Preserve the bottle silhouette, label ' +
+  'typography, brand name, and all label details accurately. ' +
+  'Romantic, sophisticated fine-art wine illustration style.';
 
 // ── Helper: fetch any URL and return base64 + mimeType ───────────────────────
 async function imageUrlToBase64(url: string): Promise<{ base64: string; mimeType: string }> {
@@ -123,7 +147,41 @@ async function callGemini(
   return extractImagePart(parts);
 }
 
-// ── Main function ─────────────────────────────────────────────────────────────
+// ── Background removal only ───────────────────────────────────────────────────
+
+/**
+ * Removes the background from any image URL and re-uploads the result
+ * as a transparent PNG to Supabase Storage.
+ * Use this when the image is already in the desired style (e.g. watercolor
+ * uploaded manually) and you only need the background stripped.
+ */
+export async function removeImageBackground(
+  imageUrl: string,
+  onStatus?: (msg: string) => void,
+): Promise<string> {
+  // 1. Fetch source image as a Blob
+  onStatus?.('Carregando imagem…');
+  const res = await fetch(imageUrl);
+  if (!res.ok) throw new Error(`Não foi possível carregar a imagem (${res.status}).`);
+  const sourceBlob = await res.blob();
+
+  // 2. Remove background → transparent PNG
+  onStatus?.('Removendo fundo…');
+  const transparentBlob = await removeBackground(sourceBlob);
+
+  // 3. Upload to Supabase Storage
+  onStatus?.('Salvando…');
+  const path = `${crypto.randomUUID()}/nobg.png`;
+  const { error: uploadErr } = await supabase.storage
+    .from('wine-images')
+    .upload(path, transparentBlob, { contentType: 'image/png' });
+  if (uploadErr) throw new Error(`Erro ao salvar: ${uploadErr.message}`);
+
+  const { data: urlData } = supabase.storage.from('wine-images').getPublicUrl(path);
+  return urlData.publicUrl;
+}
+
+// ── Watercolor generation ─────────────────────────────────────────────────────
 
 /**
  * Sends an image to Google Gemini (Nano Banana) to generate a watercolor version,
@@ -165,21 +223,33 @@ export async function transformToWatercolor(
     );
   }
 
-  // 3. base64 → Blob → upload to Supabase Storage
-  onStatus?.('Salvando versão aquarela…');
-  const ext       = imagePart.mime.includes('jpeg') ? 'jpg' : 'png';
+  // 3. base64 → Blob
+  const mime      = imagePart.mime.includes('jpeg') ? 'image/jpeg' : 'image/png';
   const byteChars = atob(imagePart.base64);
   const byteArr   = new Uint8Array(byteChars.length);
   for (let i = 0; i < byteChars.length; i++) byteArr[i] = byteChars.charCodeAt(i);
-  const blob = new Blob([byteArr], { type: imagePart.mime });
+  const watercolorBlob = new Blob([byteArr], { type: mime });
 
-  const path = `${crypto.randomUUID()}/watercolor.${ext}`;
+  // 4. Remove background → transparent PNG
+  // removeBackground downloads the ML model (~50 MB) on the first call
+  // and caches it in the browser for subsequent calls.
+  onStatus?.('Removendo fundo…');
+  let finalBlob: Blob = watercolorBlob;
+  try {
+    finalBlob = await removeBackground(watercolorBlob);
+  } catch (bgErr) {
+    console.warn('[BgRemoval] Falhou, usando imagem sem remoção de fundo:', bgErr);
+  }
+
+  // 5. Upload to Supabase Storage — always PNG (removeBackground always outputs PNG)
+  onStatus?.('Salvando versão aquarela…');
+  const path = `${crypto.randomUUID()}/watercolor.png`;
   const { error: uploadErr } = await supabase.storage
     .from('wine-images')
-    .upload(path, blob, { contentType: imagePart.mime });
+    .upload(path, finalBlob, { contentType: 'image/png' });
 
   if (uploadErr) throw new Error(`Erro ao salvar: ${uploadErr.message}`);
 
-  const { data } = supabase.storage.from('wine-images').getPublicUrl(path);
-  return data.publicUrl;
+  const { data: urlData } = supabase.storage.from('wine-images').getPublicUrl(path);
+  return urlData.publicUrl;
 }

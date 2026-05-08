@@ -145,6 +145,32 @@ export async function toggleTried(
 }
 
 /**
+ * Save or update a user's review (rating 1-5, notes, photo_url) for an item.
+ * Requires migration: ALTER TABLE user_progress
+ *   ADD COLUMN IF NOT EXISTS rating SMALLINT CHECK (rating BETWEEN 1 AND 5),
+ *   ADD COLUMN IF NOT EXISTS notes TEXT,
+ *   ADD COLUMN IF NOT EXISTS photo_url TEXT;
+ */
+export async function saveReview(
+  userId: string,
+  itemId: string,
+  itemType: string,
+  opts: { rating?: number; notes?: string; photoUrl?: string },
+): Promise<void> {
+  const patch: Record<string, unknown> = {
+    user_id: userId, item_id: itemId, item_type: itemType, completed: true,
+  };
+  if (opts.rating   != null) patch.rating    = opts.rating;
+  if (opts.notes    != null) patch.notes     = opts.notes;
+  if (opts.photoUrl != null) patch.photo_url = opts.photoUrl;
+  try {
+    await supabase.from('user_progress').upsert(patch, { onConflict: 'user_id,item_id' });
+  } catch {
+    // Columns may not exist yet — run the migration above in Supabase SQL Editor.
+  }
+}
+
+/**
  * Convenience: toggle "favorite" state and award points.
  */
 export async function toggleFavorite(
