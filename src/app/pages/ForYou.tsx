@@ -1030,6 +1030,7 @@ function ReelSlide({
                   <img
                     src={item.photo || FALLBACK} alt={item.name}
                     style={{
+                      position: 'absolute', inset: 0,
                       width: '100%', height: '100%',
                       objectFit: isWine ? 'contain' : 'cover',
                       padding: isWine ? '12px 0' : 0,
@@ -1150,6 +1151,7 @@ function ReelSlide({
                 <img
                   src={item.photo || FALLBACK} alt={item.name}
                   style={{
+                    position: 'absolute', inset: 0,
                     width: '100%', height: '100%',
                     objectFit: isWine ? 'contain' : 'cover',
                     objectPosition: 'center center',
